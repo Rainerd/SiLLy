@@ -1,18 +1,41 @@
 #!/usr/bin/perl
 
 # --------------------------------------------------------------------
+"Copyright (c) 2004 by Rainer Blome
+
+Copying and usage conditions for this document are specified by
+Rainer's Open License, Version 1, in file LICENSE.txt.
+
+In short, you may use or copy this document as long as you:
+o Keep this copyright and permission notice.
+o Use it ,,as is``, at your own risk -- there is NO WARRANTY WHATSOEVER.
+o Do not use my name in advertising.
+o Allow free copying of derivatives.
+";
+
+# 24.11.04 17:47:32
+# --------------------------------------------------------------------
 "Parses, according to the given grammar, the given input. Produces an
 appropriately structured hash. 
 
-TODO:
 
-o Make it work
-  - Use a kind of iterator for the input state - looks like this is working
-  - Handle tokenized input
+Design
+
+Uses a kind of iterator for the input state.
+
+Handles tokenized input.
+
+Backtracking of state in case of mismatch
+
 
 FIXME:
-o Add backtracking of state in case of mismatch
+o tuple rule attribute 'elements' is empty
 o Catch EOS in all matching functions
+
+TODO
+
+o Automate regression tests
+o Add more regression tests
 
 ";
 
@@ -21,6 +44,9 @@ use strict;
 use English;
 
 # --------------------------------------------------------------------
+#push(@INC, "~/comp/Log-Log4perl-0.49/blib/lib");
+#use lib "~/comp/Log-Log4perl-0.49/blib/lib";
+use lib "/home1/ffm/blome/comp/Log-Log4perl-0.49/blib/lib";
 use Log::Log4perl qw(:easy);
 use Data::Dumper;
 
@@ -90,16 +116,66 @@ c: 4
 # CAVEAT: you should resist the temptation to call this 'dump'
 # -- Instead of calling this function, Perl will dump core.
 sub varstring($$) {
- my ($name, $val)= @_;
- Data::Dumper->Dump([$val], [$name]);
+    my ($name, $val)= @_;
+    Data::Dumper->Dump([$val], [$name]);
 }
 
 # --------------------------------------------------------------------
-my $print_type;
-#$print_type= 1;
-sub print_type($$) {
-    my ($log, $obj)= @ARG;
-    if ($print_type) { $log->debug("(type='$obj->{_}')"); }
+# CAVEAT: you should resist the temptation to call this 'dump'
+# -- Instead of calling this function, Perl will dump core.
+sub vardescr($$) {
+    my ($name, $val)= @_;
+    if (ref($val) eq "HASH"
+        && exists($val->{name})
+        && undef == ref($val->{name}))
+    {
+        return ("$name: $val->{name}\n");
+    }
+    varstring($name, $val);
+}
+
+# --------------------------------------------------------------------
+# Conditional logging of results
+my $log_result;
+#$log_result= 1;
+sub log_result($$) {
+    my ($log, $result)= @ARG;
+    if ($log_result) {
+        $log->debug("Type='$result->{_}':");
+        $log->debug(varstring('result',$result));
+    }
+}
+
+# --------------------------------------------------------------------
+sub log_args($$$)
+{
+    my ($log, $context, $argl)= @ARG;
+    #$log->debug("running");
+    #$log->debug($context . ': ' . varstring('ARG',\@ARG));
+    if ('ARRAY' ne ref($argl)) {
+        die("log_args: second argument is not an array reference: "
+            . ref($argl) . " $argl\n");
+    }
+    #return;
+    my @description= map {
+        #print("item: $ARG\n");
+        vardescr('', $ARG);
+    } @$argl;
+    $log->debug("$context: @description");
+}
+
+# --------------------------------------------------------------------
+my $def_log;
+# --------------------------------------------------------------------
+sub def($$)
+{
+    my $log= $def_log;
+    my ($name,$val)= @ARG;
+    $log->debug(varstring('val',$val));
+    eval("\$::$name=\$val;");
+    #$::def_val_= $val; eval("\$::$name=\$::def_val_;");
+    $val->{name}= $name;
+    $log->debug("Defined '$name' as $val.");
 }
 
 # --------------------------------------------------------------------
@@ -118,12 +194,11 @@ my $terminal_log;
 sub terminal($)
 {
     my $log= $terminal_log;
-    #$log->debug(varstring('ARG',\@ARG));
+    log_args($log, 'NAME_NOT_YET_SET', \@ARG);
     
     my $result= { pattern => $ARG[0], _ => $log->{name}};
     $log->debug(varstring('pattern',$result->{pattern}));
-    #$log->debug("result=$result");
-    print_type($log, $result);
+    log_result($log, $result);
     return $result;
 }
 
@@ -134,10 +209,7 @@ sub terminal_match($$)
 {
     my $log= $terminal_match_log;
     my ($t, $state)= @ARG;
-    #$log->debug("running");
-    $log->debug("$t->{name}: \@ARG='@ARG'");
-    #$log->debug(varstring('ARG',\@ARG));
-    #$log->debug(varstring('state', $state));
+    log_args($log, $t->{name}, \@ARG);
     
     my $input= $state->{input};
     my $pos= $state->{pos};
@@ -194,16 +266,11 @@ my $construction_log;
 sub construction
 {
     my $log= $construction_log;
-    $log->debug("running");
-    #$log->debug("\@ARG='@ARG'");
-    $log->debug(varstring('ARG',\@ARG));
+    log_args($log, 'NAME_NOT_YET_SET', \@ARG);
     
-    #my $result= { _ => $log->{name}, elements => \@ARG };
-    my $result= { elements => \@ARG };
-    $result->{_}= $log->{name};
+    my $result= { _ => $log->{name}, elements => \@ARG };
     $log->debug(varstring('elements',$result->{elements}));
-    #$log->debug("result=$result");
-    print_type($log, $result);
+    log_result($log, $result);
     return $result;
 }
 
@@ -214,7 +281,8 @@ sub construction_match($$)
 {
     my $log= $construction_match_log;
     my ($t, $state)= @ARG;
-    $log->debug("\@ARG='@ARG'");
+    #$log->debug("\@ARG='@ARG'");
+    log_args($log, $t->{name}, \@ARG);
     #$log->debug(varstring('ARG',\@ARG));
     #$log->debug("$t->{name}");
     $log->debug("$t->{name}: state->pos=$state->{pos}");
@@ -250,10 +318,11 @@ my $alternation_log;
 sub alternation
 {
     my $log= $alternation_log;
-    #$log->debug("'@ARG'");
+    #$log->debug("\@ARG='@ARG'");
+    log_args($log, 'NAME_NOT_YET_SET', \@ARG);
     my $result= { _ => $log->{name}, elements => \@ARG };
     $log->debug(varstring('elements',$result->{elements}));
-    print_type($log, $result);
+    log_result($log, $result);
     return $result;
 }
 
@@ -264,7 +333,10 @@ sub alternation_match($$)
 {
     my $log= $alternation_match_log;
     my ($t, $state)= @ARG;
-    $log->debug("$t->{name}: \@ARG='@ARG'");
+    # FIXME: Q: Move argument logging to 'match'?
+    # A: No, then we can not control logging locally.
+    #$log->debug("$t->{name}: \@ARG='@ARG'");
+    log_args($log, $t->{name}, \@ARG);
     #$log->debug(varstring('ARG',\@ARG));
     #$log->debug("$t->{name}");
     $log->debug("$t->{name}: state->pos=$state->{pos}");
@@ -298,9 +370,10 @@ sub optional($)
 {
     my $log= $optional_log;
     #$log->debug("'@ARG'");
+    log_args($log, 'NAME_NOT_YET_SET', \@ARG);
     my $result= { _ => $log->{name}, element => $ARG[0] };
     $log->debug(varstring('element',$result->{element}));
-    print_type($log, $result);
+    log_result($log, $result);
     return $result;
 }
 
@@ -311,7 +384,8 @@ sub optional_match($$)
 {
     my $log= $optional_match_log;
     my ($t, $state)= @ARG;
-    $log->debug("$t->{name}: \@ARG='@ARG'");
+    #$log->debug("$t->{name}: \@ARG='@ARG'");
+    log_args($log, $t->{name}, \@ARG);
     #$log->debug(varstring('ARG',\@ARG));
     #$log->debug("$t->{name}");
     $log->debug("$t->{name}: state->pos=$state->{pos}");
@@ -337,11 +411,12 @@ my $pelist_log;
 sub pelist($$)
 {
     my $log= $pelist_log;
-    $log->debug("\@ARG='@ARG'");
+    #$log->debug("\@ARG='@ARG'");
+    log_args($log, 'NAME_NOT_YET_SET', \@ARG);
     my $result= { _ => $log->{name}, element => $ARG[0], separator => $ARG[1] };
-    $log->debug(varstring('element',$result->{element})
-           . varstring('separator',$result->{separator}));
-    print_type($log, $result);
+    $log->debug(varstring('element',$result->{element}));
+    $log->debug(varstring('separator',$result->{separator}));
+    log_result($log, $result);
     return $result;
 }
 # --------------------------------------------------------------------
@@ -351,7 +426,8 @@ sub pelist_match($$)
 {
     my $log= $pelist_match_log;
     my ($t, $state)= @ARG;
-    $log->debug("$t->{name}: \@ARG='@ARG'");
+    #$log->debug("$t->{name}: \@ARG='@ARG'");
+    log_args($log, $t->{name}, \@ARG);
     my $element=   $t->{element};
     my $separator= $t->{separator};
     #$log->debug("$t->{name}");
@@ -373,11 +449,12 @@ my $nelist_log;
 sub nelist($$)
 {
     my $log= $nelist_log;
-    $log->debug(varstring('ARG',\@ARG));
+    #$log->debug(varstring('ARG',\@ARG));
+    log_args($log, 'NAME_NOT_YET_SET', \@ARG);
     my $result= { _ => $log->{name}, element => $ARG[0], separator => $ARG[1] };
-    $log->debug(varstring('element',$result->{element})
-           . varstring('separator',$result->{separator}));
-    print_type($log, $result);
+    $log->debug(varstring('element',$result->{element}));
+    $log->debug(varstring('separator',$result->{separator}));
+    log_result($log, $result);
     return $result;
 }
 
@@ -388,7 +465,8 @@ sub nelist_match($$)
 {
     my $log= $nelist_match_log;
     my ($t, $state)= @ARG;
-    $log->debug("$t->{name}: \@ARG='@ARG'");
+    #$log->debug("$t->{name}: \@ARG='@ARG'");
+    log_args($log, $t->{name}, \@ARG);
     #$log->debug(varstring('ARG',\@ARG));
     my $element=   $t->{element};
     my $separator= $t->{separator};
@@ -437,20 +515,6 @@ sub handle_item
 {
     printf("$ARG");
     return;
-}
-
-# --------------------------------------------------------------------
-my $def_log;
-# --------------------------------------------------------------------
-sub def($$)
-{
-    my $log= $def_log;
-    my ($name,$val)= @ARG;
-    #$log->debug(varstring('val',$val));
-    eval("\$::$name=\$val;");
-    #$::def_val_= $val; eval("\$::$name=\$::def_val_;");
-    $val->{name}= $name;
-    $log->debug("Defined '$name' as $val.");
 }
 
 # --------------------------------------------------------------------
