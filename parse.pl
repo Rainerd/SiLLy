@@ -103,6 +103,16 @@ sub print_type($$) {
 }
 
 # --------------------------------------------------------------------
+sub eoi($) {
+    my ($state)= @_;
+    my $input= $state->{input};
+    #my $pos= $state->{pos};
+    return (undef == ref($input) 
+	    ? length($input)-1 < $state->{pos}
+	    : $#{@$input} < $state->{pos} );
+}
+
+# --------------------------------------------------------------------
 my $terminal_log;
 # --------------------------------------------------------------------
 sub terminal($)
@@ -134,12 +144,16 @@ sub terminal_match($$)
     #my ($match)= $input =~ m{^($t->{pattern})}g;
     my $match;
     #$log->debug("$t->{name}: ref(input)=" . ref($input) . ".");
+    if (eoi($state)) {
+	$log->info("$t->{name}: End Of Input reached");
+	return (undef);
+    }
     if ('ARRAY' eq ref($input)) {
 	$log->debug("$t->{name}: state->pos=$state->{pos}, input[0]->name=", $ {@$input}[0]->{name});
-	if ($#{@$input} < $pos) {
-	    $log->info("$t->{name}: End of input reached");
-	    return (undef);
-	}
+	#if ($#{@$input} < $pos) {
+	#    $log->info("$t->{name}: End of input reached");
+	#    return (undef);
+	#}
 	$match= $ {@$input}[$pos];
 	if ($t == $match->{_}) {
 	    #$log->debug("$t->{name}: matched token: " . varstring('match', $match));
@@ -155,6 +169,10 @@ sub terminal_match($$)
 	}
     } else {
 	$log->debug("$t->{name}: state->pos=$state->{pos}, substr(input, pos)=", substr($input, $pos));
+	#if (length($input)-1 < $pos) {
+	#    $log->info("$t->{name}: End Of Input reached");
+	#    return (undef);
+	#}
 	($match)= substr($input, $pos) =~ m{^($t->{pattern})}g;
 	if (defined($match))  {
 	    $log->debug("$t->{name}: matched text: '$match'");
@@ -250,6 +268,10 @@ sub alternation_match($$)
     #$log->debug(varstring('ARG',\@ARG));
     #$log->debug("$t->{name}");
     $log->debug("$t->{name}: state->pos=$state->{pos}");
+    if (eoi($state)) {
+	$log->info("$t->{name}: End Of Input reached");
+	return (undef);
+    }
 
     # foreach $element in $t->{elements}
     map {
