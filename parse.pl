@@ -2,7 +2,19 @@
 
 # --------------------------------------------------------------------
 "Parses, according to the given grammar, the given input. Produces an
-appropriately structured hash. ";
+appropriately structured hash. 
+
+TODO:
+
+o Make it work
+  - Use a kind of iterator for the input state - looks like this is working
+  - Handle tokenized input
+
+FIXME:
+o Add backtracking of state in case of mismatch
+o Catch EOS in all matching functions
+
+";
 
 # --------------------------------------------------------------------
 use strict;
@@ -27,7 +39,7 @@ sub new
     $self->{logger}= Log::Log4perl::get_logger($name)
 	|| die("$name: Could not get logger.\n");
     #print("$name: Got logger: " . join(', ', keys(%{$self->{logger}})) . "\n");
-    $self->{logger}->debug("$name: constructed.");
+    $self->{logger}->debug("Logger constructed: $name.");
     return $self;
 }
 
@@ -37,7 +49,14 @@ sub info($) {
     my $ctx= #ref($self) .
         "$self->{name}";
     #print("$ctx: @_\n");
-    $self->{logger}->info("$ctx: @_\n");
+    $self->{logger}->info("$ctx: @_");
+}
+
+# --------------------------------------------------------------------
+sub debug($) {
+    my ($self)= shift;
+    my $ctx= "$self->{name}";
+    $self->{logger}->debug("$ctx: @_");
 }
 
 # --------------------------------------------------------------------
@@ -70,7 +89,7 @@ c: 4
 # --------------------------------------------------------------------
 # CAVEAT: you should resist the temptation to call this 'dump'
 # -- Instead of calling this function, Perl will dump core.
-sub varshow($$) {
+sub varstring($$) {
  my ($name, $val)= @_;
  Data::Dumper->Dump([$val], [$name]);
 }
@@ -79,8 +98,8 @@ sub varshow($$) {
 my $print_type;
 #$print_type= 1;
 sub print_type($$) {
-    my ($context, $obj)= @ARG;
-    if ($print_type) { printf("$context: (type='$obj->{_}')\n"); }
+    my ($log, $obj)= @ARG;
+    if ($print_type) { $log->debug("(type='$obj->{_}')"); }
 }
 
 # --------------------------------------------------------------------
@@ -89,13 +108,12 @@ my $terminal_log;
 sub terminal($)
 {
     my $log= $terminal_log;
-    my $context= 'terminal';
-    #printf("$context: " . varshow('ARG',\@ARG) . "\n");
+    #$log->debug(varstring('ARG',\@ARG));
     
-    my $result= { element => $ARG[0], _ => $context};
-    printf("$context: " . varshow('element',$result->{element}) . "\n");
-    #printf("$context: result=$result\n");
-    print_type($context, $result);
+    my $result= { pattern => $ARG[0], _ => $log->{name}};
+    $log->debug(varstring('pattern',$result->{pattern}));
+    #$log->debug("result=$result");
+    print_type($log, $result);
     return $result;
 }
 
@@ -105,20 +123,50 @@ my $terminal_match_log;
 sub terminal_match($$)
 {
     my $log= $terminal_match_log;
-    my $context= 'terminal_match';
     my ($t, $state)= @ARG;
-    #printf("$context: running\n");
-    #printf("$context: \@ARG='@ARG'\n");
-    printf("$context: " . varshow('ARG',\@ARG) . "\n");
+    #$log->debug("running");
+    $log->debug("$t->{name}: \@ARG='@ARG'");
+    #$log->debug(varstring('ARG',\@ARG));
+    #$log->debug(varstring('state', $state));
     
-    my ($match)= $state->{input} =~ m{($t->{element})};
-    if (defined($match))  {
-	print("$context: matched text: '$match'\n");
-	my $result= {_=>$t, text=>$match};
-	return ($result);
+    my $input= $state->{input};
+    my $pos= $state->{pos};
+    #my ($match)= $input =~ m{^($t->{pattern})}g;
+    my $match;
+    #$log->debug("$t->{name}: ref(input)=" . ref($input) . ".");
+    if ('ARRAY' eq ref($input)) {
+	$log->debug("$t->{name}: state->pos=$state->{pos}, input[0]->name=", $ {@$input}[0]->{name});
+	if ($#{@$input} < $pos) {
+	    $log->info("$t->{name}: End of input reached");
+	    return (undef);
+	}
+	$match= $ {@$input}[$pos];
+	if ($t == $match->{_}) {
+	    #$log->debug("$t->{name}: matched token: " . varstring('match', $match));
+	    $log->debug("$t->{name}: matched token: $t->{name}, text: '$match->{text}'");
+	    my $result= $match;
+	    $state->{pos}= $pos + 1;
+	    #$log->debug(varstring('state', $state));
+	    $log->debug("$t->{name}: state->pos=$state->{pos}");
+	    return ($result);
+	} else {
+	    $log->debug("$t->{name}: token not matched: '$t->{name}'");
+	    return (undef);
+	}
     } else {
-	print("$context: not matched: '$t->{element}'\n");
-	return (undef);
+	$log->debug("$t->{name}: state->pos=$state->{pos}, substr(input, pos)=", substr($input, $pos));
+	($match)= substr($input, $pos) =~ m{^($t->{pattern})}g;
+	if (defined($match))  {
+	    $log->debug("$t->{name}: matched text: '$match'");
+	    my $result= {_=>$t, text=>$match};
+	    $state->{pos}= $pos + length($match);
+	    #$log->debug(varstring('state', $state));
+	    $log->debug("$t->{name}: state->pos=$state->{pos}");
+	    return ($result);
+	} else {
+	    $log->debug("$t->{name}: pattern not matched: '$t->{pattern}'");
+	    return (undef);
+	}
     }
 }
 
@@ -128,22 +176,55 @@ my $construction_log;
 sub construction
 {
     my $log= $construction_log;
-    my $context= 'construction';
-    printf("$context: running\n");
-    #printf("$context: \@ARG='@ARG'\n");
-    printf("$context: " . varshow('ARG',\@ARG) . "\n");
+    $log->debug("running");
+    #$log->debug("\@ARG='@ARG'");
+    $log->debug(varstring('ARG',\@ARG));
     
-    #my $result= { _ => $context, elements => \@ARG };
+    #my $result= { _ => $log->{name}, elements => \@ARG };
     my $result= { elements => \@ARG };
-    $result->{_}= $context;
-    printf("$context: " . varshow('elements',$result->{elements}) . "\n");
-    #printf("$context: result=$result\n");
-    print_type($context, $result);
+    $result->{_}= $log->{name};
+    $log->debug(varstring('elements',$result->{elements}));
+    #$log->debug("result=$result");
+    print_type($log, $result);
     return $result;
 }
 
 # --------------------------------------------------------------------
 my $construction_match_log;
+# --------------------------------------------------------------------
+sub construction_match($$)
+{
+    my $log= $construction_match_log;
+    my ($t, $state)= @ARG;
+    $log->debug("\@ARG='@ARG'");
+    #$log->debug(varstring('ARG',\@ARG));
+    #$log->debug("$t->{name}");
+    $log->debug("$t->{name}: state->pos=$state->{pos}");
+    my $result= [];
+    my $saved_pos= $state->{pos};
+
+    # foreach $element in $t->{elements}
+    map {
+	my $i= $_;
+	$log->debug("$t->{name}: i=$i");
+	my $element= $ {@{$t->{elements}}}[$i];
+	#$log->debug(varstring('element', $element));
+	$log->debug("$t->{name}: element=$element->{name}");
+	my ($match)= match($element, $state);
+	if ( ! defined($match)) {
+	    # FIXME: Is this the best place to put backtracking?
+	    $state->{pos}= $saved_pos;
+	    return (undef);
+	}
+	#$log->debug("$t->{name}: matched element: " . varstring($i,$element));
+	$log->debug("$t->{name}: matched element $i: $element->{name}");
+	#$log->debug("$t->{name}: element value: " . varstring('match', $match));
+	push(@$result, $match);
+    } (0 .. $#{@{$t->{elements}}});
+    $log->debug("$t->{name}: matched: '$t->{name}'");
+    $log->debug(varstring('result', $result));
+    return ($result);
+}
 
 # --------------------------------------------------------------------
 my $alternation_log;
@@ -151,11 +232,10 @@ my $alternation_log;
 sub alternation
 {
     my $log= $alternation_log;
-    my $context= 'alternation';
-    #printf("$context: '@ARG'\n");
-    my $result= { _ => $context, elements => \@ARG };
-    printf("$context: " . varshow('elements',$result->{elements}) . "\n");
-    print_type($context, $result);
+    #$log->debug("'@ARG'");
+    my $result= { _ => $log->{name}, elements => \@ARG };
+    $log->debug(varstring('elements',$result->{elements}));
+    print_type($log, $result);
     return $result;
 }
 
@@ -166,23 +246,26 @@ sub alternation_match($$)
 {
     my $log= $alternation_match_log;
     my ($t, $state)= @ARG;
-    #$log->debug("$context: \@ARG='@ARG'\n");
-    printf("$context: " . varshow('ARG',\@ARG) . "\n");
+    $log->debug("$t->{name}: \@ARG='@ARG'");
+    #$log->debug(varstring('ARG',\@ARG));
+    #$log->debug("$t->{name}");
+    $log->debug("$t->{name}: state->pos=$state->{pos}");
 
     # foreach $element in $t->{elements}
     map {
 	my $i= $_;
-	print("i=$i\n");
+	$log->debug("$t->{name}: i=$i");
 	my $element= $ {@{$t->{elements}}}[$i];
-	print(varshow('element', $element));
+	#$log->debug(varstring('element', $element));
+	$log->debug("$t->{name}: element=$element->{name}");
 	my ($match)= match($element, $state);
 	if ($match)  {
-	    print("$context: matched element: " . varshow($i,$element));
-	    print("$context: matched text: '$match'\n");
+	    #$log->debug("$t->{name}: matched element: " . varstring($i,$element));
+	    $log->debug("$t->{name}: matched value: " . varstring('match', $match));
 	    return ($match);
 	}
     } (0 .. $#{@{$t->{elements}}});
-    print("$context: not matched: '$t->{name}'\n");
+    $log->debug("$t->{name}: not matched: '$t->{name}'");
     return (undef);
 }
 
@@ -192,16 +275,39 @@ my $optional_log;
 sub optional($)
 {
     my $log= $optional_log;
-    my $context= 'optional';
-    #printf("$context: '@ARG'\n");
-    my $result= { _ => $context, element => $ARG[0] };
-    printf("$context: " . varshow('element',$result->{element}) . "\n");
-    print_type($context, $result);
+    #$log->debug("'@ARG'");
+    my $result= { _ => $log->{name}, element => $ARG[0] };
+    $log->debug(varstring('element',$result->{element}));
+    print_type($log, $result);
     return $result;
 }
 
 # --------------------------------------------------------------------
 my $optional_match_log;
+# --------------------------------------------------------------------
+sub optional_match($$)
+{
+    my $log= $optional_match_log;
+    my ($t, $state)= @ARG;
+    $log->debug("$t->{name}: \@ARG='@ARG'");
+    #$log->debug(varstring('ARG',\@ARG));
+    #$log->debug("$t->{name}");
+    $log->debug("$t->{name}: state->pos=$state->{pos}");
+    my $element= $t->{element};
+    #$log->debug(varstring('element', $element));
+    $log->debug("$t->{name}: element=$element->{name}");
+
+    # FIXME: Add backtracking of state in case of mismatch
+
+    my ($match)= match($element, $state);
+    if (defined($match)) {
+	#$log->debug("$t->{name}: matched element: " . varstring($i,$element));
+	$log->debug("$t->{name}: matched " . varstring('value', $match));
+	return ($match);
+    }
+    $log->debug("$t->{name}: not matched: '$t->{name}' (resulting in empty string)");
+    return ('');
+}
 
 # --------------------------------------------------------------------
 my $pelist_log;
@@ -209,16 +315,35 @@ my $pelist_log;
 sub pelist($$)
 {
     my $log= $pelist_log;
-    my $context= 'pelist';
-    printf("$context: '@ARG'\n");
-    my $result= { _ => $context, element => $ARG[0], separator => $ARG[1] };
-    printf("$context: " . varshow('element',$result->{element})
-           . varshow('separator',$result->{separator}) . "\n");
-    print_type($context, $result);
+    $log->debug("\@ARG='@ARG'");
+    my $result= { _ => $log->{name}, element => $ARG[0], separator => $ARG[1] };
+    $log->debug(varstring('element',$result->{element})
+           . varstring('separator',$result->{separator}));
+    print_type($log, $result);
     return $result;
 }
 # --------------------------------------------------------------------
 my $pelist_match_log;
+# --------------------------------------------------------------------
+sub pelist_match($$)
+{
+    my $log= $pelist_match_log;
+    my ($t, $state)= @ARG;
+    $log->debug("$t->{name}: \@ARG='@ARG'");
+    my $element=   $t->{element};
+    my $separator= $t->{separator};
+    #$log->debug("$t->{name}");
+    $log->debug("$t->{name}: state->pos=$state->{pos}");
+
+    my $result= [];
+    while (1) {
+	my ($match)= match($element, $state);
+	if ( ! defined($match)) { return ($result); }
+	push(@$result, $match);
+	($match)= match($separator, $state);
+	if ( ! defined($match)) { return ($result); }
+    }
+}
 
 # --------------------------------------------------------------------
 my $nelist_log;
@@ -226,17 +351,40 @@ my $nelist_log;
 sub nelist($$)
 {
     my $log= $nelist_log;
-    my $context= 'nelist';
-    printf("$context: " . varshow('ARG',\@ARG) . "\n");
-    my $result= { _ => $context, element => $ARG[0], separator => $ARG[1] };
-    printf("$context: " . varshow('element',$result->{element})
-           . varshow('separator',$result->{separator}) . "\n");
-    print_type($context, $result);
+    $log->debug(varstring('ARG',\@ARG));
+    my $result= { _ => $log->{name}, element => $ARG[0], separator => $ARG[1] };
+    $log->debug(varstring('element',$result->{element})
+           . varstring('separator',$result->{separator}));
+    print_type($log, $result);
     return $result;
 }
 
 # --------------------------------------------------------------------
 my $nelist_match_log;
+# --------------------------------------------------------------------
+sub nelist_match($$)
+{
+    my $log= $nelist_match_log;
+    my ($t, $state)= @ARG;
+    $log->debug("$t->{name}: \@ARG='@ARG'");
+    #$log->debug(varstring('ARG',\@ARG));
+    my $element=   $t->{element};
+    my $separator= $t->{separator};
+    #$log->debug("$t->{name}");
+    $log->debug("$t->{name}: state->pos=$state->{pos}");
+
+    my $result= [];
+    while (1) {
+	my ($match)= match($element, $state);
+	if ( ! defined($match)) {
+	    if (0 > $#{@$result}) { return (undef); }
+	    else { return ($result); }
+	}
+	push(@$result, $match);
+	($match)= match($separator, $state);
+	if ( ! defined($match)) { return ($result); }
+    }
+}
 
 # --------------------------------------------------------------------
 my $match_log;
@@ -244,21 +392,28 @@ my $match_log;
 sub match($$)
 {
     my $log= $match_log;
-    my $context= 'match';
     my ($t, $state)= @ARG;
-    if ('terminal' eq $t->{_}) {
+    if ('terminal' eq $t->{_}) { 
 	return (terminal_match($t, $state));
     } elsif ('alternation' eq $t->{_}) {
 	return (alternation_match($t, $state));
+    } elsif ('construction' eq $t->{_}) {
+	return (construction_match($t, $state));
+    } elsif ('optional' eq $t->{_}) {
+	return (optional_match($t, $state));
+    } elsif ('nelist' eq $t->{_}) {
+	return (nelist_match($t, $state));
+    } elsif ('pelist' eq $t->{_}) {
+	return (pelist_match($t, $state));
     } else {
-	die("$context: Unsupported type $t->{_}");
+	die("$log->{name}: Unsupported type " . varstring('t->_', $t->{_}));
     }
 }
 
 # --------------------------------------------------------------------
 sub handle_item
 {
-    printf("$ARG\n");
+    printf("$ARG");
     return;
 }
 
@@ -269,11 +424,11 @@ sub def($$)
 {
     my $log= $def_log;
     my ($name,$val)= @ARG;
-    #print(varshow('val',$val) . "\n");
+    #$log->debug(varstring('val',$val));
     eval("\$::$name=\$val;");
     #$::def_val_= $val; eval("\$::$name=\$::def_val_;");
     $val->{name}= $name;
-    print("defined '$name' as $val.\n\n");
+    $log->debug("Defined '$name' as $val.");
 }
 
 # --------------------------------------------------------------------
@@ -281,7 +436,8 @@ my $main_log;
 
 # --------------------------------------------------------------------
 sub init {
-    Log::Log4perl->easy_init($INFO);
+    #Log::Log4perl->easy_init($INFO);
+    Log::Log4perl->easy_init($DEBUG);
     #$logger= get_logger();
     #$logger->info("Running...");
     #if (scalar(@_) > 0) { info(vdump('Args', \@_)); }
@@ -316,11 +472,10 @@ sub main
 {
     init();
     my $log= $main_log;
-    my $context= 'main';
     
     # Test 'def'
     def 'foo', {elt=>'bar'};
-    print(varshow('',$::foo) . "\n");
+    $log->debug(varstring('',$::foo));
     #assert($::foo->{elt} eq 'bar');
 
     (1 == $#ARG) or die($usage);
@@ -332,42 +487,72 @@ sub main
     my $grammar= <GRAMMAR>;
     $INPUT_RECORD_SEPARATOR= "";
     close(GRAMMAR);
-    print("grammar='$grammar'\n");
+    $log->debug("grammar='$grammar'");
 
-    print("\n---Evaluating grammar...\n");
+    $log->debug("---Evaluating grammar...");
     #eval($grammar);
     #use $grammar_filename;
     require $grammar_filename;
-    print("Evaluated - program=$::program.\n");
+    $log->debug(varstring('exprlist', $::exprlist));
+    $log->debug("Evaluated - program=$::program.");
 
     my $state;
     my $result;
 
-    print("\n---Testing terminal_match...\n");
-    $state= { input => 'blah 123' };
+    $log->debug("--- Testing terminal_match...");
+    $state= { input => 'blah 123 456', pos=>0 };
     $result= terminal_match($::name, $state);
-    print("$context: " . varshow('tm name result', $result));
-    print("$context: " . varshow('state', $state));
+    $log->debug(varstring('tm name result', $result));
+    $log->debug(varstring('state', $state));
+    $result= terminal_match($::whitespace, $state);
+    $log->debug(varstring('tm whitespace result 1', $result));
+    $log->debug(varstring('state', $state));
     $result= terminal_match($::number, $state);
-    print("$context: " . varshow('tm number result', $result));
-    print("$context: " . varshow('state', $state));
+    $log->debug(varstring('tm number result 1', $result));
+    $log->debug(varstring('state', $state));
+    $result= terminal_match($::whitespace, $state);
+    $log->debug(varstring('tm whitespace result 2', $result));
+    $log->debug(varstring('state', $state));
+    $result= terminal_match($::number, $state);
+    $log->debug(varstring('tm number result 2', $result));
+    $log->debug(varstring('state', $state));
 
-    print("\n---Testing alternation_match...\n");
-    $state= { input => 'blah 123' };
+    $log->debug("--- Testing alternation_match...");
+    $state= { input => 'blah 123', pos=>0 };
     $result= alternation_match($::token, $state);
-    print("$context: " . varshow('am token result 1', $result));
-    print("$context: " . varshow('state', $state));
-    $result= alternation_match($::token, $state);
-    print("$context: " . varshow('am token result 2', $result));
-    print("$context: " . varshow('state', $state));
+    $log->debug(varstring('am token result 1', $result));
+    $log->debug(varstring('state', $state));
+    $result= match($::whitespace, $state);
+    $log->debug(varstring('match whitespace result 1', $result));
+    $log->debug(varstring('state', $state));
+    $result= match($::token, $state);
+    $log->debug(varstring('match token result 2', $result));
+    $log->debug(varstring('state', $state));
 
-    print("\n$context: Reading input file...\n");
+    $log->debug("--- Testing tokenization...");
+    $state= { input => 'blah "123"  456', pos=>0 };
+    $result= match($::tokenlist, $state);
+    $log->debug(varstring('match tokenlist result 1', $result));
+    $log->debug(varstring('state', $state));
+    #$state= { input => 'blah ("123", xyz(456 * 2)); end;', pos=>0 };
+    $state= { input => 'blah.("123", xyz.(456.*.2)); end;', pos=>0 };
+    $result= match($::tokenlist, $state);
+    $log->debug(varstring('match tokenlist result 2', $result));
+    $log->debug(varstring('state', $state));
+
+    $log->debug("--- Testing program...");
+    $state= { input => $result, pos=>0 };
+    $result= match($::program, $state);
+    $log->debug(varstring('match program result', $result));
+    $log->debug(varstring('state', $state));
+
+    $log->debug("Reading input file...");
     my $input= shift();
     open(INPUT, "< $input") or die("Can't open \`$input'.");
-    $INPUT_RECORD_SEPARATOR= "---\n";
+    $INPUT_RECORD_SEPARATOR= "---";
     while (<INPUT>)
     {
-        #print("item=\"$ARG\";\n");
+        #$log->debug("item=\"$ARG\";");
         handle_item($ARG);
     }
     $INPUT_RECORD_SEPARATOR= "";
