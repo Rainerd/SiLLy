@@ -13,7 +13,6 @@ o Do not use my name in advertising.
 o Allow free copying of derivatives.
 ";
 
-# 24.11.04 17:47:32
 # --------------------------------------------------------------------
 "Parses, according to the given grammar, the given input. Produces an
 appropriately structured hash. 
@@ -150,10 +149,11 @@ sub log_result($$) {
 sub log_args($$$)
 {
     my ($log, $context, $argl)= @ARG;
-    #$log->debug("running");
-    #$log->debug($context . ': ' . varstring('ARG',\@ARG));
+    #$log->debug("$context: running");
+    $log->debug("$context: \@ARG=@{$argl}");
+    #$log->debug("$context: " . varstring('ARG',\@ARG));
     if ('ARRAY' ne ref($argl)) {
-        die("log_args: second argument is not an array reference: "
+        die("$context: log_args: second argument is not an array reference: "
             . ref($argl) . " $argl\n");
     }
     #return;
@@ -268,7 +268,8 @@ sub construction
     my $log= $construction_log;
     log_args($log, 'NAME_NOT_YET_SET', \@ARG);
     
-    my $result= { _ => $log->{name}, elements => \@ARG };
+    #my $result= { _ => $log->{name}, elements => \@ARG };
+    my $result= { _ => $log->{name}, elements => [@ARG] };
     $log->debug(varstring('elements',$result->{elements}));
     log_result($log, $result);
     return $result;
@@ -281,10 +282,7 @@ sub construction_match($$)
 {
     my $log= $construction_match_log;
     my ($t, $state)= @ARG;
-    #$log->debug("\@ARG='@ARG'");
     log_args($log, $t->{name}, \@ARG);
-    #$log->debug(varstring('ARG',\@ARG));
-    #$log->debug("$t->{name}");
     $log->debug("$t->{name}: state->pos=$state->{pos}");
     my $result= [];
     my $saved_pos= $state->{pos};
@@ -318,9 +316,9 @@ my $alternation_log;
 sub alternation
 {
     my $log= $alternation_log;
-    #$log->debug("\@ARG='@ARG'");
     log_args($log, 'NAME_NOT_YET_SET', \@ARG);
-    my $result= { _ => $log->{name}, elements => \@ARG };
+    #my $result= { _ => $log->{name}, elements => \@ARG };
+    my $result= { _ => $log->{name}, elements => [@ARG] };
     $log->debug(varstring('elements',$result->{elements}));
     log_result($log, $result);
     return $result;
@@ -335,10 +333,7 @@ sub alternation_match($$)
     my ($t, $state)= @ARG;
     # FIXME: Q: Move argument logging to 'match'?
     # A: No, then we can not control logging locally.
-    #$log->debug("$t->{name}: \@ARG='@ARG'");
     log_args($log, $t->{name}, \@ARG);
-    #$log->debug(varstring('ARG',\@ARG));
-    #$log->debug("$t->{name}");
     $log->debug("$t->{name}: state->pos=$state->{pos}");
     if (eoi($state)) {
 	$log->info("$t->{name}: End Of Input reached");
@@ -369,7 +364,6 @@ my $optional_log;
 sub optional($)
 {
     my $log= $optional_log;
-    #$log->debug("'@ARG'");
     log_args($log, 'NAME_NOT_YET_SET', \@ARG);
     my $result= { _ => $log->{name}, element => $ARG[0] };
     $log->debug(varstring('element',$result->{element}));
@@ -384,10 +378,7 @@ sub optional_match($$)
 {
     my $log= $optional_match_log;
     my ($t, $state)= @ARG;
-    #$log->debug("$t->{name}: \@ARG='@ARG'");
     log_args($log, $t->{name}, \@ARG);
-    #$log->debug(varstring('ARG',\@ARG));
-    #$log->debug("$t->{name}");
     $log->debug("$t->{name}: state->pos=$state->{pos}");
     my $element= $t->{element};
     #$log->debug(varstring('element', $element));
@@ -411,7 +402,6 @@ my $pelist_log;
 sub pelist($$)
 {
     my $log= $pelist_log;
-    #$log->debug("\@ARG='@ARG'");
     log_args($log, 'NAME_NOT_YET_SET', \@ARG);
     my $result= { _ => $log->{name}, element => $ARG[0], separator => $ARG[1] };
     $log->debug(varstring('element',$result->{element}));
@@ -426,11 +416,9 @@ sub pelist_match($$)
 {
     my $log= $pelist_match_log;
     my ($t, $state)= @ARG;
-    #$log->debug("$t->{name}: \@ARG='@ARG'");
     log_args($log, $t->{name}, \@ARG);
     my $element=   $t->{element};
     my $separator= $t->{separator};
-    #$log->debug("$t->{name}");
     $log->debug("$t->{name}: state->pos=$state->{pos}");
 
     my $result= [];
@@ -449,7 +437,6 @@ my $nelist_log;
 sub nelist($$)
 {
     my $log= $nelist_log;
-    #$log->debug(varstring('ARG',\@ARG));
     log_args($log, 'NAME_NOT_YET_SET', \@ARG);
     my $result= { _ => $log->{name}, element => $ARG[0], separator => $ARG[1] };
     $log->debug(varstring('element',$result->{element}));
@@ -465,12 +452,9 @@ sub nelist_match($$)
 {
     my $log= $nelist_match_log;
     my ($t, $state)= @ARG;
-    #$log->debug("$t->{name}: \@ARG='@ARG'");
     log_args($log, $t->{name}, \@ARG);
-    #$log->debug(varstring('ARG',\@ARG));
     my $element=   $t->{element};
     my $separator= $t->{separator};
-    #$log->debug("$t->{name}");
     $log->debug("$t->{name}: state->pos=$state->{pos}");
 
     my $result= [];
@@ -579,8 +563,9 @@ sub main
     #eval($grammar);
     #use $grammar_filename;
     require $grammar_filename;
-    $log->debug(varstring('exprlist', $::exprlist));
-    $log->debug("Evaluated - program=$::program.");
+    #$log->debug(varstring('exprlist', $::exprlist));
+    $log->debug("Grammar evaluated.");
+    $log->debug("program=$::program.");
 
     my $state;
     my $result;
