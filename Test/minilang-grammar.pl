@@ -1,34 +1,34 @@
+# --------------------------------------------------------------------
 #use strict;
 use English;
 
 package main;
 
-#my $whitespace= terminal('\s+');
+# --------------------------------------------------------------------
 def whitespace, terminal('\s+');
-#my $owhite= optional($whitespace);
 def owhite, optional($whitespace);
 
-#my $comma= construction($owhite, ',', $owhite);
-#def comma, construction($owhite, ',', $owhite);
-def comma, terminal(',');
-#my $semicolon= construction($owhite, ';', $owhite);
-#def semicolon, construction($owhite, ';', $owhite);
+def period, terminal('\.');
+def comma,  terminal(',');
 def semicolon, terminal(';');
 
-#def lparen, construction($owhite, '(', $owhite);
-def lparen, terminal('(');
-#def rparen, construction($owhite, ')', $owhite);
-def rparen, terminal(')');
+def lparen, terminal('\(');
+def rparen, terminal('\)');
+def lbrack, terminal('\[');
+def rbrack, terminal('\]');
+def lbrace, terminal('\{');
+def rbrace, terminal('\}');
 
 def string, terminal('"[^"]*"');
-def number, terminal('[.\d]+');
-def name, terminal('\w+');
+def number, terminal('[\d]+(?:.[\d]+)?');
+def name, terminal('[-\w^!$%&/=?+*#\':<>|@]+');
 
+def token, alternation($string, $lparen, $number, $comma, $period, $name, $rparen, $semicolon);
+def tokenlist, pelist($token, $owhite);
+
+# --------------------------------------------------------------------
 def literal, alternation($string, $number);
 #def simple_term, alternation($literal, $name);
-
-def token, alternation($string, $lparen, $number, $comma, $name, $rparen, $semicolon);
-def tokenlist, pelist($token, $owhite);
 
 my $chain;
 
@@ -40,19 +40,20 @@ def tuple, construction($lparen, $exprlist, $rparen);
 
 def term, alternation($literal, $name, $tuple);
 
-def chain, nelist($term, $whitespace);
+#def mchain, nelist($term, $whitespace);
+def mchain, nelist($term, $period);
 
-#def expr, construction($chain);
+#def expr, construction($mchain);
 
 # Non-empty list: program ::+ expr
 #def program, nelist($expr, $semicolon);
-def program, nelist($chain, $semicolon);
+def program, nelist($mchain, $semicolon);
 
 print("grammar.pl:");
 print("program='$program'\n");
 
-$exprlist->{element}= $chain;
+$exprlist->{element}= $mchain;
 
-1;
-
+# --------------------------------------------------------------------
 # EOF
+1;
