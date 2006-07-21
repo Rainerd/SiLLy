@@ -1,7 +1,9 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 # --------------------------------------------------------------------
-"Copyright (c) 2004 by Rainer Blome
+=ignore
+
+Copyright (c) 2004-2006 by Rainer Blome
 
 Copying and usage conditions for this document are specified by
 Rainer's Open License, Version 1, in file LICENSE.txt.
@@ -11,10 +13,11 @@ o Keep this copyright and permission notice.
 o Use it ,,as is``, at your own risk -- there is NO WARRANTY WHATSOEVER.
 o Do not use my name in advertising.
 o Allow free copying of derivatives.
-";
 
-# --------------------------------------------------------------------
-"Parses, according to the given grammar, the given input. Produces an
+
+Purpose
+
+Parses, according to the given grammar, the given input. Produces an
 appropriately structured hash. 
 
 
@@ -36,20 +39,54 @@ TODO
 o Automate regression tests
 o Add more regression tests
 
-";
+=cut
 
 # --------------------------------------------------------------------
 use strict;
+#use warnings;
+use diagnostics;
 use English;
 
 # --------------------------------------------------------------------
-#push(@INC, "~/comp/Log-Log4perl-0.49/blib/lib");
-#use lib "~/comp/Log-Log4perl-0.49/blib/lib";
-use lib "/home1/ffm/blome/comp/Log-Log4perl-0.49/blib/lib";
+my $INC_BASE;
+use File::Basename;
+BEGIN { $INC_BASE= dirname($0); }
+#push(@INC, "$INC_BASE/Log-Log4perl-0.49/blib/lib");
+use lib "${INC_BASE}/Log-Log4perl/blib/lib";
+
 use Log::Log4perl qw(:easy);
 use Data::Dumper;
 
+# --------------------------------------------------------------------
+#use Carp::Assert;
+use Carp;
+# --------------------------------------------------------------------
+sub assert($) { if (! $_[0]) { croak("Assertion failed.\n"); } }
+# --------------------------------------------------------------------
+sub should($$) {
+    if ($_[0] ne $_[1]) { croak("'$_[0]' should be '$_[1]' but is not.\n"); }
+}
+# --------------------------------------------------------------------
+#sub shouldn't($$)
+sub shouldnt($$) { # Fix editor's parenthesis matching: }' sub {
+    if ($_[0] eq $_[1]) { croak("'$_[0]' should not be '$_[1]' but is.\n"); }
+}
+
+# --------------------------------------------------------------------
+sub hash_get($$) {
+    my ($hash, $key)= (@_);
+    #local $Carp::CarpLevel; ++$Carp::CarpLevel;
+    assert(defined($hash));
+    #assert(defined($key));
+    assert('' ne ref($hash));
+    #assert("HASH" eq ref($hash)); # false if $hash refers to a blessed object
+    assert(exists($hash->{$key}));
+    $hash->{$key};
+}
+
+# ====================================================================
 package Logger;
+use strict;
 
 # --------------------------------------------------------------------
 sub new
@@ -69,28 +106,43 @@ sub new
 }
 
 # --------------------------------------------------------------------
+sub get_logger($) {
+    my ($self)= (@_);
+    ::assert(exists($self->{logger}));
+    my $log= $self->{logger};
+    ::assert(defined($log));
+    #print(STDERR "ref(log)=".ref($log)."\n");
+    ::assert("Log::Log4perl::Logger" eq ref($log));
+    $log;
+}
+
+# --------------------------------------------------------------------
 sub info($) {
-    my ($self)= shift;
-    my $ctx= #ref($self) .
-        "$self->{name}";
+    my ($self)= (@_);
+    my $ctx= ::hash_get($self, "name");
     #print("$ctx: @_\n");
-    $self->{logger}->info("$ctx: @_");
+    #$self->{logger}->info("$ctx: @_");
+    get_logger($self)->info("$ctx: @_");
 }
 
 # --------------------------------------------------------------------
 sub debug($) {
     my ($self)= shift;
-    my $ctx= "$self->{name}";
-    $self->{logger}->debug("$ctx: @_");
+    my $ctx= ::hash_get($self, "name");
+    #$self->{logger}->debug("$ctx: @_");
+    get_logger($self)->debug("$ctx: @_");
 }
 
 # --------------------------------------------------------------------
 package main;
+use strict;
 
 my $usage="Usage: perl parse.pl grammar.pl in > out";
 
 # --------------------------------------------------------------------
-"Example Grammar:
+=ignore
+
+Example Grammar:
 
 delimiter ::= '---'
 name ::= '\w+'
@@ -109,7 +161,8 @@ Example Input:
 ---
 a: b
 c: 4
-";
+
+=cut
 
 # --------------------------------------------------------------------
 # CAVEAT: you should resist the temptation to call this 'dump'
@@ -124,9 +177,30 @@ sub varstring($$) {
 # -- Instead of calling this function, Perl will dump core.
 sub vardescr($$) {
     my ($name, $val)= @_;
-    if (ref($val) eq "HASH"
+    if ( ! defined($val)) { return ("$name: <UNDEFINED>\n"); }
+    assert(defined($val));
+
+=ignore
+
+    if ( ! defined(ref($val))) { return varstring($name, $val); }
+    assert(defined(ref($val)));
+    #if ("HASH" ne ref($val)) { return varstring($name, $val); }
+    #assert("HASH" eq ref($val));
+    if ( ! exists($val->{name})) { return varstring($name, $val); }
+    assert(exists($val->{name}));
+    if ( ! defined($val->{name})) { return varstring($name, $val); }
+    assert(defined($val->{name}));
+    if (defined(ref($val->{name}))) { return varstring($name, $val); }
+    assert( ! defined(ref($val->{name})));
+
+=cut
+
+    if (defined(ref($val))
+        && "HASH" eq ref($val)
         && exists($val->{name})
-        && undef == ref($val->{name}))
+        && defined($val->{name})
+        && ! defined(ref($val->{name}))
+        )
     {
         return ("$name: $val->{name}\n");
     }
@@ -139,6 +213,9 @@ my $log_result;
 #$log_result= 1;
 sub log_result($$) {
     my ($log, $result)= @ARG;
+    assert(defined($log));
+    assert(ref($log));
+    #assert("HASH" eq ref($log));
     if ($log_result) {
         $log->debug("Type='$result->{_}':");
         $log->debug(varstring('result',$result));
@@ -149,7 +226,12 @@ sub log_result($$) {
 sub log_args($$$)
 {
     my ($log, $context, $argl)= @ARG;
+    assert(defined($log));
+    assert(defined($context));
+    assert($argl);
     #$log->debug("$context: running");
+    #carp(..);
+    $log->debug("$context: \@#ARG=$#{@{$argl}}");
     $log->debug("$context: \@ARG=@{$argl}");
     #$log->debug("$context: " . varstring('ARG',\@ARG));
     if ('ARRAY' ne ref($argl)) {
@@ -159,7 +241,7 @@ sub log_args($$$)
     #return;
     my @description= map {
         #print("item: $ARG\n");
-        vardescr('', $ARG);
+        vardescr('_', $ARG);
     } @$argl;
     $log->debug("$context: @description");
 }
@@ -181,12 +263,32 @@ sub def($$)
 # --------------------------------------------------------------------
 sub eoi($) {
     my ($state)= @_;
-    my $input= $state->{input};
+    #assert(exists($state->{input}));
+    #assert(defined($state->{input}));
+    #my $input= $state->{input};
+    my $input= hash_get($state, "input");
+    assert(defined($input));
     #my $pos= $state->{pos};
-    return (undef == ref($input) 
-	    ? length($input)-1 < $state->{pos}
-	    : $#{@$input} < $state->{pos} );
+    # FIXME: Why doesn't this work?:
+    #if (defined(ref($input)))
+    if (ref($input))
+    {
+        assert(defined(ref($input)));
+        assert("ARRAY" eq ref($input));
+        return ($#{@$input} < $state->{pos});
+    } else {
+        return (length($input)-1 < $state->{pos});
+    }
+
+    return (defined(ref($input))
+	    ? $#{@$input} < $state->{pos}
+	    : length($input)-1 < $state->{pos}
+            );
 }
+
+# --------------------------------------------------------------------
+# Log constructor arguments
+sub log_cargs($$) { log_args($_[0], '', $_[1]); }
 
 # --------------------------------------------------------------------
 my $terminal_log;
@@ -194,7 +296,7 @@ my $terminal_log;
 sub terminal($)
 {
     my $log= $terminal_log;
-    log_args($log, 'NAME_NOT_YET_SET', \@ARG);
+    log_cargs($log, \@ARG);
     
     my $result= { pattern => $ARG[0], _ => $log->{name}};
     $log->debug(varstring('pattern',$result->{pattern}));
@@ -266,7 +368,7 @@ my $construction_log;
 sub construction
 {
     my $log= $construction_log;
-    log_args($log, 'NAME_NOT_YET_SET', \@ARG);
+    log_cargs($log, \@ARG);
     
     #my $result= { _ => $log->{name}, elements => \@ARG };
     my $result= { _ => $log->{name}, elements => [@ARG] };
@@ -316,7 +418,7 @@ my $alternation_log;
 sub alternation
 {
     my $log= $alternation_log;
-    log_args($log, 'NAME_NOT_YET_SET', \@ARG);
+    log_cargs($log, \@ARG);
     #my $result= { _ => $log->{name}, elements => \@ARG };
     my $result= { _ => $log->{name}, elements => [@ARG] };
     $log->debug(varstring('elements',$result->{elements}));
@@ -333,28 +435,35 @@ sub alternation_match($$)
     my ($t, $state)= @ARG;
     # FIXME: Q: Move argument logging to 'match'?
     # A: No, then we can not control logging locally.
-    log_args($log, $t->{name}, \@ARG);
-    $log->debug("$t->{name}: state->pos=$state->{pos}");
+    #assert(defined($t));
+    #assert('' ne ref($t));
+    ##assert("HASH" eq ref($t));
+    #assert(exists ($t->{name}));
+    #assert(defined($t->{name}));
+    my $ctx= hash_get($t, "name");
+    assert(defined($ctx));
+    log_args($log, $ctx, \@ARG);
+    $log->debug("$ctx: state->pos=$state->{pos}");
     if (eoi($state)) {
-	$log->info("$t->{name}: End Of Input reached");
+	$log->info("$ctx: End Of Input reached");
 	return (undef);
     }
 
     # foreach $element in $t->{elements}
     map {
 	my $i= $_;
-	$log->debug("$t->{name}: i=$i");
+	$log->debug("$ctx: i=$i");
 	my $element= $ {@{$t->{elements}}}[$i];
 	#$log->debug(varstring('element', $element));
-	$log->debug("$t->{name}: element=$element->{name}");
+	$log->debug("$ctx: element=$element->{name}");
 	my ($match)= match($element, $state);
 	if ($match)  {
-	    #$log->debug("$t->{name}: matched element: " . varstring($i,$element));
-	    $log->debug("$t->{name}: matched value: " . varstring('match', $match));
+	    #$log->debug("$ctx: matched element: " . varstring($i, $element));
+	    $log->debug("$ctx: matched value: " . varstring('match', $match));
 	    return ($match);
 	}
     } (0 .. $#{@{$t->{elements}}});
-    $log->debug("$t->{name}: not matched: '$t->{name}'");
+    $log->debug("$ctx: not matched: '$ctx'");
     return (undef);
 }
 
@@ -364,7 +473,7 @@ my $optional_log;
 sub optional($)
 {
     my $log= $optional_log;
-    log_args($log, 'NAME_NOT_YET_SET', \@ARG);
+    log_cargs($log, \@ARG);
     my $result= { _ => $log->{name}, element => $ARG[0] };
     $log->debug(varstring('element',$result->{element}));
     log_result($log, $result);
@@ -402,7 +511,7 @@ my $pelist_log;
 sub pelist($$)
 {
     my $log= $pelist_log;
-    log_args($log, 'NAME_NOT_YET_SET', \@ARG);
+    log_cargs($log, \@ARG);
     my $result= { _ => $log->{name}, element => $ARG[0], separator => $ARG[1] };
     $log->debug(varstring('element',$result->{element}));
     $log->debug(varstring('separator',$result->{separator}));
@@ -437,7 +546,7 @@ my $nelist_log;
 sub nelist($$)
 {
     my $log= $nelist_log;
-    log_args($log, 'NAME_NOT_YET_SET', \@ARG);
+    log_cargs($log, \@ARG);
     my $result= { _ => $log->{name}, element => $ARG[0], separator => $ARG[1] };
     $log->debug(varstring('element',$result->{element}));
     $log->debug(varstring('separator',$result->{separator}));
@@ -477,6 +586,9 @@ sub match($$)
 {
     my $log= $match_log;
     my ($t, $state)= @ARG;
+    assert(defined($t));
+    assert('' ne ref($t));
+
     if ('terminal' eq $t->{_}) { 
 	return (terminal_match($t, $state));
     } elsif ('alternation' eq $t->{_}) {
@@ -535,6 +647,176 @@ sub init {
 
     $def_log= Logger->new('def');
     $main_log= Logger->new('main');
+
+    require "minilang-grammar.pl";
+}
+
+# --------------------------------------------------------------------
+sub check_result($$$) {
+    my ($result, $expected_typename, $expected_text)= (@_);
+    assert(defined($expected_typename));
+    assert(defined($expected_text));
+    #$main_log->debug(varstring('result', $result));
+    my $actual_type= hash_get($result, '_');
+    #should(hash_get($actual_type, '_'), 'terminal');
+    my $actual_typename= hash_get($actual_type, 'name');
+    my $actual_text= hash_get($result, "text");
+    should($actual_typename, $expected_typename);
+    should($actual_text,     $expected_text);
+    $main_log->debug("Okayed: $actual_typename, '$actual_text'");
+}
+
+# --------------------------------------------------------------------
+$::Name= $::Name;
+$::foo= $::foo;
+# Suppress 'used only once' warnings
+sub test
+{
+    my $log= $main_log;
+    my $state;
+    my $result;
+
+    $log->debug("--- Testing terminal_match...");
+    $state= { input => 'blah 123  456', pos=>0 };
+    $result= terminal_match($::Name, $state);
+    $log->debug(varstring('tm Name result', $result));
+    $log->debug(varstring('state', $state));
+    #should($result->{_}->{_}, 'terminal');
+    #should($result->{_}->{name}, 'Name');
+    #should($result->{text}, 'blah');
+    check_result($result, 'Name', 'blah');
+
+    $result= terminal_match($::Whitespace, $state);
+    $log->debug(varstring('tm Whitespace result 1', $result));
+    $log->debug(varstring('state', $state));
+    check_result($result, 'Whitespace', ' ');
+
+    $result= terminal_match($::Number, $state);
+    $log->debug(varstring('tm Number result 1', $result));
+    $log->debug(varstring('state', $state));
+    check_result($result, 'Number', '123');
+
+    $result= terminal_match($::Whitespace, $state);
+    $log->debug(varstring('tm Whitespace result 2', $result));
+    $log->debug(varstring('state', $state));
+    check_result($result, 'Whitespace', '  ');
+
+    $result= terminal_match($::Number, $state);
+    $log->debug(varstring('tm Number result 2', $result));
+    $log->debug(varstring('state', $state));
+    check_result($result, 'Number', '456');
+
+    $log->debug("--- Testing alternation_match...");
+    $state= { input => 'blah 123', pos=>0 };
+
+    $result= alternation_match($::Token, $state);
+    $log->debug(varstring('am Token result 1', $result));
+    $log->debug(varstring('state', $state));
+    check_result($result, 'Name', 'blah');
+
+    $result= match($::Whitespace, $state);
+    $log->debug(varstring('match Whitespace result 1', $result));
+    $log->debug(varstring('state', $state));
+    check_result($result, 'Whitespace', ' ');
+
+    $result= match($::Token, $state);
+    $log->debug(varstring('match Token result 2', $result));
+    $log->debug(varstring('state', $state));
+    check_result($result, 'Number', '123');
+
+
+    $log->debug("--- Testing tokenization...");
+    $state= { input => 'blah "123"  456', pos=>0 };
+
+    $result= match($::Tokenlist, $state);
+    $log->debug(varstring('match Tokenlist result 1', $result));
+    $log->debug(varstring('state', $state));
+    check_result($$result[0], 'Name', 'blah');
+    check_result($$result[1], 'String', '"123"');
+    check_result($$result[2], 'Number', '456');
+
+    #$state= { input => 'blah ("123", xyz(456 * 2)); end;', pos=>0 };
+    $state= { input => 'blah.("123", xyz.(456.*.2)); end;', pos=>0 };
+
+    $result= match($::Tokenlist, $state);
+    $log->debug(varstring('match Tokenlist result 2', $result));
+    $log->debug(varstring('state', $state));
+    #check_result($$result[0], 'Name', 'blah');
+    #check_result($$result[1], 'Period', '.');
+    my $i= 0;
+    my $expected=
+        [[ 'Name',      'blah'],
+         [ 'Period',    '.'],
+         [ 'Lparen',    '('],
+         [ 'String',    '"123"'],
+         [ 'Comma',     ','],
+         [ 'Name',      'xyz'],
+         [ 'Period',    '.'],
+         [ 'Lparen',    '('],
+         [ 'Number',    456],
+         [ 'Period',    '.'],
+         [ 'Name',      '*'],
+         [ 'Period',    '.'],
+         [ 'Number',    2],
+         [ 'Rparen',    ')'],
+         [ 'Rparen',    ')'],
+         [ 'Semicolon', ';'],
+         [ 'Name',      'end'],
+         [ 'Semicolon', ';'],
+         ];
+    map {
+        my ($e)= $_;
+        #$log->debug(varstring('e', $e));
+        check_result($$result[$i], $$e[0], $$e[1]);
+        ++$i;
+    } @$expected;
+
+    my $xml= <<"";
+<row>
+				<entry>.1 rtpMIBObjects</entry>
+				<entry>Objekte der &RTP; MIB</entry>
+				<entry></entry>
+</row>
+
+    $state= { input => $xml, pos=>0 };
+
+    $result= match($::Elem, $state);
+    $log->debug(varstring('match Elem result', $result));
+    $log->debug(varstring('state', $state));
+    check_result($result, 'Elem', $state->{input});
+
+    # FIXME: Get this test to work
+    return;
+    $log->debug("--- Testing Program...");
+    $log->debug("Program=$::Program.");
+    $state= { input => $result, pos=>0 };
+    $result= match($::Program, $state);
+    $log->debug(varstring('match Program result', $result));
+    $log->debug(varstring('state', $state));
+}
+
+# --------------------------------------------------------------------
+# Returns the contents of the INPUT filehandle as a string.
+# This should in theory be faster than read_INPUT_join, but is rumored
+# to be not (for documents of our size it does not matter anyway).
+sub read_INPUT_IRS() {
+    my $saved_RS= $INPUT_RECORD_SEPARATOR;
+    undef($INPUT_RECORD_SEPARATOR);
+    my $data= <INPUT>;
+    $INPUT_RECORD_SEPARATOR= $saved_RS;
+    #$log->debug(varstring('data', $data));
+    $data;
+}
+
+# --------------------------------------------------------------------
+sub read_data_old {
+    $INPUT_RECORD_SEPARATOR= "---";
+    while (<INPUT>)
+    {
+        #$log->debug("item=\"$ARG\";");
+        handle_item($ARG);
+    }
+    $INPUT_RECORD_SEPARATOR= "";
 }
 
 # --------------------------------------------------------------------
@@ -557,7 +839,7 @@ sub main
     my $grammar= <GRAMMAR>;
     $INPUT_RECORD_SEPARATOR= "";
     close(GRAMMAR);
-    $log->debug("grammar='$grammar'");
+    #$log->debug("grammar='$grammar'");
 
     $log->debug("---Evaluating grammar...");
     #eval($grammar);
@@ -565,69 +847,23 @@ sub main
     require $grammar_filename;
     #$log->debug(varstring('exprlist', $::exprlist));
     $log->debug("Grammar evaluated.");
-    $log->debug("program=$::program.");
 
-    my $state;
-    my $result;
+    # Run self-test
+    test();
 
-    $log->debug("--- Testing terminal_match...");
-    $state= { input => 'blah 123 456', pos=>0 };
-    $result= terminal_match($::name, $state);
-    $log->debug(varstring('tm name result', $result));
-    $log->debug(varstring('state', $state));
-    $result= terminal_match($::whitespace, $state);
-    $log->debug(varstring('tm whitespace result 1', $result));
-    $log->debug(varstring('state', $state));
-    $result= terminal_match($::number, $state);
-    $log->debug(varstring('tm number result 1', $result));
-    $log->debug(varstring('state', $state));
-    $result= terminal_match($::whitespace, $state);
-    $log->debug(varstring('tm whitespace result 2', $result));
-    $log->debug(varstring('state', $state));
-    $result= terminal_match($::number, $state);
-    $log->debug(varstring('tm number result 2', $result));
-    $log->debug(varstring('state', $state));
-
-    $log->debug("--- Testing alternation_match...");
-    $state= { input => 'blah 123', pos=>0 };
-    $result= alternation_match($::token, $state);
-    $log->debug(varstring('am token result 1', $result));
-    $log->debug(varstring('state', $state));
-    $result= match($::whitespace, $state);
-    $log->debug(varstring('match whitespace result 1', $result));
-    $log->debug(varstring('state', $state));
-    $result= match($::token, $state);
-    $log->debug(varstring('match token result 2', $result));
-    $log->debug(varstring('state', $state));
-
-    $log->debug("--- Testing tokenization...");
-    $state= { input => 'blah "123"  456', pos=>0 };
-    $result= match($::tokenlist, $state);
-    $log->debug(varstring('match tokenlist result 1', $result));
-    $log->debug(varstring('state', $state));
-    #$state= { input => 'blah ("123", xyz(456 * 2)); end;', pos=>0 };
-    $state= { input => 'blah.("123", xyz.(456.*.2)); end;', pos=>0 };
-    $result= match($::tokenlist, $state);
-    $log->debug(varstring('match tokenlist result 2', $result));
-    $log->debug(varstring('state', $state));
-
-    $log->debug("--- Testing program...");
-    $state= { input => $result, pos=>0 };
-    $result= match($::program, $state);
-    $log->debug(varstring('match program result', $result));
-    $log->debug(varstring('state', $state));
-
-    $log->debug("Reading input file...");
+    $log->debug("---Reading input file...");
     my $input= shift();
     open(INPUT, "< $input") or die("Can't open \`$input'.");
-    $INPUT_RECORD_SEPARATOR= "---";
-    while (<INPUT>)
-    {
-        #$log->debug("item=\"$ARG\";");
-        handle_item($ARG);
-    }
-    $INPUT_RECORD_SEPARATOR= "";
+    #read_data_old();
+    my $input_data= read_INPUT_IRS();
     close(INPUT);
+
+    $log->debug("input:\n$input_data");
+    
+    my $state= { input => $input_data, pos=>0 };
+    my $result= match($::Elem, $state);
+    $log->debug(varstring('match Elem result', $result));
+    $log->debug(varstring('state', $state));
 }
 
 # --------------------------------------------------------------------
