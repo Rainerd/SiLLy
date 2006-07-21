@@ -5,52 +5,56 @@ use English;
 package main;
 
 # --------------------------------------------------------------------
-def whitespace, terminal('\s+');
-def owhite, optional($whitespace);
+def Whitespace, terminal('\s+');
+def Owhite, optional($Whitespace);
 
-def period, terminal('\.');
-def comma,  terminal(',');
-def semicolon, terminal(';');
+def Period, terminal('\.');
+def Comma,  terminal(',');
+def Semicolon, terminal(';');
 
-def lparen, terminal('\(');
-def rparen, terminal('\)');
-def lbrack, terminal('\[');
-def rbrack, terminal('\]');
-def lbrace, terminal('\{');
-def rbrace, terminal('\}');
+def Lparen, terminal('\(');
+def Rparen, terminal('\)');
+def Lbrack, terminal('\[');
+def Rbrack, terminal('\]');
+def Lbrace, terminal('\{');
+def Rbrace, terminal('\}');
 
-def string, terminal('"[^"]*"');
-def number, terminal('[\d]+(?:.[\d]+)?');
-def name, terminal('[-\w^!$%&/=?+*#\':<>|@]+');
+def String, terminal('"[^"]*"');
+def Number, terminal('[\d]+(?:.[\d]+)?');
+def Name, terminal('[-\w^!$%&/=?+*#\':<>|@]+');
 
-def token, alternation($string, $lparen, $number, $comma, $period, $name, $rparen, $semicolon);
-def tokenlist, pelist($token, $owhite);
+def Token, alternation($String, $Lparen, $Number, $Comma, $Period, $Name, $Rparen, $Semicolon);
+
+def Tokenlist, pelist($Token, $Owhite);
 
 # --------------------------------------------------------------------
-def literal, alternation($string, $number);
-#def simple_term, alternation($literal, $name);
+def Literal, alternation($String, $Number);
+#def Simple_term, alternation($Literal, $Name);
 
-my $chain;
+#my $Chain;
 
 # Possibly empty list (set): list ::+ e
-#def exprlist, pelist($expr, $comma);
-def exprlist, pelist($chain, $comma);
+#def Exprlist, pelist($Expr, $Comma);
+#def Exprlist, pelist($Chain, $Comma);
+def Exprlist, pelist('Chain', $Comma);
+#def Exprlist, pelist(undef, $Comma);
 
-def tuple, construction($lparen, $exprlist, $rparen);
+def Tuple, construction($Lparen, $Exprlist, $Rparen);
 
-def term, alternation($literal, $name, $tuple);
+# Term is effectively a reserved name (package 'Term').
+def LTerm, alternation($Literal, $Name, $Tuple);
 
-#def mchain, nelist($term, $whitespace);
-def mchain, nelist($term, $period);
+#def Mchain, nelist($LTerm, $Whitespace);
+def Mchain, nelist($LTerm, $Period);
 
-#def expr, construction($mchain);
+#def Expr, construction($Mchain);
 
-# Non-empty list: program ::+ expr
-#def program, nelist($expr, $semicolon);
-def program, nelist($mchain, $semicolon);
+# Non-empty list: Program ::+ Expr
+#def Program, nelist($Expr, $Semicolon);
+def Program, nelist($Mchain, $Semicolon);
 
 print("grammar.pl:");
-print("program='$program'\n");
+print("Program='$Program'\n");
 
 $exprlist->{element}= $mchain;
 
