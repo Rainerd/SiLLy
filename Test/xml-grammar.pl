@@ -24,36 +24,43 @@ def Slash,  terminal('/');
 def Rangle, terminal('>');
 
 def Value, terminal('"[^"]*"');
-# Used for testing only:
-#def Number, terminal('[\d]+(?:.[\d]+)?');
-def Attrname,  terminal('[-\w^!$%&/?+*#\':|@]+');
-def Tagname,  terminal('[-\w^!$%&/?+*#\':|@]+');
-def Cdata, terminal('[-\w^!$%&/?+*#\':|@\s]*');
+def Attrname,  terminal('\w+');
+def Tagname,  terminal('\w+');
+#def Cdata, terminal('[<]+');
+#def Cdata, terminal('[-.,\d()\[\]\{\}\w^!$%&/?+*#\':;|@\s]*');
+# Use + as a quick fix to ensure progress
+def Cdata, terminal('[-.,\d()\[\]\{\}\w^!$%&/?+*#\':;|@\s]+');
 
 # --------------------------------------------------------------------
 # Simple Composites
 
 def Owhite, optional($Whitespace);
 
-def Attr, construction($Attrname, $Equals, $Value);
-def Attrsi, pelist($Attr, $Whitespace);
-def Attrs, construction($Whitespace, $Attrsi);
-def Oattrs, optional($Attrs);
+#def Attr, construction($Attrname, $Equals, $Value);
+#def Attrsi, pelist($Attr, $Whitespace);
+#def Attrs, construction($Whitespace, $Attrsi);
+#def Oattrs, optional($Attrs);
 
-def Ltag, construction($Langle,         $Owhite, $Tagname, $Oattrs, $Owhite, $Rangle);
-def Etag, construction($Langle,         $Owhite, $Tagname, $Oattrs, $Owhite, $Slash, $Owhite, $Rangle);
-def Rtag, construction($Langle, $Slash, $Owhite, $Tagname,                           $Owhite, $Rangle);
+#def Ltag, construction($Langle,         $Owhite, $Tagname, $Oattrs, $Owhite, $Rangle);
+#def Etag, construction($Langle,         $Owhite, $Tagname, $Oattrs, $Owhite, $Slash, $Owhite, $Rangle);
+#def Rtag, construction($Langle, $Slash, $Owhite, $Tagname,                           $Owhite, $Rangle);
+
+# Simplified
+def Ltag, construction($Langle,         $Tagname, $Rangle);
+def Etag, construction($Langle,         $Tagname, $Slash, $Rangle);
+def Rtag, construction($Langle, $Slash, $Tagname,         $Rangle);
 
 # --------------------------------------------------------------------
 # Nested Composites
 
-#my $Elem;
-
 def Contentelem, alternation('Elem', $Cdata);
 def Contentlist, pelist($Contentelem, $Owhite);
 def Complexelem, construction($Ltag, $Contentlist, $Rtag);
-def Elem, alternation($Etag, $Complexelem);
-$Contentelem->{first}= $Elem;
+#def Elem, alternation($Etag, $Complexelem);
+$Elem= $Complexelem;
+
+assert("Elem" eq $ {$Contentelem->{elements}}[0]);
+$ {$Contentelem->{elements}}[0]= $Elem;
 
 print("xml-grammar.pl:");
 print("Elem='$Elem'\n");
