@@ -174,24 +174,26 @@ sub debug($) {
 # ====================================================================
 package main;
 use strict;
+use File::Basename;
 
 # --------------------------------------------------------------------
-my $usage="Usage: perl parse.pl grammar.pl in > out";
+my $usage="Usage: perl ".basename($0)." GRAMMAR IN > OUT";
 
 # --------------------------------------------------------------------
 # CAVEAT: you should resist the temptation to call this 'dump'
 # -- Instead of calling this function, Perl will dump core.
 sub varstring($$) {
     my ($name, $val)= @_;
-    Data::Dumper->Dump([$val], [$name]);
+    # FIXME: Doesn't Data::Dumper do this already?
+    (defined($val) && '' eq $val)
+        ? "\$$name = '';"
+        : Data::Dumper->Dump([$val], [$name]);
 }
 
 # --------------------------------------------------------------------
 # CAVEAT: you should resist the temptation to call this 'dump'
 # -- Instead of calling this function, Perl will dump core.
-
-sub vardescr($$)
-{
+sub vardescr($$) {
     my ($name, $val)= @_;
     if ( ! defined($val)) { return ("$name: <UNDEFINED>\n"); }
     assert(defined($val));
@@ -251,13 +253,14 @@ sub log_args($$$)
     #carp(..);
     #$log->debug("$context: \@#ARG=$#{@{$argl}}");
     $log->debug("$context: #ARGs=".scalar(@{$argl}));
-    $log->debug("$context: \@ARG=@{$argl}");
+    #$log->debug("$context: \@ARG=@{$argl}");
+    $log->debug("$context: \@ARG='".join("', '", @{$argl})."'");
     #$log->debug("$context: " . varstring('ARG',\@ARG));
     if ('ARRAY' ne ref($argl)) {
         die("$context: log_args: argl argument is not an array reference: "
             . ref($argl) . " $argl\n");
     }
-    #return;
+    return;
     my @description= map {
         #print("item: $ARG\n");
         vardescr('_', $ARG);
@@ -281,28 +284,11 @@ sub def($$)
 
 # --------------------------------------------------------------------
 sub eoi($) {
-    my ($state)= @_;
-    #assert(exists($state->{input}));
-    #assert(defined($state->{input}));
-    #my $input= $state->{input};
-    my $input= hash_get($state, "input");
-    assert(defined($input));
-    #my $pos= $state->{pos};
-    # FIXME: Why doesn't this work?:
-    #if (defined(ref($input)))
-    if (ref($input))
-    {
-        assert(defined(ref($input)));
-        assert("ARRAY" eq ref($input));
-        return ($#{@$input} < $state->{pos});
-    } else {
-        return (length($input)-1 < $state->{pos});
-    }
-
-    return (defined(ref($input))
-	    ? $#{@$input} < $state->{pos}
-	    : length($input)-1 < $state->{pos}
-            );
+    my ($state)= (@_);
+    my $input= hash_get($state, "input"); assert(defined($input));
+    if ('' eq ref($input)) { return (length($input)-1 < $state->{pos}); }
+    assert("ARRAY" eq ref($input));
+    return ($#{@$input} < $state->{pos});
 }
 
 # --------------------------------------------------------------------
@@ -310,98 +296,18 @@ sub eoi($) {
 sub log_cargs($$) { log_args($_[0], '', $_[1]); }
 
 # --------------------------------------------------------------------
-sub make_result($$) {
-    my ($t, $match)= (@_);
-    #return {_=>$t, result=>$match};
-    return [hash_get($t, "name"), @$match];
+sub match_watch_args($$$) {
+    my ($log, $t, $state)= (@_);
+    #assert(defined($t));
+    #assert('' ne ref($t));
+    ##assert("HASH" eq ref($t));
+    #assert(exists ($t->{name}));
+    my $ctx= hash_get($t, "name");
+    assert(defined($ctx));
+    log_args($log, $ctx, \@ARG);
+    $log->debug("$ctx: state->pos=$state->{pos}");
+    $ctx;
 }
-
-# --------------------------------------------------------------------
-#=ignore
-
-package Result::PrintHandler;
-sub new($$) {
-    my ($class, $log)= (@_);
-    my $self= { log=>$log };
-    return $self;
-}
-sub terminal($$$$$) {
-    my ($self, $result, $typename, $type, category)= (@_);
-    $log->info("[$typename '$result->{text}']");
-}
-sub alternation_begin($$$$$) {
-    my ($self, $result, $typename, $type, category)= (@_);
-    # FIXME: Do not print newline at the end
-    $log->info("[$typename");
-}
-sub alternation_end($$$$$) {
-    my ($self, $result, $typename, $type, category)= (@_);
-    $log->info("]");
-}
-sub construction_begin($$$$$) {
-    my ($self, $result, $typename, $type, category)= (@_);
-    $log->info("[$typename");
-}
-sub construction_end($$$$$) {
-    my ($self, $result, $typename, $type, category)= (@_);
-    $log->info("]");
-}
-# FIXME: make this an alias of construction_begin
-sub pelist_begin($$$$$) {
-    my ($self, $result, $typename, $type, category)= (@_);
-    $log->info("[$typename");
-}
-sub pelist_end($$$$$) {
-    my ($self, $result, $typename, $type, category)= (@_);
-    $log->info("]");
-}
-
-package main;
-# Iterates over all elements (matches) in the given parse result
-# object, calling the given handler on each one.
-
-sub Result::scan($$) {
-    my ($self, $handler)= (@_);
-    assert(defined($self));
-    assert(defined($handler));
-    assert('ARRAY' eq ref($self));
-
-    my $typename= $$self[0];
-    assert(defined($typename));
-    assert('' eq ref($typename));
-
-    my $type= do { no strict 'refs'; $ {$typename}; };
-    assert(defined($type));
-    assert('' ne ref($type));
-    assert($typename eq $type->{name});
-
-    my $category= hash_get($type, '_');
-
-    # FIXME: separate iteration from printing
-
-    if ($category= $terminal) {
-        #
-        $handler->terminal($self, $typename, $type, category);
-    }
-    elsif ($category= $construction) {
-        $handler->construction_begin($self, $typename, $type, category);
-        map { Result::scan($_, $handler); } @$self[1..$#$self];
-        $handler->construction_end  ($self, $typename, $type, category);
-    }
-    elsif ($category= $alternation) {
-        $handler->alternation_begin($self, $typename, $type, category);
-        map { Result::scan($_, $handler); } @$self[1..$#$self];
-        $handler->alternation_end  ($self, $typename, $type, category);
-    }
-    elsif ($category= $optional) {
-        $handler->optional($self, $typename, $type, category);
-    }
-    else {
-        $log->info("[$typename '@$self->{elements}']");
-    }
-}
-
-#=cut
 
 # --------------------------------------------------------------------
 my $terminal_log;
@@ -424,9 +330,7 @@ sub terminal_match($$)
 {
     my $log= $terminal_match_log;
     my ($t, $state)= @ARG;
-    my $ctx= hash_get($t, "name");
-    assert(defined($ctx));
-    log_args($log, $ctx, \@ARG);
+    my $ctx= match_watch_args($log, $t, $state);
     
     my $input= $state->{input};
     my $pos= $state->{pos};
@@ -462,11 +366,13 @@ sub terminal_match($$)
 	#    $log->info("$ctx: End Of Input reached");
 	#    return (undef);
 	#}
+        my $pattern= $t->{pattern};
+        assert(defined($pattern));
+        assert('' eq ref($pattern));
 	($match)= substr($input, $pos) =~ m{^($t->{pattern})}g;
-	if (defined($match))  {
+        if (defined($match))  {
 	    $log->debug("$ctx: matched text: '$match'");
-            #my $result= {_=>$t, text=>$match};
-	    my $result= make_result($t, [$match]);
+	    my $result= {_=>$t, text=>$match};
 	    $state->{pos}= $pos + length($match);
 	    #$log->debug(varstring('state', $state));
 	    $log->debug("$ctx: state->pos=$state->{pos}");
@@ -480,14 +386,52 @@ sub terminal_match($$)
 
 # --------------------------------------------------------------------
 my $construction_log;
+
+# --------------------------------------------------------------------
+# Returns the grammar object corresponding to the given spec (which
+# may be a string or a reference)
+sub grammar_object($) {
+    #('' eq ref($_[0])) ? eval("\$::$_[0]") : $_[0];
+    my ($spec)= (@_);
+    assert(defined($spec));
+    if ('' eq ref($spec)) {
+        my $val= eval("\$::$_[0]");
+        (defined($val)) ? $val : $spec;
+    }
+    else {
+        $spec;
+    }
+}
+
+# --------------------------------------------------------------------
+# Returns a reference to an array grammar objects that correspond to
+# the given specs (which may be strings or references)
+sub grammar_objects($) {
+    #log_args($construction_log, "grammar_objects", $ARG[0]);
+    # Note that @$ARG[0] is not the same as @{$ARG[0]}
+    #my @elements= map { ('' eq ref($_)) ? eval("\$::$_") : $_; } @{$ARG[0]};
+    my @elements= map { grammar_object($_); } @{$ARG[0]};
+    \@elements;
+}
+
 # --------------------------------------------------------------------
 sub construction
 {
     my $log= $construction_log;
     log_cargs($log, \@ARG);
-    
+    # These are not allowed (elements of @ARG are read-only)
+    #map { if ('' eq ref($_)) { $_= eval("\$::$_"); } } @ARG;
+    #for (@ARG) { if ('' eq ref($_)) { $_= eval("\$::$_"); } }
+    #for (my $i= $#ARG; $i > 0; --$i) {
+    #    if ('' eq ref($ARG[$i])) {
+    #        $ARG[$i]=     # This gives the error
+    #            eval("\$::$ARG[$i]");
+    #    }
+    #}
+
     #my $result= { _ => $log->{name}, elements => \@ARG };
-    my $result= { _ => $log->{name}, elements => [@ARG] };
+    #my $result= { _ => $log->{name}, elements => [@ARG] };
+    my $result= { _ => $log->{name}, elements => grammar_objects(\@ARG) };
     $log->debug(varstring('elements',$result->{elements}));
     log_result($log, $result);
     return $result;
@@ -500,11 +444,9 @@ sub construction_match($$)
 {
     my $log= $construction_match_log;
     my ($t, $state)= @ARG;
-    my $ctx= hash_get($t, "name");
-    assert(defined($ctx));
-    log_args($log, $ctx, \@ARG);
-    $log->debug("$ctx: state->pos=$state->{pos}");
-    my $result_elements= [];
+    my $ctx= match_watch_args($log, $t, $state);
+
+    my $result= [];
     my $saved_pos= $state->{pos};
 
     # foreach $element in $t->{elements}
@@ -524,13 +466,11 @@ sub construction_match($$)
 	#$log->debug("$ctx: matched element: " . varstring($i,$element));
 	$log->debug("$ctx: matched element $i: $element->{name}");
 	#$log->debug("$ctx: element value: " . varstring('match', $match));
-	push(@$result_elements, $match);
+	push(@$result, $match);
     } (0 .. $#{@{$t->{elements}}});
     $log->debug("$ctx: matched: '$ctx'");
-    $log->debug(varstring('result_elements', $result_elements));
-    #return ($result_elements);
-    #return ({_=>$ctx, elements=>$result_elements});
-    return (make_result($t, $result_elements));
+    $log->debug(varstring('result', $result));
+    return ($result);
 }
 
 # --------------------------------------------------------------------
@@ -541,7 +481,8 @@ sub alternation
     my $log= $alternation_log;
     log_cargs($log, \@ARG);
     #my $result= { _ => $log->{name}, elements => \@ARG };
-    my $result= { _ => $log->{name}, elements => [@ARG] };
+    #my $result= { _ => $log->{name}, elements => [@ARG] };
+    my $result= { _ => $log->{name}, elements => grammar_objects(\@ARG) };
     $log->debug(varstring('elements',$result->{elements}));
     log_result($log, $result);
     return $result;
@@ -556,21 +497,18 @@ sub alternation_match($$)
     my ($t, $state)= @ARG;
     # FIXME: Q: Move argument logging to 'match'?
     # A: No, then we can not control logging locally.
-    my $ctx= hash_get($t, "name");
-    assert(defined($ctx));
-    log_args($log, $ctx, \@ARG);
-    $log->debug("$ctx: state->pos=$state->{pos}");
+    my $ctx= match_watch_args($log, $t, $state);
+
     if (eoi($state)) {
 	$log->info("$ctx: End Of Input reached");
 	return (undef);
     }
 
-    my $elements= $t->{elements};
-    # foreach $element in $elements
+    # foreach $element in $t->{elements}
     map {
 	my $i= $_;
 	#$log->debug("$ctx: i=$i");
-	my $element= $$elements[$i];
+	my $element= $ {@{$t->{elements}}}[$i];
 	#$log->debug(varstring('element', $element));
 	$log->debug("$ctx: trying to match element $i=$element->{name}");
 	my ($match)= match($element, $state);
@@ -578,11 +516,10 @@ sub alternation_match($$)
 	    #$log->debug("$ctx: matched element: " . varstring($i, $element));
             $log->debug("$ctx: matched element $i: $element->{name}");
 	    $log->debug("$ctx: matched value: " . varstring('match', $match));
-	    #return ($match);
-	    return (make_result($t, [$match]));
+	    return ($match);
 	}
         $log->debug("$ctx: element $i not matched: '$element->{name}'");
-    } (0 .. $#{@$elements});
+    } (0 .. $#{@{$t->{elements}}});
     $log->debug("$ctx: not matched: '$ctx'");
     return (undef);
 }
@@ -594,7 +531,8 @@ sub optional($)
 {
     my $log= $optional_log;
     log_cargs($log, \@ARG);
-    my $result= { _ => $log->{name}, element => $ARG[0] };
+    #my $result= { _ => $log->{name}, element => $ARG[0] };
+    my $result= { _ => $log->{name}, element => grammar_object($ARG[0]) };
     $log->debug(varstring('element',$result->{element}));
     log_result($log, $result);
     return $result;
@@ -607,10 +545,7 @@ sub optional_match($$)
 {
     my $log= $optional_match_log;
     my ($t, $state)= @ARG;
-    my $ctx= hash_get($t, "name");
-    assert(defined($ctx));
-    log_args($log, $ctx, \@ARG);
-    $log->debug("$ctx: state->pos=$state->{pos}");
+    my $ctx= match_watch_args($log, $t, $state);
     my $element= $t->{element};
     #$log->debug(varstring('element', $element));
     $log->debug("$ctx: element=$element->{name}");
@@ -621,7 +556,7 @@ sub optional_match($$)
     if (defined($match)) {
 	#$log->debug("$ctx: matched element: " . varstring($i,$element));
 	$log->debug("$ctx: matched " . varstring('value', $match));
-	return (make_result($t, [$match]));
+	return ($match);
     }
     $log->debug("$ctx: not matched: '$ctx' (resulting in empty string)");
     return ('');
@@ -634,7 +569,12 @@ sub pelist($$)
 {
     my $log= $pelist_log;
     log_cargs($log, \@ARG);
-    my $result= { _ => $log->{name}, element => $ARG[0], separator => $ARG[1] };
+    #my $result= { _ => $log->{name}, element => $ARG[0], separator => $ARG[1] };
+    my $result= {
+        _         => $log->{name},
+        element   => grammar_object($ARG[0]),
+        separator => grammar_object($ARG[1]),
+    };
     $log->debug(varstring('element',$result->{element}));
     $log->debug(varstring('separator',$result->{separator}));
     log_result($log, $result);
@@ -648,17 +588,12 @@ sub pelist_match($$)
 {
     my $log= $pelist_match_log;
     my ($t, $state)= @ARG;
-    my $ctx= hash_get($t, "name");
-    assert(defined($ctx));
-    log_args($log, $ctx, \@ARG);
+    my $ctx= match_watch_args($log, $t, $state);
     my $element=   $t->{element};
     my $separator= $t->{separator};
-    $log->debug("$ctx: state->pos=$state->{pos}");
 
     #my $result= [];
-    #my $result= {_=>$ctx, elements=>[]};
-    my $result= make_result($t, []);
-    #my $result_elements= [];
+    my $result= {_=>'pelist', elements=>[]};
     while (1) {
 	$log->debug("$ctx: trying to match element '$element->{name}'");
 	my ($match)= match($element, $state);
@@ -667,8 +602,10 @@ sub pelist_match($$)
             return ($result);
         }
 	$log->debug("$ctx: matched element '$element->{name}'");
-	push(@$result, $match);
-	#push(@{$result->{elements}}, $match);
+	#push(@$result, $match);
+	push(@{$result->{elements}}, $match);
+
+        if ('' eq $separator) { next; }
 
 	$log->debug("$ctx: trying to match separator '$separator->{name}'");
 	($match)= match($separator, $state);
@@ -687,8 +624,13 @@ sub nelist($$)
 {
     my $log= $nelist_log;
     log_cargs($log, \@ARG);
-    my $result= { _ => $log->{name}, element => $ARG[0], separator => $ARG[1] };
-    $log->debug(varstring('element',$result->{element}));
+    #my $result= { _ => $log->{name}, element => $ARG[0], separator => $ARG[1] };
+    my $result= {
+        _         => $log->{name},
+        element   => grammar_object($ARG[0]),
+        separator => grammar_object($ARG[1]),
+    };
+    $log->debug(varstring('element',  $result->{element}));
     $log->debug(varstring('separator',$result->{separator}));
     log_result($log, $result);
     return $result;
@@ -701,38 +643,34 @@ sub nelist_match($$)
 {
     my $log= $nelist_match_log;
     my ($t, $state)= @ARG;
-    my $ctx= hash_get($t, "name");
-    assert(defined($ctx));
-    log_args($log, $ctx, \@ARG);
+    my $ctx= match_watch_args($log, $t, $state);
     my $element=   $t->{element};
     my $separator= $t->{separator};
-    $log->debug("$ctx: state->pos=$state->{pos}");
 
     #my $result= [];
-    #my $result= {_=>$ctx, elements=>[]};
-    #my $result= make_result($t, []);
-    my $result_elements= [];
+    my $result= {_=>'nelist', elements=>[]};
     while (1) {
 	$log->debug("$ctx: trying to match element '$element->{name}'");
 	my ($match)= match($element, $state);
 	if ( ! defined($match)) {
             $log->debug("$ctx: element not matched: '$element->{name}'");
-	    if (0 == scalar(@$result_elements)) { return (undef); }
-	    else { return (make_result($t, $result_elements)); }
+	    if (0 > $#{@$result}) { return (undef); }
+	    else { return ($result); }
 	}
 	$log->debug("$ctx: matched element '$element->{name}'");
 	#push(@$result, $match);
-	push(@$result_elements, $match);
+	push(@{$result->{elements}}, $match);
+
+        if ('' eq $separator) { next; }
 
 	$log->debug("$ctx: trying to match separator '$separator->{name}'");
 	($match)= match($separator, $state);
 	if ( ! defined($match)) {
             $log->debug("$ctx: separator not matched: '$separator->{name}'");
-            return (make_result($t, $result_elements));
+            return ($result);
         }
 	$log->debug("$ctx: matched separator '$separator->{name}'");
     }
-    die("Must not reach this\n");
 }
 
 # --------------------------------------------------------------------
@@ -813,35 +751,19 @@ sub check_result($$$) {
     assert(defined($expected_typename));
     assert(defined($expected_text));
     #$main_log->debug(varstring('result', $result));
-
-    # FIXME:
-    return;
-
-    #my $actual_type= hash_get($result, '_');
-    #my $actual_type= $$result[0];
-    #my $actual_typename= hash_get($actual_type, 'name');
-    my $actual_typename= $$result[0];
+    my $actual_type= hash_get($result, '_');
+    #should(hash_get($actual_type, '_'), 'terminal');
+    my $actual_typename= hash_get($actual_type, 'name');
+    my $actual_text= hash_get($result, "text");
     should($actual_typename, $expected_typename);
-
-    #my $actual_text= hash_get($result, "text");
-    my $actual_text= $$result[1];
     should($actual_text,     $expected_text);
-
     $main_log->debug("Okayed: $actual_typename, '$actual_text'");
 }
 
 # --------------------------------------------------------------------
-# Suppress 'used only once' warnings
 $::Name= $::Name;
 $::foo= $::foo;
-
-# --------------------------------------------------------------------
-sub input_show_state($$) {
-    my ($log, $state)= (@_);
-    $log->debug(varstring('state->pos', $state->{pos}));
-}
-
-# --------------------------------------------------------------------
+# Suppress 'used only once' warnings
 sub test
 {
     my $log= $main_log;
@@ -852,7 +774,7 @@ sub test
     $state= { input => 'blah 123  456', pos=>0 };
     $result= terminal_match($::Name, $state);
     $log->debug(varstring('tm Name result', $result));
-    input_show_state($log, $state);
+    $log->debug(varstring('state', $state));
     #should($result->{_}->{_}, 'terminal');
     #should($result->{_}->{name}, 'Name');
     #should($result->{text}, 'blah');
@@ -860,22 +782,22 @@ sub test
 
     $result= terminal_match($::Whitespace, $state);
     $log->debug(varstring('tm Whitespace result 1', $result));
-    input_show_state($log, $state);
+    $log->debug(varstring('state', $state));
     check_result($result, 'Whitespace', ' ');
 
     $result= terminal_match($::Number, $state);
     $log->debug(varstring('tm Number result 1', $result));
-    input_show_state($log, $state);
+    $log->debug(varstring('state', $state));
     check_result($result, 'Number', '123');
 
     $result= terminal_match($::Whitespace, $state);
     $log->debug(varstring('tm Whitespace result 2', $result));
-    input_show_state($log, $state);
+    $log->debug(varstring('state', $state));
     check_result($result, 'Whitespace', '  ');
 
     $result= terminal_match($::Number, $state);
     $log->debug(varstring('tm Number result 2', $result));
-    input_show_state($log, $state);
+    $log->debug(varstring('state', $state));
     check_result($result, 'Number', '456');
 
     $log->debug("--- Testing alternation_match...");
@@ -883,20 +805,18 @@ sub test
 
     $result= alternation_match($::Token, $state);
     $log->debug(varstring('am Token result 1', $result));
-    input_show_state($log, $state);
-    check_result($result, 'Token', ['Name', 'blah']);
-    #check_result($result, 'Name', 'blah');
+    $log->debug(varstring('state', $state));
+    check_result($result, 'Name', 'blah');
 
     $result= match($::Whitespace, $state);
     $log->debug(varstring('match Whitespace result 1', $result));
-    input_show_state($log, $state);
+    $log->debug(varstring('state', $state));
     check_result($result, 'Whitespace', ' ');
 
     $result= match($::Token, $state);
     $log->debug(varstring('match Token result 2', $result));
-    input_show_state($log, $state);
-    #check_result($result, 'Number', '123');
-    check_result($result, 'Token', ['Number', '123']);
+    $log->debug(varstring('state', $state));
+    check_result($result, 'Number', '123');
 
 
     $log->debug("--- Testing tokenization...");
@@ -904,67 +824,48 @@ sub test
 
     $result= match($::Tokenlist, $state);
     $log->debug(varstring('match Tokenlist result 1', $result));
-    input_show_state($log, $state);
-    my $expected= ['Tokenlist',
-                   ['Token', ['Name', 'blah']],
-                   ['Token', ['String', '"123"']],
-                   ['Token', ['Number', '456']],
-                   ];
-    #use FreezeThaw;
-    #assert(0 == strCmp($result, $expected));
-    use lib "../SVStream/lib";
-    use lib "..";
-    use Sump::Validate;
-    assert(Sump::Validate::Compare($result, $expected));
-    #Sump::Validate($result, $expected);
-
-    #my $result_elements= $result->{elements};
-    # FIXME: Make this a function:
-    my $result_elements= \@$result[1..$#{@$result}];
-    #check_result($$result_elements[0], 'Name', 'blah');
-    #check_result($$result_elements[1], 'String', '"123"');
-    #check_result($$result_elements[2], 'Number', '456');
+    $log->debug(varstring('state', $state));
+    my $result_elements= $result->{elements};
+    check_result($$result_elements[0], 'Name', 'blah');
+    check_result($$result_elements[1], 'String', '"123"');
+    check_result($$result_elements[2], 'Number', '456');
 
     #$state= { input => 'blah ("123", xyz(456 * 2)); end;', pos=>0 };
     $state= { input => 'blah.("123", xyz.(456.*.2)); end;', pos=>0 };
 
     $result= match($::Tokenlist, $state);
     $log->debug(varstring('match Tokenlist result 2', $result));
-    input_show_state($log, $state);
+    $log->debug(varstring('state', $state));
     $result_elements= $result->{elements};
     #check_result($$result_elements[0], 'Name', 'blah');
     #check_result($$result_elements[1], 'Period', '.');
     my $i= 0;
-    my @token_contents=
-        (
-         ['Name',      'blah'],
-         ['Period',    '.'],
-         ['Lparen',    '('],
-         ['String',    '"123"'],
-         ['Comma',     ','],
-         ['Name',      'xyz'],
-         ['Period',    '.'],
-         ['Lparen',    '('],
-         ['Number',    456],
-         ['Period',    '.'],
-         ['Name',      '*'],
-         ['Period',    '.'],
-         ['Number',    2],
-         ['Rparen',    ')'],
-         ['Rparen',    ')'],
-         ['Semicolon', ';'],
-         ['Name',      'end'],
-         ['Semicolon', ';'],
-         );
-    my $expected_tokens= map { ['Token', $_] } @token_contents;
-    $expected= ['Tokenlist', $expected_tokens];
+    my $expected=
+        [[ 'Name',      'blah'],
+         [ 'Period',    '.'],
+         [ 'Lparen',    '('],
+         [ 'String',    '"123"'],
+         [ 'Comma',     ','],
+         [ 'Name',      'xyz'],
+         [ 'Period',    '.'],
+         [ 'Lparen',    '('],
+         [ 'Number',    456],
+         [ 'Period',    '.'],
+         [ 'Name',      '*'],
+         [ 'Period',    '.'],
+         [ 'Number',    2],
+         [ 'Rparen',    ')'],
+         [ 'Rparen',    ')'],
+         [ 'Semicolon', ';'],
+         [ 'Name',      'end'],
+         [ 'Semicolon', ';'],
+         ];
     map {
         my ($e)= $_;
         #$log->debug(varstring('e', $e));
         check_result($$result_elements[$i], $$e[0], $$e[1]);
         ++$i;
     } @$expected;
-    Sump::Validate::Compare($expected, $result);
 
     my $xml= <<"";
 <row>
@@ -977,7 +878,7 @@ sub test
 
     #$result= match($::Elem, $state);
     #$log->debug(varstring('match Elem result', $result));
-    #input_show_state($log, $state);
+    #$log->debug(varstring('state', $state));
     #check_result($result, 'Elem', $state->{input});
 
     {
@@ -986,7 +887,7 @@ sub test
     no strict 'refs';
     $result= match(${"::$top"}, $state);
     $log->debug(varstring('match $top result', $result));
-    input_show_state($log, $state);
+    $log->debug(varstring('state', $state));
     check_result($result, $top, $state->{input});
     }
 
@@ -997,7 +898,7 @@ sub test
     $state= { input => $result, pos=>0 };
     $result= match($::Program, $state);
     $log->debug(varstring('match Program result', $result));
-    input_show_state($log, $state);
+    $log->debug(varstring('state', $state));
 }
 
 # --------------------------------------------------------------------
