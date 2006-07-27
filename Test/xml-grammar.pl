@@ -1,26 +1,35 @@
 # --------------------------------------------------------------------
+#package main;
+package Grammar::XML;
+
 use strict;
 #use warnings;
 use diagnostics;
-use English;
+#use English;
+
+::import_from("main", "assert");
+
+BEGIN { $Exporter::Verbose=1 }
+
+# Prefer qualifying all uses of this package's contents
+
+# --------------------------------------------------------------------
+# Import components from package 'Grammar'
+
+#use Grammar; # qw(def terminal construction alternation optional nelist pelist)
+#use Grammar ':all';
+
+Grammar::import();
+
+# --------------------------------------------------------------------
+# Allow use of barewords
 
 # This does not prevent the 'Unquoted...' warning:
 # Prevent it by using uppercase chars in grammar element names. 
 no strict 'subs'; # Allow barewords (used to def grammar elements)
 
-#no strict 'vars'; # Allow omitting '::'.
-
-package main;
-
-# Barewords denote strings 
-#sub test_bareword { print(STDERR "_[0]='$_[0]' ref='".ref($_[0])."'\n"); }
-#test_bareword(Bearword);
-
-#use Exporter;
-#@::ISA= qw(Exporter);
-#import main qw(Space);
-#my $Space;
-#*Space= \$::Space;
+# This is needed to allow bareword arguments to def. Why?
+sub def($$);
 
 # --------------------------------------------------------------------
 # Terminals
@@ -102,18 +111,20 @@ def Contentelem, alternation(ProcessingInstruction, 'Elem', Cdata);
 def Contentlist, pelist(Contentelem, Owhite);
 def Complexelem, construction(Ltag, Contentlist, Rtag);
 #def Elem, alternation(Etag, Complexelem);
-$::Elem= $::Complexelem;
+$Grammar::XML::Elem= $Grammar::XML::Complexelem;
 
-#assert("Elem" eq $ {$Contentelem->{elements}}[0]);
-#$ {$Contentelem->{elements}}[0]= $Elem;
+#assert("Elem" eq $ {$Grammar::XML::Contentelem->{elements}}[0]);
+#$ {$Grammar::XML::Contentelem->{elements}}[0]= $Elem;
 my ($i, $i_elem)= (-1, -1);
-grep { ++$i; if (m/Elem/) { $i_elem= $i; } } @{$::Contentelem->{elements}};
-#map { ++$i; if ( ! defined($_)) { $i_elem= $i; } } @{$::Contentelem->{elements}};
+grep { ++$i; if (m/Elem/) { $i_elem= $i; } }
+    @{$Grammar::XML::Contentelem->{elements}};
+#map { ++$i; if ( ! defined($_)) { $i_elem= $i; } }
+#    @{$Grammar::XML::Contentelem->{elements}};
 assert(-1 != $i_elem); #print("Found Elem at $i_elem\n");
-$ {$::Contentelem->{elements}}[$i_elem]= $::Elem;
+$ {$Grammar::XML::Contentelem->{elements}}[$i_elem]= $Grammar::XML::Elem;
 
 print("xml-grammar.pl:");
-print("Elem='$::Elem'\n");
+print("Elem='$Grammar::XML::Elem'\n");
 
 # --------------------------------------------------------------------
 # EOF
