@@ -62,6 +62,9 @@ o Catch EOS in all matching functions
 
 TODO
 
+o Actually parse the XML input file's content instead of parsing the
+  hard-coded example string.
+o Separate 'minilang' test from XML test.
 o Automate regression tests
 o Add more regression tests
 o Packagize (Parser, Grammar, Utils, Test, Result)
@@ -88,6 +91,17 @@ use lib "${INC_BASE}/Log-Log4perl/blib/lib";
 
 use Log::Log4perl qw(:easy);
 use Data::Dumper;
+
+# --------------------------------------------------------------------
+# Imports the given variable to the current package
+
+sub import_from($$) {
+    my ($package, $typeglob_name)= (@_);
+    #my ($typeglob_name)= (@_);
+    my ($calling_package, $filename, $line)= caller();
+    eval("\*${calling_package}::$typeglob_name= \*${package}::$typeglob_name");
+    undef;
+}
 
 # ====================================================================
 # Assertions
@@ -173,7 +187,10 @@ sub debug($) {
 
 # ====================================================================
 package main;
+
 use strict;
+use diagnostics;
+use English;
 use File::Basename;
 
 # --------------------------------------------------------------------
@@ -231,18 +248,120 @@ sub vardescr($$)
 }
 
 # --------------------------------------------------------------------
-# Conditional logging of results
-my $log_result;
-#$log_result= 1;
-sub log_result($$) {
-    my ($log, $result)= @ARG;
-    assert(defined($log));
-    assert(ref($log));
-    #assert("HASH" eq ref($log));
-    if ($log_result) {
-        $log->debug("Type='$result->{_}':");
-        $log->debug(varstring('result',$result));
+package Unused;
+#package Result::PrintHandler;
+
+sub new($$) {
+    my ($class, $log)= (@_);
+    my $self= { log=>$log };
+    return $self;
+}
+sub terminal($$$$$) {
+    my ($self, $result, $typename, $type, $category)= (@_);
+    $self->{log}->info("[$typename '$result->{text}']");
+}
+sub alternation_begin($$$$$) {
+    my ($self, $result, $typename, $type, $category)= (@_);
+    # FIXME: Do not print newline at the end
+    $self->{log}->info("[$typename");
+}
+sub alternation_end($$$$$) {
+    my ($self, $result, $typename, $type, $category)= (@_);
+    $self->{log}->info("]");
+}
+sub construction_begin($$$$$) {
+    my ($self, $result, $typename, $type, $category)= (@_);
+    $self->{log}->info("[$typename");
+}
+sub construction_end($$$$$) {
+    my ($self, $result, $typename, $type, $category)= (@_);
+    $self->{log}->info("]");
+}
+# FIXME: make this an alias of construction_begin
+sub pelist_begin($$$$$) {
+    my ($self, $result, $typename, $type, $category)= (@_);
+    $self->{log}->info("[$typename");
+}
+sub pelist_end($$$$$) {
+    my ($self, $result, $typename, $type, $category)= (@_);
+    $self->{log}->info("]");
+}
+
+# --------------------------------------------------------------------
+package main;
+# Iterates over all elements (matches) in the given parse result
+# object, calling the given handler on each one.
+
+sub Result::scan($$) {
+    my ($self, $handler)= (@_);
+    assert(defined($self));
+    assert(defined($handler));
+    assert('ARRAY' eq ref($self));
+
+    my $typename= $$self[0];
+    assert(defined($typename));
+    assert('' eq ref($typename));
+
+    my $type= do { no strict 'refs'; $ {$typename}; };
+    assert(defined($type));
+    assert('' ne ref($type));
+    assert($typename eq $type->{name});
+
+    my $category= ::hash_get($type, '_');
+
+    # FIXME: separate iteration from printing
+
+    if ($category= $Grammar::terminal) {
+        #
+        $handler->terminal($self, $typename, $type, $category);
     }
+    elsif ($category= $Grammar::construction) {
+        $handler->construction_begin($self, $typename, $type, $category);
+        map { Result::scan($_, $handler); } @$self[1..$#$self];
+        $handler->construction_end  ($self, $typename, $type, $category);
+    }
+    elsif ($category= $Grammar::alternation) {
+        $handler->alternation_begin($self, $typename, $type, $category);
+        map { Result::scan($_, $handler); } @$self[1..$#$self];
+        $handler->alternation_end  ($self, $typename, $type, $category);
+    }
+    elsif ($category= $Grammar::optional) {
+        $handler->optional($self, $typename, $type, $category);
+    }
+    else {
+        $handler->print("[$typename '@$self->{elements}']");
+    }
+}
+
+#=cut
+
+# ====================================================================
+package Grammar;
+
+use strict;
+use diagnostics;
+use English;
+
+#use main;
+#main::import(qw(assert));
+#*assert= \&::assert;
+::import_from('main', 'assert');
+::import_from('main', 'vardescr');
+::import_from('main', 'varstring');
+
+BEGIN { $Exporter::Verbose=1 }
+require Exporter;
+use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
+@ISA= qw(Exporter); # Package's ISA
+%EXPORT_TAGS= ('all' => [qw(def terminal construction alternation optional nelist pelist)]);
+@EXPORT_OK= ( @{ $EXPORT_TAGS{'all'} } );
+@EXPORT= qw();
+
+sub import {
+    # This would try to call Grammar::export_to_level, which is not defined:
+    #export_to_level(1, 'Grammar', @{ $EXPORT_TAGS{'all'} });
+
+    Grammar->export_to_level(1, 'Grammar', @{ $EXPORT_TAGS{'all'} });
 }
 
 # --------------------------------------------------------------------
@@ -271,29 +390,6 @@ sub log_args($$$)
 }
 
 # --------------------------------------------------------------------
-my $def_log;
-# --------------------------------------------------------------------
-sub def($$)
-{
-    my $log= $def_log;
-    my ($name,$val)= @ARG;
-    $log->debug(varstring('val',$val));
-    eval("\$::$name=\$val;");
-    #$::def_val_= $val; eval("\$::$name=\$::def_val_;");
-    $val->{name}= $name;
-    $log->debug("Defined '$name' as $val.");
-}
-
-# --------------------------------------------------------------------
-sub eoi($) {
-    my ($state)= (@_);
-    my $input= hash_get($state, "input"); assert(defined($input));
-    if ('' eq ref($input)) { return (length($input)-1 < $state->{pos}); }
-    assert("ARRAY" eq ref($input));
-    return ($#{@$input} < $state->{pos});
-}
-
-# --------------------------------------------------------------------
 # Log constructor arguments
 sub log_cargs($$) { log_args($_[0], '', $_[1]); }
 
@@ -304,7 +400,7 @@ sub match_watch_args($$$) {
     #assert('' ne ref($t));
     ##assert("HASH" eq ref($t));
     #assert(exists ($t->{name}));
-    my $ctx= hash_get($t, "name");
+    my $ctx= ::hash_get($t, "name");
     assert(defined($ctx));
     log_args($log, $ctx, \@ARG);
     $log->debug("$ctx: state->pos=$state->{pos}");
@@ -315,95 +411,32 @@ sub match_watch_args($$$) {
 sub make_result($$) {
     my ($t, $match)= (@_);
     #return {_=>$t, result=>$match};
-    return [hash_get($t, "name"), @$match];
+    return [::hash_get($t, "name"), @$match];
 }
 
 # --------------------------------------------------------------------
-#=ignore
-
-package Result::PrintHandler;
-sub new($$) {
-    my ($class, $log)= (@_);
-    my $self= { log=>$log };
-    return $self;
-}
-sub terminal($$$$$) {
-    my ($self, $result, $typename, $type, category)= (@_);
-    $log->info("[$typename '$result->{text}']");
-}
-sub alternation_begin($$$$$) {
-    my ($self, $result, $typename, $type, category)= (@_);
-    # FIXME: Do not print newline at the end
-    $log->info("[$typename");
-}
-sub alternation_end($$$$$) {
-    my ($self, $result, $typename, $type, category)= (@_);
-    $log->info("]");
-}
-sub construction_begin($$$$$) {
-    my ($self, $result, $typename, $type, category)= (@_);
-    $log->info("[$typename");
-}
-sub construction_end($$$$$) {
-    my ($self, $result, $typename, $type, category)= (@_);
-    $log->info("]");
-}
-# FIXME: make this an alias of construction_begin
-sub pelist_begin($$$$$) {
-    my ($self, $result, $typename, $type, category)= (@_);
-    $log->info("[$typename");
-}
-sub pelist_end($$$$$) {
-    my ($self, $result, $typename, $type, category)= (@_);
-    $log->info("]");
-}
-
-package main;
-# Iterates over all elements (matches) in the given parse result
-# object, calling the given handler on each one.
-
-sub Result::scan($$) {
-    my ($self, $handler)= (@_);
-    assert(defined($self));
-    assert(defined($handler));
-    assert('ARRAY' eq ref($self));
-
-    my $typename= $$self[0];
-    assert(defined($typename));
-    assert('' eq ref($typename));
-
-    my $type= do { no strict 'refs'; $ {$typename}; };
-    assert(defined($type));
-    assert('' ne ref($type));
-    assert($typename eq $type->{name});
-
-    my $category= hash_get($type, '_');
-
-    # FIXME: separate iteration from printing
-
-    if ($category= $terminal) {
-        #
-        $handler->terminal($self, $typename, $type, category);
-    }
-    elsif ($category= $construction) {
-        $handler->construction_begin($self, $typename, $type, category);
-        map { Result::scan($_, $handler); } @$self[1..$#$self];
-        $handler->construction_end  ($self, $typename, $type, category);
-    }
-    elsif ($category= $alternation) {
-        $handler->alternation_begin($self, $typename, $type, category);
-        map { Result::scan($_, $handler); } @$self[1..$#$self];
-        $handler->alternation_end  ($self, $typename, $type, category);
-    }
-    elsif ($category= $optional) {
-        $handler->optional($self, $typename, $type, category);
-    }
-    else {
-        $log->info("[$typename '@$self->{elements}']");
+# Conditional logging of results
+my $log_result;
+#$log_result= 1;
+sub log_result($$) {
+    my ($log, $result)= @ARG;
+    assert(defined($log));
+    assert(ref($log));
+    #assert("HASH" eq ref($log));
+    if ($log_result) {
+        $log->debug("Type='$result->{_}':");
+        $log->debug(varstring('result',$result));
     }
 }
 
-#=cut
+# --------------------------------------------------------------------
+sub eoi($) {
+    my ($state)= (@_);
+    my $input= ::hash_get($state, "input"); assert(defined($input));
+    if ('' eq ref($input)) { return (length($input)-1 < $state->{pos}); }
+    assert("ARRAY" eq ref($input));
+    return ($#{@$input} < $state->{pos});
+}
 
 # --------------------------------------------------------------------
 my $terminal_log;
@@ -487,7 +520,8 @@ my $construction_log;
 # --------------------------------------------------------------------
 # Returns the grammar object corresponding to the given spec (which
 # may be a string or a reference)
-sub grammar_object($) {
+sub grammar_object($)
+{
     #('' eq ref($_[0])) ? eval("\$::$_[0]") : $_[0];
     my ($spec)= (@_);
     assert(defined($spec));
@@ -503,7 +537,8 @@ sub grammar_object($) {
 # --------------------------------------------------------------------
 # Returns a reference to an array grammar objects that correspond to
 # the given specs (which may be strings or references)
-sub grammar_objects($) {
+sub grammar_objects($)
+{
     #log_args($construction_log, "grammar_objects", $ARG[0]);
     # Note that @$ARG[0] is not the same as @{$ARG[0]}
     #my @elements= map { ('' eq ref($_)) ? eval("\$::$_") : $_; } @{$ARG[0]};
@@ -609,7 +644,8 @@ sub alternation_match($$)
 	my $i= $_;
 	#$log->debug("$ctx: i=$i");
         # FIXME: shouldn't this be '$elements[$i]'?:
-	my $element= $$elements[$i];
+	#my $element= $$elements[$i];
+	my $element= $ {@$elements}[$i];
 	#$log->debug(varstring('element', $element));
 	$log->debug("$ctx: trying to match element $i=$element->{name}");
 	my ($match)= match($element, $state);
@@ -782,6 +818,25 @@ sub nelist_match($$)
 }
 
 # --------------------------------------------------------------------
+my $def_log;
+# --------------------------------------------------------------------
+# Defines the given scalar variable in the calling package with the given value
+sub def($$)
+{
+    my $log= $def_log;
+    my ($name,$val)= @ARG;
+    $log->debug(varstring('val',$val));
+    # FIXME: define the variable in the calling package
+    my ($caller_package, $file, $line)= caller();
+    #eval("\$::$name=\$val;");
+    #eval("\$$name=\$val;");
+    eval("\$${caller_package}::$name=\$val;");
+    #$::def_val_= $val; eval("\$::$name=\$::def_val_;");
+    $val->{name}= $name;
+    $log->debug("Defined '$name' as $val.");
+}
+
+# --------------------------------------------------------------------
 my $match_log;
 # --------------------------------------------------------------------
 sub match($$)
@@ -809,24 +864,8 @@ sub match($$)
 }
 
 # --------------------------------------------------------------------
-sub handle_item
+sub init()
 {
-    printf("$ARG");
-    return;
-}
-
-# --------------------------------------------------------------------
-my $main_log;
-
-# --------------------------------------------------------------------
-sub init {
-    #Log::Log4perl->easy_init($INFO);
-    Log::Log4perl->easy_init($DEBUG);
-    #$logger= get_logger();
-    #$logger->info("Running...");
-    #if (scalar(@_) > 0) { info(vdump('Args', \@_)); }
-    $Data::Dumper::Indent= 1;
-
     $terminal_log= Logger->new('terminal');
     $terminal_match_log= Logger->new('terminal_match');
 
@@ -845,11 +884,35 @@ sub init {
     $pelist_log= Logger->new('pelist');
     $pelist_match_log= Logger->new('pelist_match');
 
-    $match_log= Logger->new('match');
-
     $def_log= Logger->new('def');
-    $main_log= Logger->new('main');
+    $match_log= Logger->new('match');
+}
 
+# ====================================================================
+package main;
+# --------------------------------------------------------------------
+sub handle_item
+{
+    printf("$ARG");
+    return;
+}
+
+# --------------------------------------------------------------------
+my $main_log;
+
+# --------------------------------------------------------------------
+sub init()
+{
+    #Log::Log4perl->easy_init($INFO);
+    Log::Log4perl->easy_init($DEBUG);
+    #$logger= get_logger();
+    #$logger->info("Running...");
+    #if (scalar(@_) > 0) { info(vdump('Args', \@_)); }
+    $Data::Dumper::Indent= 1;
+
+    Grammar::init();
+
+    $main_log= Logger->new('main');
     require "minilang-grammar.pl";
 }
 
@@ -863,13 +926,13 @@ sub check_result($$$) {
     # FIXME:
     return;
 
-    #my $actual_type= hash_get($result, '_');
+    #my $actual_type= ::hash_get($result, '_');
     #my $actual_type= $$result[0];
-    #my $actual_typename= hash_get($actual_type, 'name');
+    #my $actual_typename= ::hash_get($actual_type, 'name');
     my $actual_typename= $$result[0];
     should($actual_typename, $expected_typename);
 
-    #my $actual_text= hash_get($result, "text");
+    #my $actual_text= ::hash_get($result, "text");
     my $actual_text= $$result[1];
     should($actual_text,     $expected_text);
 
@@ -878,7 +941,7 @@ sub check_result($$$) {
 
 # --------------------------------------------------------------------
 # Suppress 'used only once' warnings
-$::Name= $::Name;
+$minilang::Name= $minilang::Name;
 $::foo= $::foo;
 
 # --------------------------------------------------------------------
@@ -888,7 +951,7 @@ sub input_show_state($$) {
 }
 
 # --------------------------------------------------------------------
-sub test
+sub test_minilang()
 {
     my $log= $main_log;
     my $state;
@@ -896,7 +959,7 @@ sub test
 
     $log->debug("--- Testing terminal_match...");
     $state= { input => 'blah 123  456', pos=>0 };
-    $result= terminal_match($::Name, $state);
+    $result= Grammar::terminal_match($minilang::Name, $state);
     $log->debug(varstring('tm Name result', $result));
     input_show_state($log, $state);
     #should($result->{_}->{_}, 'terminal');
@@ -906,22 +969,22 @@ sub test
 
     # FIXME: Use a common test case function for these:
 
-    $result= terminal_match($::Whitespace, $state);
+    $result= Grammar::terminal_match($minilang::Whitespace, $state);
     $log->debug(varstring('tm Whitespace result 1', $result));
     input_show_state($log, $state);
     check_result($result, 'Whitespace', ' ');
 
-    $result= terminal_match($::Number, $state);
+    $result= Grammar::terminal_match($minilang::Number, $state);
     $log->debug(varstring('tm Number result 1', $result));
     input_show_state($log, $state);
     check_result($result, 'Number', '123');
 
-    $result= terminal_match($::Whitespace, $state);
+    $result= Grammar::terminal_match($minilang::Whitespace, $state);
     $log->debug(varstring('tm Whitespace result 2', $result));
     input_show_state($log, $state);
     check_result($result, 'Whitespace', '  ');
 
-    $result= terminal_match($::Number, $state);
+    $result= Grammar::terminal_match($minilang::Number, $state);
     $log->debug(varstring('tm Number result 2', $result));
     input_show_state($log, $state);
     check_result($result, 'Number', '456');
@@ -929,18 +992,18 @@ sub test
     $log->debug("--- Testing alternation_match...");
     $state= { input => 'blah 123', pos=>0 };
 
-    $result= alternation_match($::Token, $state);
+    $result= Grammar::alternation_match($minilang::Token, $state);
     $log->debug(varstring('am Token result 1', $result));
     input_show_state($log, $state);
     check_result($result, 'Token', ['Name', 'blah']);
     #check_result($result, 'Name', 'blah');
 
-    $result= match($::Whitespace, $state);
+    $result= Grammar::match($minilang::Whitespace, $state);
     $log->debug(varstring('match Whitespace result 1', $result));
     input_show_state($log, $state);
     check_result($result, 'Whitespace', ' ');
 
-    $result= match($::Token, $state);
+    $result= Grammar::match($minilang::Token, $state);
     $log->debug(varstring('match Token result 2', $result));
     input_show_state($log, $state);
     #check_result($result, 'Number', '123');
@@ -950,7 +1013,7 @@ sub test
     $log->debug("--- Testing tokenization...");
     $state= { input => 'blah "123"  456', pos=>0 };
 
-    $result= match($::Tokenlist, $state);
+    $result= Grammar::match($minilang::Tokenlist, $state);
     $log->debug(varstring('match Tokenlist result 1', $result));
     input_show_state($log, $state);
     my $expected= ['Tokenlist',
@@ -976,7 +1039,7 @@ sub test
     #$state= { input => 'blah ("123", xyz(456 * 2)); end;', pos=>0 };
     $state= { input => 'blah.("123", xyz.(456.*.2)); end;', pos=>0 };
 
-    $result= match($::Tokenlist, $state);
+    $result= match($minilang::Tokenlist, $state);
     $log->debug(varstring('match Tokenlist result 2', $result));
     input_show_state($log, $state);
     $result_elements= $result->{elements};
@@ -1014,6 +1077,23 @@ sub test
     } @$expected;
     Sump::Validate::Compare($expected, $result);
 
+    # FIXME: Get this test to work
+    return;
+    $log->debug("--- Testing Program...");
+    $log->debug("Program=$::Program.");
+    $state= { input => $result, pos=>0 };
+    $result= match($::Program, $state);
+    $log->debug(varstring('match Program result', $result));
+    input_show_state($log, $state);
+}
+
+# --------------------------------------------------------------------
+sub test_xml()
+{
+    my $log= $main_log;
+    my $state;
+    my $result;
+
     my $xml= <<"";
 <row>
 				<entry>.1 rtpMIBObjects</entry>
@@ -1023,7 +1103,7 @@ sub test
 
     $state= { input => $xml, pos=>0 };
 
-    #$result= match($::Elem, $state);
+    #$result= match($Grammar::XML::Elem, $state);
     #$log->debug(varstring('match Elem result', $result));
     #input_show_state($log, $state);
     #check_result($result, 'Elem', $state->{input});
@@ -1032,20 +1112,11 @@ sub test
     #my $top= "Elem";
     my $top= "Contentlist";
     no strict 'refs';
-    $result= match(${"::$top"}, $state);
+    $result= match(${"Grammar::XML::$top"}, $state);
     $log->debug(varstring('match $top result', $result));
     input_show_state($log, $state);
     check_result($result, $top, $state->{input});
     }
-
-    # FIXME: Get this test to work
-    return;
-    $log->debug("--- Testing Program...");
-    $log->debug("Program=$::Program.");
-    $state= { input => $result, pos=>0 };
-    $result= match($::Program, $state);
-    $log->debug(varstring('match Program result', $result));
-    input_show_state($log, $state);
 }
 
 # --------------------------------------------------------------------
@@ -1079,13 +1150,16 @@ sub main
     my $log= $main_log;
     
     # Test 'def'
-    def 'foo', {elt=>'bar'};
+    Grammar::def 'foo', {elt=>'bar'};
     $log->debug(varstring('',$::foo));
     #assert($::foo->{elt} eq 'bar');
 
     (1 == $#ARG) or die($usage);
 
+    $log->debug("---Reading and Evaluating grammar...");
     my $grammar_filename= shift();
+=ignore
+
     open(GRAMMAR, "< $grammar_filename")
         or die("Can't open grammar file \`$grammar_filename'.");
     $INPUT_RECORD_SEPARATOR= undef;
@@ -1094,15 +1168,17 @@ sub main
     close(GRAMMAR);
     #$log->debug("grammar='$grammar'");
 
-    $log->debug("---Evaluating grammar...");
+=cut
+
     #eval($grammar);
     #use $grammar_filename;
     require $grammar_filename;
     #$log->debug(varstring('exprlist', $::exprlist));
     $log->debug("Grammar evaluated.");
 
-    # Run self-test
-    test();
+    # Run self-tests
+    test_minilang();
+    test_xml();
 
     $log->debug("---Reading input file...");
     my $input= shift();
