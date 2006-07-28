@@ -31,7 +31,13 @@ Grammar::import();
 # Allow use of barewords
 
 # This is needed to allow bareword arguments to def. Why?
-sub def($$);
+sub def($$@);
+sub def_terminal($$);
+sub def_optional($$);
+sub def_construction($@);
+sub def_alternation($@);
+sub def_nelist($$$);
+sub def_pelist($$$);
 
 # This does not prevent the 'Unquoted...' warning:
 # Prevent it by using uppercase chars in grammar element names. 
@@ -58,54 +64,54 @@ assert('' eq ref(Bearword));
 
 #Grammar::def Whitespace, Grammar::terminal('\s+');
 
-def Whitespace, terminal('\s+');
-def Owhite, optional(Whitespace);
+def_terminal Whitespace, '\s+';
+def_optional Owhite, Whitespace;
 
-def Period, terminal('\.');
-def Comma,  terminal(',');
-def Semicolon, terminal(';');
+def_terminal Period, '\.';
+def_terminal Comma, ',';
+def_terminal Semicolon, ';';
 
-def Lparen, terminal('\(');
-def Rparen, terminal('\)');
-def Lbrack, terminal('\[');
-def Rbrack, terminal('\]');
-def Lbrace, terminal('\{');
-def Rbrace, terminal('\}');
+def_terminal Lparen, '\(';
+def_terminal Rparen, '\)';
+def_terminal Lbrack, '\[';
+def_terminal Rbrack, '\]';
+def_terminal Lbrace, '\{';
+def_terminal Rbrace, '\}';
 
-def String, terminal('"[^"]*"');
-def Number, terminal('[\d]+(?:.[\d]+)?');
-def Name, terminal('[-\w^!$%&/=?+*#\':<>|@]+');
+def_terminal String, '"[^"]*"';
+def_terminal Number, '[\d]+(?:.[\d]+)?';
+def_terminal Name, '[-\w^!$%&/=?+*#\':<>|@]+';
 
-def Token, alternation(String, Lparen, Number, Comma, Period, Name, Rparen, Semicolon);
+def_alternation Token, String, Lparen, Number, Comma, Period, Name, Rparen, Semicolon;
 
-def Tokenlist, pelist(Token, Owhite);
+def_pelist Tokenlist, Token, Owhite;
 
 # --------------------------------------------------------------------
-def Literal, alternation(String, Number);
-#def Simple_term, alternation(Literal, Name);
+def_alternation Literal, String, Number;
+#def_alternation Simple_term, Literal, Name;
 
 # Possibly empty list (set): list ::+ e
 
 # Note that Chain has not been defined yet, that is further below.
 #my $Chain;
-#def Exprlist, pelist(Expr, Comma);
-def Exprlist, pelist(Chain, Comma);
-#def Exprlist, pelist('Chain', Comma);
-#def Exprlist, pelist(undef, Comma);
+#def_pelist Exprlist, Expr, Comma;
+def_pelist Exprlist, Chain, Comma;
+#def_pelist Exprlist, 'Chain', Comma;
+#def_pelist Exprlist, undef, Comma;
 
-def Tuple, construction(Lparen, Exprlist, Rparen);
+def_construction Tuple, Lparen, Exprlist, Rparen;
 
 # In Perl, 'Term' is effectively a reserved name (package 'Term').
-def LTerm, alternation(Literal, Name, Tuple);
+def_alternation LTerm, Literal, Name, Tuple;
 
-#def Mchain, nelist(LTerm, Whitespace);
-def Mchain, nelist(LTerm, Period);
+#def_nelist Mchain, LTerm, Whitespace;
+def_nelist Mchain, LTerm, Period;
 
-#def Expr, construction(Mchain);
+#def_construction Expr, Mchain;
 
 # Non-empty list: Program ::+ Expr
-#def Program, nelist(Expr, Semicolon);
-def Program, nelist(Mchain, Semicolon);
+#def_nelist Program, Expr, Semicolon;
+def_nelist Program, Mchain, Semicolon;
 
 print("grammar.pl:");
 print("Program='$minilang::Program'\n");
