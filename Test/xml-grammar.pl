@@ -1,5 +1,4 @@
 # --------------------------------------------------------------------
-#package main;
 package Grammar::XML;
 
 use strict;
@@ -9,15 +8,12 @@ use diagnostics;
 
 ::import_from("main", "assert");
 
-BEGIN { $Exporter::Verbose=1 }
+#BEGIN { $Exporter::Verbose=1 }
 
 # Prefer qualifying all uses of this package's contents
 
 # --------------------------------------------------------------------
 # Import components from package 'Grammar'
-
-#use Grammar; # qw(def terminal construction alternation optional nelist pelist)
-#use Grammar ':all';
 
 Grammar::import();
 
@@ -28,89 +24,89 @@ Grammar::import();
 # Prevent it by using uppercase chars in grammar element names. 
 no strict 'subs'; # Allow barewords (used to def grammar elements)
 
-# This is needed to allow bareword arguments to def. Why?
-sub def($$);
-
 # --------------------------------------------------------------------
 # Terminals
 
-def Space,   terminal(" ");
-def Tab,     terminal("\t");
-def Newline, terminal("\n");
-def Cr,      terminal("\r");
+terminal     Space,           ' ';
+terminal     Tab,             '\t';
+terminal     Newline,         '\n';
+terminal     Cr,              '\r';
 
-def OneWhitespace, alternation(Space, Tab, Newline, Cr);
+terminal     QuestionMark,    '\?';
+terminal     ExclamationMark, '\!';
+terminal     Dash,            '-';
+terminal     Equals,          '=';
+terminal     DQuote,          '"';
 
-def Whitespace, nelist(OneWhitespace, '');
+terminal     Langle,          '<';
+terminal     Slash,           '/';
+terminal     Rangle,          '>';
 
-def QuestionMark, terminal('\?');
-def ExclamationMark, terminal('\!');
-def Dash, terminal('-');
-def Equals, terminal('=');
-def DQuote, terminal('"');
+alternation  OneWhitespace,   Space, Tab, Newline, Cr;
 
-def Langle, terminal('<');
-def Slash,  terminal('/');
-def Rangle, terminal('>');
+nelist       Whitespace,      OneWhitespace, '';
 
-#def StringContent, terminal('[^"]*(?:\\\"[^"]*)*');
-def StringContent, terminal('[^"]');
-#def StringContent, alternation('[^"]');
-#def Value, terminal('"[^"]*"');
-#def Value, terminal('"[^"]*(?:\\\"[^"]*)*"');
-def StringLiteral, construction(DQuote, StringContent, DQuote);
+# Allow escaped double quotes in string contents
+# FIXME: Does XML allow them?
+#terminal    StringContent,   '[^"]*(?:\"[^"]*)*';
+terminal     StringContent,   '[^"]';
 
-def Attrname,  terminal('\w+');
-def Tagname,  terminal('\w+');
-#def Cdata, terminal('[<]+');
-#def Cdata, terminal('[-.,\d()\[\]\{\}\w^!$%&/?+*#\':;|@\s]*');
+#terminal    StringLiteral,   '"[^"]*"';
+#terminal    StringLiteral,   "\"[^\"]*?:\\\"[^\"]*)*\"";
+#terminal    StringLiteral,   '"[^"]*(?:\"[^"]*)*"';
+construction StringLiteral,   DQuote, StringContent, DQuote;
+
+terminal     Attrname,        '\w+';
+terminal     Tagname,         '\w+';
+#terminal    Cdata,           '[<]+';
+#terminal    Cdata,           '[-.,\d()\[\]\{\}\w^!$%&/?+*#\':;|@\s]*';
 # Use + as a quick fix to ensure progress
-def Cdata, terminal('[-.,\d()\[\]\{\}\w^!$%&/?+*#\':;|@\s]+');
+terminal     Cdata,           '[-.,\d()\[\]\{\}\w^!$%&/?+*#\':;|@\s]+';
 
 # --------------------------------------------------------------------
 # Simple Composites
 
-#def Owhite, optional(Whitespace);
-def Owhite, pelist(OneWhitespace, '');
+#optional    Owhite, Whitespace;
+pelist       Owhite, OneWhitespace, '';
 
-def Attr, construction(Attrname, Equals, Value);
-def Attrsi, pelist(Attr, Whitespace);
-def Attrs, construction(Whitespace, Attrsi);
-def Oattrs, optional(Attrs);
+construction Attr,   Attrname, Equals, Value;
+pelist       Attrsi, Attr, Whitespace;
+construction Attrs,  Whitespace, Attrsi;
+optional     Oattrs, Attrs;
 
 # More elaborate
-def Ltag, construction(Langle,        Owhite, Tagname, Oattrs, Owhite, Rangle);
-def Etag, construction(Langle,        Owhite, Tagname, Oattrs, Owhite, Slash, Owhite, Rangle);
-def Rtag, construction(Langle, Slash, Owhite, Tagname,                        Owhite, Rangle);
+construction Ltag, Langle,        Owhite, Tagname, Oattrs, Owhite, Rangle;
+construction Etag, Langle,        Owhite, Tagname, Oattrs, Owhite, Slash, Owhite, Rangle;
+construction Rtag, Langle, Slash, Owhite, Tagname,                        Owhite, Rangle;
 
 # Simplified
-#def Ltag, construction(Langle,        Tagname, Rangle);
-#def Etag, construction(Langle,        Tagname, Slash, Rangle);
-#def Rtag, construction(Langle, Slash, Tagname,         Rangle);
+#construction Ltag, Langle,        Tagname, Rangle;
+#construction Etag, Langle,        Tagname, Slash, Rangle;
+#construction Rtag, Langle, Slash, Tagname,        Rangle;
 
 # Processing Instructions
 # Example: <?xml version="1.0" encoding="ISO-8859-1"?>
 
-def ProcessingInstruction,
-    construction(Langle, QuestionMark, Tagname,
-                 Owhite, Oattrs, Owhite,
-                 QuestionMark, Rangle);
+construction ProcessingInstruction,
+    Langle, QuestionMark, Tagname,
+    Owhite, Oattrs, Owhite,
+    QuestionMark, Rangle;
 
-def CommentContent, terminal("(?:[^-]*-)*[^-]+-->");
-def Comment,
-    construction(Langle, ExclamationMark, Dash, Dash,
-                 CommentContent,
-                 Dash, Dash, Exclamationmark, Rangle);
+terminal     CommentContent, '(?:[^-]*-)*[^-]+-->';
+construction Comment,
+    Langle, ExclamationMark, Dash, Dash,
+    CommentContent,
+    Dash, Dash, Exclamationmark, Rangle;
 
 # --------------------------------------------------------------------
 # Nested Composites
 
-# FIXME: Fix handling of 'Elem' here:
-def Contentelem, alternation(ProcessingInstruction, 'Elem', Cdata);
-#def Contentelem, alternation(ProcessingInstruction, Comment, 'Elem', Cdata);
-def Contentlist, pelist(Contentelem, Owhite);
-def Complexelem, construction(Ltag, Contentlist, Rtag);
-#def Elem, alternation(Etag, Complexelem);
+# FIXME: Fix handling of "Elem" here:
+alternation  Contentelem, ProcessingInstruction, 'Elem', Cdata;
+#alternation  Contentelem, ProcessingInstruction, Comment, 'Elem', Cdata;
+pelist       Contentlist, Contentelem, Owhite;
+construction Complexelem, Ltag, Contentlist, Rtag;
+#alternation  Elem, Etag, Complexelem;
 $Grammar::XML::Elem= $Grammar::XML::Complexelem;
 
 #assert("Elem" eq $ {$Grammar::XML::Contentelem->{elements}}[0]);
