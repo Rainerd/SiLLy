@@ -64,16 +64,19 @@ o Catch EOS in all matching functions
 
 TODO
 
+o Automate regression tests
 o Actually parse the XML input file's content instead of parsing the
   hard-coded example string.
-o Separate 'minilang' test from XML test.
-o Automate regression tests
 o Add more regression tests
-o Packagize (Parser, Grammar, Utils, Test, Result)
+o Packagize (Parse::, Parse::LL:: or Parse::SiLLy?, Grammar, Utils, Test, Result)
+p Packagize (Parse::SiLLy::Test::Minilang)
 o Packagize (Terminal, Construction, Alternation, Optional, NEList, PEList)
 o Document how to configure logging
 o Result print function with compact output format
 o Result scanner
+
+Done
+o Separate 'minilang' test from XML test.
 
 =cut
 
@@ -250,8 +253,8 @@ sub vardescr($$)
 }
 
 # --------------------------------------------------------------------
-#package Result::PrintHandler;
-package Result::PrintHandler::Unused;
+#package Parse::SiLLy::Result::PrintHandler;
+package Parse::SiLLy::Result::PrintHandler::Unused;
 
 sub new($$) {
     my ($class, $log)= (@_);
@@ -290,11 +293,12 @@ sub pelist_end($$$$$) {
 }
 
 # --------------------------------------------------------------------
-package main;
+package Parse::SiLLy::Result;
+
 # Iterates over all elements (matches) in the given parse result
 # object, calling the given handler on each one.
 
-sub Result::scan($$) {
+sub scan($$) {
     my ($self, $handler)= (@_);
     assert(defined($self));
     assert(defined($handler));
@@ -313,21 +317,21 @@ sub Result::scan($$) {
 
     # FIXME: separate iteration from printing
 
-    if ($category= $Grammar::terminal) {
+    if ($category= $Parse::SiLLy::Grammar::terminal) {
         #
         $handler->terminal($self, $typename, $type, $category);
     }
-    elsif ($category= $Grammar::construction) {
+    elsif ($category= $Parse::SiLLy::Grammar::construction) {
         $handler->construction_begin($self, $typename, $type, $category);
-        map { Result::scan($_, $handler); } @$self[1..$#$self];
+        map { scan($_, $handler); } @$self[1..$#$self];
         $handler->construction_end  ($self, $typename, $type, $category);
     }
-    elsif ($category= $Grammar::alternation) {
+    elsif ($category= $Parse::SiLLy::Grammar::alternation) {
         $handler->alternation_begin($self, $typename, $type, $category);
-        map { Result::scan($_, $handler); } @$self[1..$#$self];
+        map { scan($_, $handler); } @$self[1..$#$self];
         $handler->alternation_end  ($self, $typename, $type, $category);
     }
-    elsif ($category= $Grammar::optional) {
+    elsif ($category= $Parse::SiLLy::Grammar::optional) {
         $handler->optional($self, $typename, $type, $category);
     }
     else {
@@ -335,10 +339,8 @@ sub Result::scan($$) {
     }
 }
 
-#=cut
-
 # ====================================================================
-package Grammar;
+package Parse::SiLLy::Grammar;
 
 use strict;
 use diagnostics;
@@ -360,10 +362,11 @@ use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 @EXPORT= qw();
 
 sub import {
-    # This would try to call Grammar::export_to_level, which is not defined:
-    #export_to_level(1, 'Grammar', @{ $EXPORT_TAGS{'all'} });
+    # This would try to call Parse::SiLLy::Grammar::export_to_level, which is not defined:
+    #export_to_level(1, 'Parse::SiLLy::Grammar', @{ $EXPORT_TAGS{'all'} });
 
-    Grammar->export_to_level(1, 'Grammar', @{ $EXPORT_TAGS{'all'} });
+    Parse::SiLLy::Grammar->
+        export_to_level(1, 'Parse::SiLLy::Grammar', @{ $EXPORT_TAGS{'all'} });
 }
 
 # --------------------------------------------------------------------
@@ -518,7 +521,7 @@ my $terminal_log;
 # --------------------------------------------------------------------
 =ignore
 
-package Grammar::Unused;
+package Parse::SiLLy::Grammar::Unused;
 
 sub terminal#($)
 {
@@ -531,7 +534,7 @@ sub terminal#($)
     return $val;
 }
 
-package Grammar;
+package Parse::SiLLy::Grammar;
 
 =cut
 
@@ -1103,7 +1106,7 @@ sub init()
     #if (scalar(@_) > 0) { info(vdump('Args', \@_)); }
     $Data::Dumper::Indent= 1;
 
-    Grammar::init();
+    Parse::SiLLy::Grammar::init();
 
     $main_log= Logger->new('main');
 }
@@ -1143,6 +1146,21 @@ sub input_show_state($$) {
 }
 
 # --------------------------------------------------------------------
+# FIXME: Use a unit testing framework, or at least find a better name
+
+sub test1($$$$$)
+{
+    my ($log, $matcher, $element, $state, $expected)= @_;
+    my $result= eval("Parse::SiLLy::Grammar::$matcher(\$$element, \$state)");
+    $log->debug(varstring("$matcher $element result", $result));
+    input_show_state($log, $state);
+    #should($result->{_}->{_}, $matcher);
+    #should($result->{_}->{name}, $element);
+    #should($result->{text}, $expected);
+    check_result($result, $element, $expected);
+}
+
+# --------------------------------------------------------------------
 sub test_minilang()
 {
     my $log= $main_log;
@@ -1155,61 +1173,22 @@ sub test_minilang()
 
     $log->debug("--- Testing terminal_match...");
     $state= { input => 'blah 123  456', pos=>0 };
-    $result= Grammar::terminal_match($minilang::Name, $state);
-    $log->debug(varstring('terminal_match Name result', $result));
-    input_show_state($log, $state);
-    #should($result->{_}->{_}, 'terminal');
-    #should($result->{_}->{name}, 'Name');
-    #should($result->{text}, 'blah');
-    check_result($result, 'Name', 'blah');
-
-    # FIXME: Use a common test case function for these:
-
-    $result= Grammar::terminal_match($minilang::Whitespace, $state);
-    $log->debug(varstring('terminal_match minilang::Whitespace result 1', $result));
-    input_show_state($log, $state);
-    check_result($result, 'Whitespace', ' ');
-
-    $result= Grammar::terminal_match($minilang::Number, $state);
-    $log->debug(varstring('terminal_match minilang::Number result 1', $result));
-    input_show_state($log, $state);
-    check_result($result, 'Number', '123');
-
-    $result= Grammar::terminal_match($minilang::Whitespace, $state);
-    $log->debug(varstring('terminal_match minilang::Whitespace result 2', $result));
-    input_show_state($log, $state);
-    check_result($result, 'Whitespace', '  ');
-
-    $result= Grammar::terminal_match($minilang::Number, $state);
-    $log->debug(varstring('terminal_match minilang::Number result 2', $result));
-    input_show_state($log, $state);
-    check_result($result, 'Number', '456');
+    test1($log, "terminal_match", "minilang::Name",       $state, "blah");
+    test1($log, "terminal_match", "minilang::Whitespace", $state, " ");
+    test1($log, "terminal_match", "minilang::Number",     $state, "123");
+    test1($log, "terminal_match", "minilang::Whitespace", $state, "  ");
+    test1($log, "terminal_match", "minilang::Number",     $state, "456");
 
     $log->debug("--- Testing alternation_match...");
     $state= { input => 'blah 123', pos=>0 };
-
-    $result= Grammar::alternation_match($minilang::Token, $state);
-    $log->debug(varstring('alternation_match minilang::Token result 1', $result));
-    input_show_state($log, $state);
-    check_result($result, 'Token', ['Name', 'blah']);
-    #check_result($result, 'Name', 'blah');
-
-    $result= Grammar::match($minilang::Whitespace, $state);
-    $log->debug(varstring('match minilang::Whitespace result 1', $result));
-    input_show_state($log, $state);
-    check_result($result, 'Whitespace', ' ');
-
-    $result= Grammar::match($minilang::Token, $state);
-    $log->debug(varstring('match minilang::Token result 2', $result));
-    input_show_state($log, $state);
-    #check_result($result, 'Number', '123');
-    check_result($result, 'Token', ['Number', '123']);
-
+    test1($log, "alternation_match", "minilang::Token",      $state, ['Name', 'blah']);
+    test1($log, "match",             "minilang::Whitespace", $state, " ");
+    test1($log, "match",             "minilang::Token",      $state, ['Number', '123']);
 
     $log->debug("--- Testing tokenization 1...");
     $state= { input => 'blah "123"  456', pos=>0 };
 
-    $result= Grammar::match($minilang::Tokenlist, $state);
+    $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
     $log->debug(varstring('match minilang::Tokenlist result 1', $result));
     input_show_state($log, $state);
     #my $expected= ['Tokenlist',
@@ -1242,7 +1221,7 @@ sub test_minilang()
     #$state= { input => 'blah ("123", xyz(456 * 2)); end;', pos=>0 };
     $state= { input => 'blah.("123", xyz.(456.*.2)); end;', pos=>0 };
 
-    $result= Grammar::match($minilang::Tokenlist, $state);
+    $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
     $log->debug(varstring('match minilang::Tokenlist result 2', $result));
     input_show_state($log, $state);
     # FIXME: Use an access function here: $result->elements();
@@ -1315,7 +1294,7 @@ sub test_xml()
 
     $state= { input => $xml, pos=>0 };
 
-    #$result= match($Grammar::XML::Elem, $state);
+    #$result= match($Parse::SiLLy::Test::XML::Elem, $state);
     #$log->debug(varstring('match XML::Elem result', $result));
     #input_show_state($log, $state);
     #check_result($result, 'Elem', $state->{input});
@@ -1324,7 +1303,7 @@ sub test_xml()
     #my $top= "Elem";
     my $top= "Contentlist";
     no strict 'refs';
-    $result= match(${"Grammar::XML::$top"}, $state);
+    $result= match(${"Parse::SiLLy::Test::XML::$top"}, $state);
     $log->debug(varstring('match XML::$top result', $result));
     input_show_state($log, $state);
     check_result($result, $top, $state->{input});
@@ -1362,8 +1341,8 @@ sub main
     my $log= $main_log;
     
     # Test 'def'
-    #Grammar::def 'foo', {elt=>'bar'};
-    Grammar::def($log, '<category>', 'foo', {elt=>'bar'}, 'main');
+    #Parse::SiLLy::Grammar::def 'foo', {elt=>'bar'};
+    Parse::SiLLy::Grammar::def($log, '<category>', 'foo', {elt=>'bar'}, 'main');
     $log->debug(varstring('::foo', $::foo));
     #assert($::foo->{elt} eq 'bar');
 
