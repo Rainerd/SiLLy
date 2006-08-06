@@ -20,7 +20,12 @@ o Allow free copying of derivatives.
 Purpose
 
 Parses, according to the given grammar, the given input. Produces an
-appropriately structured hash. 
+appropriately structured hash (an abstract syntax tree).
+
+Keywords
+
+Parser, recursive descent, backtracking, backup, LL, unlimited
+lookahead, memoizing, packrat, linear time, structured grammar rules
 
 
 Conceptual Grammar Example:
@@ -141,6 +146,13 @@ sub shouldnt($$) { # Fix editor's parenthesis matching: }' sub {
 }
 
 # --------------------------------------------------------------------
+sub eval_or_die($) {
+    my $evalue= eval($_[0]);
+    if ('' ne $@) { die("eval('$_[0]') failed: '$@'\n"); }
+    $evalue;
+}
+
+# --------------------------------------------------------------------
 sub hash_get($$) {
     my ($hash, $key)= (@_);
     #local $Carp::CarpLevel; ++$Carp::CarpLevel;
@@ -154,7 +166,10 @@ sub hash_get($$) {
 
 # ====================================================================
 package Logger;
+
 use strict;
+use diagnostics;
+#use English;
 
 # --------------------------------------------------------------------
 sub new
@@ -252,7 +267,7 @@ sub vardescr($$)
     my ($name, $val)= @_;
     if ( ! defined($val)) { return ("$name: <UNDEFINED>\n"); }
     my $valname= given_name($val);
-    return (defined($valname) ? "$name: $valname\n" : varstring($name, $val));
+    return (defined($valname) ? "\$$name = ''$valname''\n" : varstring($name, $val));
 
     assert(defined($val));
 
@@ -273,6 +288,10 @@ sub vardescr($$)
 # --------------------------------------------------------------------
 #package Parse::SiLLy::Result::PrintHandler;
 package Parse::SiLLy::Result::PrintHandler::Unused;
+
+use strict;
+use diagnostics;
+#use English;
 
 sub new($$) {
     my ($class, $log)= (@_);
@@ -313,6 +332,77 @@ sub pelist_end($$$$$) {
 # --------------------------------------------------------------------
 package Parse::SiLLy::Result;
 
+use strict;
+use diagnostics;
+#use English;
+
+::import_from('main', 'assert');
+
+# --------------------------------------------------------------------
+sub make_result($$) {
+    my ($t, $match)= (@_);
+    #return {_=>$t, result=>$match};
+    return [::hash_get($t, "name"), @$match];
+}
+
+# --------------------------------------------------------------------
+#sub nomatch() { undef; }
+#sub matched($) { defined($_[0]); }
+
+#my $nomatch= ['nomatch'];
+my $nomatch= 'nomatch';
+sub nomatch() { $nomatch }
+sub matched($) { nomatch() ne ($_[0]); }
+
+# --------------------------------------------------------------------
+# Formats the given result object as a string
+
+sub toString($$);
+sub toString($$)
+{
+    my ($self, $indent)= @_;
+    assert(defined($self));
+    if ( ! matched($self)) { return $indent.'nomatch'; }
+    #'ARRAY' eq ref($self) ||
+        #print(::varstring("self", $self)
+              #.", ref(\$self)=".ref($self)
+              #."\n");
+    assert('ARRAY' eq ref($self));
+
+    my $typename= $$self[0];
+    assert(defined($typename));
+    assert('' eq ref($typename));
+
+    my $type= do { no strict 'refs'; $ {$typename}; };
+    #print("tn=$typename\n");
+    assert(defined($type));
+    assert('' ne ref($type));
+    assert($typename eq $type->{name});
+
+    my $category= ::hash_get($type, '_');
+    #print("categ=$category\n");
+
+    if ($category eq "terminal") {
+        "[$typename '$$self[1]']";
+    }
+    elsif ($category eq "alternation") {
+        "[$typename ".toString($$self[1], "$indent ")."]";
+    }
+    elsif ($category eq "optional") {
+        "[$typename ".toString($$self[1], "$indent ")."]";
+    }
+    else #($category eq "construction")
+    {
+        "${indent}["
+            . join(",\n$indent ", map { toString($_, "$indent "); } @$self[1..$#$self])
+            . "$indent]";
+    }
+    #else {
+    #    $handler->print("[$typename '@$self->{elements}']");
+    #}
+}
+
+# --------------------------------------------------------------------
 # Iterates over all elements (matches) in the given parse result
 # object, calling the given handler on each one.
 
@@ -371,6 +461,10 @@ use English;
 ::import_from('main', 'vardescr');
 ::import_from('main', 'varstring');
 
+::import_from('Parse::SiLLy::Result', 'matched');
+::import_from('Parse::SiLLy::Result', 'nomatch');
+::import_from('Parse::SiLLy::Result', 'make_result');
+
 #BEGIN { $Exporter::Verbose=1 }
 require Exporter;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
@@ -396,7 +490,6 @@ sub log_args($$$)
     assert(defined($context));
     assert($argl);
     #carp(..);
-    #$log->debug("$context: \@#ARG=$#{@{$argl}}");
     $log->debug("$context: #ARGs=".scalar(@{$argl}));
     #$log->debug("$context: \@ARG=@{$argl}");
     $log->debug("$context: \@ARG='".join("', '", @{$argl})."'");
@@ -410,7 +503,7 @@ sub log_args($$$)
     my @description= map {
         ++$i;
         #print("item: $ARG\n");
-        vardescr("$i", $ARG);
+        vardescr("ARG[$i]", $ARG);
     } @$argl;
     $log->debug("$context: @description");
 }
@@ -421,34 +514,105 @@ sub log_args($$$)
 sub log_cargs($$$) { log_args($ARG[0], $ARG[1], $ARG[2]); }
 
 # --------------------------------------------------------------------
+# Returns the grammar object corresponding to the given spec (which
+# may be a string or a reference).
+
+sub grammar_object($$)
+{
+    #('' eq ref($_[0])) ? eval_or_die("\$::$_[0]") : $_[0];
+    my ($grammar, $spec)= (@_);
+    assert(defined($grammar));
+    assert('' eq ref($grammar));
+    assert(defined($spec));
+
+    #$grammar_log->debug("Resolving '$spec'...");
+    if ('' eq ref($spec)) {
+        #my $val= eval("\$::$spec");
+        my $val= eval("\$${grammar}::$spec");
+        (defined($val)) ? $val : $spec;
+    }
+    else {
+        $spec;
+    }
+}
+
+# --------------------------------------------------------------------
+# Returns a reference to an array of grammar objects that correspond to
+# the given array of specs (which may be strings or references).
+
+sub grammar_objects($$)
+{
+    #log_args($log, "grammar_objects", $ARG[0]);
+    # Note that @$ARG[0] is not the same as @{$ARG[0]}
+    my $grammar= shift();
+    my @elements= map { grammar_object($grammar, $_); } @{$ARG[0]};
+    \@elements;
+}
+
+# --------------------------------------------------------------------
+sub show_stash($$)
+{
+    my ($log, $stash)= (@_);
+    assert(defined($stash));
+    assert('HASH' eq ref($stash));
+    #$log->debug(vardescr("stash", $stash));
+    #$log->debug("Stash:");
+    map {
+        my $pos= $_;
+        #$log->debug("Showing stash for pos $pos...");
+        my $pos_stash= $stash->{$pos};
+        assert(defined($pos_stash));
+        assert('HASH' eq ref($pos_stash));
+        map {
+            my $spec= $_;
+            #$log->debug("Showing pos_stash for $pos.$spec...");
+            my $elt= $spec;
+
+            # FIXME: This leads to an incomplete error message
+            # (get assert to add the stack trace to $@ in this case):
+            #$elt= "foo";
+            #my $elt_name= ::hash_get($elt, 'name');
+
+            my $elt_name= $elt->{'name'};
+
+            assert(defined($elt_name));
+            assert('' eq ref($elt_name));
+            #$log->debug("Showing pos_stash for $pos.$elt_name...");
+
+            my $stashed= $pos_stash->{$spec};
+            assert(defined($stashed));
+            $log->debug(
+                        #matched($stashed)
+                        #? varstring("$pos.$elt_name", $stashed)
+                        #: "$pos.$elt_name = nomatch"
+                        "stash{$pos}{$elt_name}="
+                        . ( ! matched($stashed) ? 'nomatch'
+                            #: Parse::SiLLy::Result::toString(\@$stashed[1..$#$stashed], " ")
+                            #: Parse::SiLLy::Result::toString(@{@$stashed}[1..$#$stashed], " ")
+                            : "[$$stashed[0]]".Parse::SiLLy::Result::toString($$stashed[1], " ")
+                            )
+                        );
+        } sort(keys(%$pos_stash));
+    } sort(keys(%$stash));
+}
+
+# --------------------------------------------------------------------
+sub input_show_state($$) {
+    my ($log, $state)= (@_);
+    $log->debug(varstring('state->pos', $state->{pos}));
+}
+
+# --------------------------------------------------------------------
 sub match_watch_args($$$) {
     my ($log, $t, $state)= (@_);
-    #assert(defined($t));
-    #assert('' ne ref($t));
-    ##assert("HASH" eq ref($t));
-    #assert(exists ($t->{name}));
+    assert(defined($log));
     my $ctx= ::hash_get($t, "name");
     assert(defined($ctx));
     $log->debug("$ctx: state->pos=$state->{pos}");
-    log_args($log, $ctx, \@ARG);
+    # FIXME: Use a faster method to access the parser state (array)
+    if (exists($state->{stash})) { show_stash($log, $state->{stash}); }
     $ctx;
 }
-
-# --------------------------------------------------------------------
-sub make_result($$) {
-    my ($t, $match)= (@_);
-    #return {_=>$t, result=>$match};
-    return [::hash_get($t, "name"), @$match];
-}
-
-# --------------------------------------------------------------------
-#sub nomatch { undef; }
-#sub matched($) { defined($_[0]); }
-
-#my $nomatch= ['nomatch'];
-my $nomatch= 'nomatch';
-sub nomatch { $nomatch }
-sub matched($) { nomatch ne ($_[0]); }
 
 # --------------------------------------------------------------------
 # Conditional logging of grammar element values (in constructors)
@@ -500,7 +664,9 @@ sub def3($$@)
     $log->debug(varstring('val',$val));
 
     # Bind grammar object to variable
-    eval("\$$name=\$val;");
+    $ {$name}= $val;
+    #bind_var($name, $val);
+    #eval("\$$name=\$val;");
     #$::def_val_= $val; eval("\$$name=\$::def_val_;");
     # FIXME: Consider moving this to the grammar object constructors:
     $val->{name}= $name;
@@ -545,27 +711,6 @@ sub match($$);
 # --------------------------------------------------------------------
 my $terminal_log;
 # --------------------------------------------------------------------
-=ignore
-
-package Parse::SiLLy::Grammar::Unused;
-
-sub terminal#($)
-{
-    my $log= $terminal_log;
-    log_cargs($log, \@ARG);
-    
-    my $val= { pattern => $ARG[0], _ => $log->{name}};
-    $log->debug(varstring('pattern',$val->{pattern}));
-    log_val($log, $val);
-    return $val;
-}
-
-package Parse::SiLLy::Grammar;
-
-=cut
-
-# --------------------------------------------------------------------
-#sub def_terminal($$)
 sub terminal#($$)
 {
     my $log= $terminal_log;
@@ -574,42 +719,6 @@ sub terminal#($$)
     my ($name, $pattern)= @ARG;
     log_cargs($log, $name, \@ARG);
     return def($log, 'terminal', $name, {pattern=>$pattern}, caller());
-=ignore
-
-    #my $log= $def_log;
-    log_cargs($log, \@ARG);
-    my ($name, $pattern)= (@ARG);
-    assert(defined($name));
-    assert('' eq ref($name));
-    assert(defined($pattern));
-    assert('' eq ref($pattern));
-
-    # Determine full variable name
-    #my $fullname= "::$name";
-    my ($caller_package, $file, $line)= caller();
-    my $fullname= "${caller_package}::$name";
-    $log->debug("Defining '$fullname'...");
-
-    # Construct grammar object to bind the variable to
-    #my $val= &{$category}(@rest);
-    #my $val= { pattern => $pattern, _ => $log->{name}};
-    my $val= { '_'=>$log->{name}, name=>$fullname, pattern=>$pattern };
-    #$log->debug(varstring('val', $val));
-    $log->debug(varstring('pattern', $val->{pattern}));
-
-    # Bind grammar object to variable
-    eval("\$$fullname=\$val;");
-    #$::def_val_= $val; eval("\$$fullname=\$::def_val_;");
-    # FIXME: Consider moving this to the grammar object constructors:
-    #$val->{name}= $name;
-    #$val->{name}= $fullname;
-    $log->debug("Defined '$fullname' as $val.");
-
-    log_val($log, $val);
-    return $val;
-
-=cut
-
 }
 
 # --------------------------------------------------------------------
@@ -628,13 +737,13 @@ sub terminal_match($$)
     #$log->debug("$ctx: ref(input)=" . ref($input) . ".");
     if (eoi($state)) {
 	$log->info("$ctx: End Of Input reached");
-	return (nomatch);
+	return (nomatch());
     }
     if ('ARRAY' eq ref($input)) {
 	$log->debug("$ctx: state->pos=$state->{pos}, input[0]->name=", $ {@$input}[0]->{name});
 	#if ($#{@$input} < $pos) {
 	#    $log->info("$ctx: End of input reached");
-	#    return (nomatch);
+	#    return (nomatch());
 	#}
 	$match= $ {@$input}[$pos];
 	if ($t == $match->{_}) {
@@ -647,13 +756,13 @@ sub terminal_match($$)
 	    return ($result);
 	} else {
 	    $log->debug("$ctx: token not matched: '$ctx'");
-	    return (nomatch);
+	    return (nomatch());
 	}
     } else {
 	$log->debug("$ctx: state->pos=$state->{pos}, substr(input, pos)=", substr($input, $pos));
 	#if (length($input)-1 < $pos) {
 	#    $log->info("$ctx: End Of Input reached");
-	#    return (nomatch);
+	#    return (nomatch());
 	#}
         my $pattern= $t->{pattern};
         assert(defined($pattern));
@@ -669,50 +778,13 @@ sub terminal_match($$)
 	    return ($result);
 	} else {
 	    $log->debug("$ctx: pattern not matched: '$t->{pattern}'");
-	    return (nomatch);
+	    return (nomatch());
 	}
     }
 }
 
 # --------------------------------------------------------------------
 my $construction_log;
-
-# --------------------------------------------------------------------
-# Returns the grammar object corresponding to the given spec (which
-# may be a string or a reference).
-
-sub grammar_object($$)
-{
-    #('' eq ref($_[0])) ? eval("\$::$_[0]") : $_[0];
-    my ($grammar, $spec)= (@_);
-    assert(defined($grammar));
-    assert('' eq ref($grammar));
-    assert(defined($spec));
-
-    $construction_log->debug("Resolving '$spec'...");
-    if ('' eq ref($spec)) {
-        #my $val= eval("\$::$spec");
-        my $val= eval("\$${grammar}::$spec");
-        (defined($val)) ? $val : $spec;
-    }
-    else {
-        $spec;
-    }
-}
-
-# --------------------------------------------------------------------
-# Returns a reference to an array of grammar objects that correspond to
-# the given array of specs (which may be strings or references).
-
-sub grammar_objects($$)
-{
-    #log_args($construction_log, "grammar_objects", $ARG[0]);
-    # Note that @$ARG[0] is not the same as @{$ARG[0]}
-    #my @elements= map { ('' eq ref($_)) ? eval("\$::$_") : $_; } @{$ARG[0]};
-    my $grammar= shift();
-    my @elements= map { grammar_object($grammar, $_); } @{$ARG[0]};
-    \@elements;
-}
 
 # --------------------------------------------------------------------
 =ignore
@@ -722,12 +794,12 @@ sub construction
     my $log= $construction_log;
     log_cargs($log, \@ARG);
     # These are not allowed (elements of @ARG are read-only)
-    #map { if ('' eq ref($_)) { $_= eval("\$::$_"); } } @ARG;
-    #for (@ARG) { if ('' eq ref($_)) { $_= eval("\$::$_"); } }
+    #map { if ('' eq ref($_)) { $_= grammar_object($_); } } @ARG;
+    #for (@ARG) { if ('' eq ref($_)) { $_= grammar_object($_); } }
     #for (my $i= $#ARG; $i > 0; --$i) {
     #    if ('' eq ref($ARG[$i])) {
-    #        $ARG[$i]=     # This gives the error
-    #            eval("\$::$ARG[$i]");
+    #        $ARG[$i]=     # This assignment gives the error
+    #            grammar_object($ARG[$i]);
     #    }
     #}
 
@@ -804,16 +876,16 @@ sub construction_match($$)
 	#$log->debug("$ctx: i=$i");
 	my $element= $ {@{$t->{elements}}}[$i];
 	#$log->debug(varstring('element', $element));
-	$log->debug("$ctx: [ Trying to match element $i=$element->{name}");
+	$log->debug("$ctx: [ Trying to match element[$i]=$element->{name}");
 	my ($match)= match($element, $state);
 	if ( ! matched($match)) {
-            $log->debug("$ctx: ] element $i not matched: $element->{name} (giving up on '$ctx')");
+            $log->debug("$ctx: ] element[$i] not matched: $element->{name} (giving up on '$ctx')");
 	    # FIXME: Is this the best place to put backtracking?
 	    $state->{pos}= $saved_pos;
-	    return (nomatch);
+	    return (nomatch());
 	}
 	#$log->debug("$ctx: ] Matched element: " . varstring($i,$element));
-	$log->debug("$ctx: ] Matched element $i: $element->{name}");
+	$log->debug("$ctx: ] Matched element[$i]: $element->{name}");
 	#$log->debug("$ctx: element value: " . varstring('match', $match));
 	push(@$result_elements, $match);
     } (0 .. $#{@{$t->{elements}}});
@@ -859,7 +931,7 @@ sub alternation_match($$)
 
     if (eoi($state)) {
 	$log->info("$ctx: End Of Input reached");
-	return (nomatch);
+	return (nomatch());
     }
 
     my $elements= $t->{elements};
@@ -871,19 +943,20 @@ sub alternation_match($$)
 	#my $element= $$elements[$i];
 	my $element= $ {@$elements}[$i];
 	#$log->debug(varstring('element', $element));
-	$log->debug("$ctx: [ Trying to match element $i=$element->{name}");
+	$log->debug("$ctx: [ Trying to match element[$i]=$element->{name}");
 	my ($match)= match($element, $state);
 	if (matched($match))  {
 	    #$log->debug("$ctx: matched element: " . varstring($i, $element));
-            $log->debug("$ctx: ] Matched element $i: $element->{name}");
-	    $log->debug("$ctx: matched value: " . varstring('match', $match));
+            $log->debug("$ctx: ] Matched element[$i]: $element->{name}");
+	    #$log->debug("$ctx: matched value: " . varstring('match', $match));
+	    $log->debug("$ctx: match result: " . Parse::SiLLy::Result::toString($match, " "));
 	    #return ($match);
 	    return (make_result($t, [$match]));
 	}
-        $log->debug("$ctx: ] Element $i not matched: '$element->{name}'");
+        $log->debug("$ctx: ] element[$i] not matched: '$element->{name}'");
     } (0 .. $#{@$elements});
     $log->debug("$ctx: not matched: '$ctx'");
-    return (nomatch);
+    return (nomatch());
 }
 
 # --------------------------------------------------------------------
@@ -930,7 +1003,7 @@ sub optional_match($$)
     }
     #$log->debug("$ctx: not matched: '$ctx' (resulting in empty string)");
     #return ('');
-    $log->debug("$ctx: not matched: '$ctx' (resulting in empty string)");
+    $log->debug("$ctx: not matched: '$ctx'");
     return (make_result($t, [$match]));
 }
 
@@ -1046,7 +1119,7 @@ sub nelist_match($$)
 	my ($match)= match($element, $state);
 	if ( ! matched($match)) {
             $log->debug("$ctx: ] Element not matched: '$element->{name}'");
-	    if (0 == scalar(@$result_elements)) { return (nomatch); }
+	    if (0 == scalar(@$result_elements)) { return (nomatch()); }
 	    else { return (make_result($t, $result_elements)); }
 	}
 	$log->debug("$ctx: ] Matched element '$element->{name}'");
@@ -1068,6 +1141,33 @@ sub nelist_match($$)
 
 # --------------------------------------------------------------------
 my $match_log;
+
+# Needed to use references as hash keys
+# FIXME: What performance impact does this cause?
+use Tie::RefHash;
+
+# --------------------------------------------------------------------
+sub stash_get_pos_stash($$)
+{
+    # FIXME: Clean up:
+    #my ($state, $pos, $t)= @_;
+    #my $stash= $state->{stash};
+    my ($stash, $pos)= @_;
+    assert(defined($stash));
+    assert('' ne ref($stash));
+
+    if ( ! exists($stash->{$pos})) {
+        #$stash_log->debug("New position $pos, creating pos stash for it...");
+        my $pos_stash= {};
+        tie %$pos_stash, 'Tie::RefHash';
+        return ($stash->{$pos}= $pos_stash);
+    }
+    my $pos_stash= $stash->{$pos};
+    assert(defined($pos_stash));
+    assert('' ne ref($pos_stash));
+    $pos_stash;
+}
+
 # --------------------------------------------------------------------
 sub match($$)
 {
@@ -1089,33 +1189,27 @@ sub match($$)
         $log->debug("Initializing stash...");
         $state->{stash}= {};
     }
-    my $stash= $state->{stash};
-    assert(defined($stash));
-    assert('' ne ref($stash));
 
-    if ( ! exists($stash->{$pos})) {
-        $log->debug("New position $pos, creating stash for it...");
-        $stash->{$pos}= {};
+    my $pos_stash;
+    if (exists($state->{stash})) {
+        $pos_stash= stash_get_pos_stash($state->{stash}, $pos);
+        if (exists($pos_stash->{$t}))
+        {
+            my $stashed= $pos_stash->{$t};
+            assert(defined($stashed));
+            $log->debug("Found in stash: " . varstring('stashed', $stashed));
+            if (matched($stashed)) {
+                assert('ARRAY' eq ref($stashed));
+                $state->{pos}= $$stashed[0];
+                return ($$stashed[1]);
+            }
+            else {
+                return (nomatch());
+            }
+        }
     }
-    my $pos_stash= $stash->{$pos};
-    assert(defined($pos_stash));
-    assert('' ne ref($pos_stash));
 
     my $result;
-    if (exists($pos_stash->{$t})) {
-        my $stashed= $pos_stash->{$t};
-        assert(defined($stashed));
-        $log->debug("Found in stash: " . varstring('stashed', $stashed));
-        if (matched($stashed)) {
-            assert('ARRAY' eq ref($stashed));
-            $state->{pos}= $$stashed[0];
-            return ($$stashed[1]);
-        }
-        else {
-            return (nomatch);
-        }
-    }
-
     if ('terminal' eq $t->{_}) { 
 	$result= terminal_match($t, $state);
     } elsif ('alternation' eq $t->{_}) {
@@ -1132,9 +1226,25 @@ sub match($$)
 	die("$log->{name}: Unsupported type " . varstring('t->_', $t->{_}));
     }
     assert(matched($result) || $state->{pos} == $pos);
-    $log->debug("Storing result in stash for ${pos} ->{$t} ($t->{name}): "
-                . varstring('result', $result));
-    $pos_stash->{$t}= matched($result) ? [$state->{pos}, $result] : nomatch;
+
+    if (exists($state->{stash})) {
+        my $stashed= matched($result) ? [$state->{pos}, $result] : nomatch();
+        $log->debug("Storing result in stash for ${pos} ->{$t} ($t->{name}): "
+                    #. varstring('result', $result)
+                    # FIXME: use OO syntax here: $result->toString()
+                    . "\$result =" . Parse::SiLLy::Result::toString($result, " ")
+                    );
+        #$log->debug(varstring("stashed", $stashed));
+        $pos_stash->{$t}= $stashed;
+
+        # Used this to find out that the $t used above as a hash key
+        # was internally (in the hash table) converted to a string.
+        #map { $log->debug("key $_ has ref ".ref($_)); } keys(%$pos_stash);
+        # Used Tie::RefHash to get around that.  Another way might be
+        # to use $t's name as the key.
+        #map { assert('HASH' eq ref($_)); } keys(%$pos_stash);
+        map { ::should('HASH', ref($_)); } keys(%$pos_stash);
+    }
     $result;
 }
 
@@ -1165,6 +1275,11 @@ sub init()
 
 # ====================================================================
 package main;
+
+use strict;
+use diagnostics;
+#use English;
+
 # --------------------------------------------------------------------
 sub handle_item
 {
@@ -1193,6 +1308,9 @@ sub init()
 # --------------------------------------------------------------------
 sub check_result($$$) {
     my ($result, $expected_typename, $expected_text)= (@_);
+    assert(defined($result));
+    assert('ARRAY' eq ref($result));
+    assert(2 <= scalar(@$result));
     assert(defined($expected_typename));
     assert(defined($expected_text));
     #$main_log->debug(varstring('result', $result));
@@ -1222,48 +1340,24 @@ $minilang::Name= $minilang::Name;
 $::foo= $::foo;
 
 # --------------------------------------------------------------------
-sub show_stash($$)
-{
-    my ($log, $stash)= (@_);
-    assert(defined($stash));
-    assert('HASH' eq ref($stash));
-    map {
-        my $pos= $_;
-        my $pos_stash= $stash->{$pos};
-        assert(defined($pos_stash));
-        assert('HASH' eq ref($pos_stash));
-        map {
-            my $spec= $_;
-            my $elt= grammar_object($spec);
-
-            my $elt_name= hash_get($elt, 'name');
-            assert(defined($elt_name));
-            assert('' eq ref($elt_name));
-
-            my $stashed= $pos_stash->{$spec};
-            $log->debug(matched($stashed)
-                ? varstring("$pos.$elt_name", $stashed)
-                : "$pos.$elt_name = nomatch"
-                );
-        } sort(keys(%$pos_stash));
-    } sort(keys(%$stash));
-}
-
-# --------------------------------------------------------------------
-sub input_show_state($$) {
-    my ($log, $state)= (@_);
-    $log->debug(varstring('state->pos', $state->{pos}));
-}
-
-# --------------------------------------------------------------------
 # FIXME: Use a unit testing framework, or at least find a better name
 
 sub test1($$$$$)
 {
     my ($log, $matcher, $element, $state, $expected)= @_;
-    my $result= eval("Parse::SiLLy::Grammar::$matcher(\$$element, \$state)");
-    $log->debug(varstring("$matcher $element result", $result));
-    input_show_state($log, $state);
+    my $call= "Parse::SiLLy::Grammar::$matcher(\$$element, \$state)";
+    $log->debug("eval('$call')...");
+    my $result= eval($call);
+    # FIXME: Treat all evals like this?:
+    #my $errors= $@;
+    #if (defined($@)) { die("eval('$call') failed: '$@'\n"); }
+    if ('' ne $@) { die("eval('$call') failed: '$@'\n"); }
+
+    assert(defined($result));
+    #$log->debug(varstring("$matcher $element result", $result));
+    $log->debug("$matcher $element result = "
+                . Parse::SiLLy::Result::toString($result, " "));
+    Parse::SiLLy::Grammar::input_show_state($log, $state);
     #should($result->{_}->{_}, $matcher);
     #should($result->{_}->{name}, $element);
     #should($result->{text}, $expected);
@@ -1300,7 +1394,7 @@ sub test_minilang()
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
     $log->debug(varstring('match minilang::Tokenlist result 1', $result));
-    input_show_state($log, $state);
+    Parse::SiLLy::Grammar::input_show_state($log, $state);
     #my $expected= ['Tokenlist',
     #               ['Token', ['Name', 'blah']],
     #               ['Token', ['String', '"123"']],
@@ -1334,7 +1428,7 @@ sub test_minilang()
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
     $log->debug(varstring('match minilang::Tokenlist result 2', $result));
-    input_show_state($log, $state);
+    Parse::SiLLy::Grammar::input_show_state($log, $state);
 
     # FIXME: Use an access function here: $result->elements();
     #$result_elements= $result->{elements};
@@ -1403,7 +1497,7 @@ sub test_minilang()
     #return;
     $result= Parse::SiLLy::Grammar::match($minilang::Program, $state);
     $log->debug(varstring('match minilang::Program result', $result));
-    input_show_state($log, $state);
+    Parse::SiLLy::Grammar::input_show_state($log, $state);
     # FIXME: Add automated test here
     $expected=
     ['minilang::Program',
@@ -1470,16 +1564,17 @@ sub test_xml()
 
     #$result= Parse::SiLLy::Grammar::match($Parse::SiLLy::Test::XML::Elem, $state);
     #$log->debug(varstring('match XML::Elem result', $result));
-    #input_show_state($log, $state);
+    #Parse::SiLLy::Grammar::input_show_state($log, $state);
     #check_result($result, 'Elem', $state->{input});
 
     {
     #my $top= "Elem";
-    my $top= "Contentlist";
+    #my $top= "Contentlist";
+    my $top= "Parse::SiLLy::Test::XML::Contentlist";
     no strict 'refs';
     $result= Parse::SiLLy::Grammar::match(${"Parse::SiLLy::Test::XML::$top"}, $state);
-    $log->debug(varstring('match XML::$top result', $result));
-    input_show_state($log, $state);
+    $log->debug(varstring('match $top result', $result));
+    Parse::SiLLy::Grammar::input_show_state($log, $state);
     check_result($result, $top, $state->{input});
     }
 }
