@@ -383,7 +383,7 @@ sub toString($$)
     #print("categ=$category\n");
 
     if ($category eq "terminal") {
-        "[$typename '$$self[1]']";
+        "[$typename '".quotemeta($$self[1])."']";
     }
     elsif ($category eq "alternation") {
         "[$typename ".toString($$self[1], "$indent ")."]";
@@ -393,7 +393,7 @@ sub toString($$)
     }
     else #($category eq "construction")
     {
-        "${indent}["
+        "${indent}[\n$indent "
             . join(",\n$indent ", map { toString($_, "$indent "); } @$self[1..$#$self])
             . "$indent]";
     }
@@ -550,6 +550,53 @@ sub grammar_objects($$)
 }
 
 # --------------------------------------------------------------------
+sub format_stashed($)
+{
+    my $stashed= @_;
+    assert(defined($stashed));
+    ( ! matched($stashed)) ? 'nomatch'
+        #: Parse::SiLLy::Result::toString(\@$stashed[1..$#$stashed], " ")
+        #: Parse::SiLLy::Result::toString(@{@$stashed}[1..$#$stashed], " ")
+        : "[$$stashed[0]]".Parse::SiLLy::Result::toString($$stashed[1], " ")
+        ;
+}
+
+# --------------------------------------------------------------------
+sub show_pos_stash($$$)
+{
+    my ($log, $pos_stash, $pos)= (@_);
+    assert(defined($pos_stash));
+    assert('HASH' eq ref($pos_stash));
+    map {
+        my $spec= $_;
+        #$log->debug("Showing pos_stash for $pos.$spec...");
+        my $elt= $spec;
+
+        # FIXME: This leads to an incomplete error message
+        # (get assert to add the stack trace to $@ in this case):
+        #$elt= "foo";
+        #my $elt_name= ::hash_get($elt, 'name');
+        my $elt_name= $elt->{'name'};
+        assert(defined($elt_name));
+        assert('' eq ref($elt_name));
+
+        #$log->debug("Showing pos_stash for $pos.$elt_name...");
+        my $stashed= $pos_stash->{$spec};
+        assert(defined($stashed));
+        $log->debug(
+                    #matched($stashed)
+                    #? varstring("$pos.$elt_name", $stashed)
+                    #: "$pos.$elt_name = nomatch"
+                    "stash{$pos, $elt_name}="
+                    #. format_stashed($pos_stash->{$spec})
+                    . ( ! matched($stashed) ? 'nomatch'
+                        : "[$$stashed[0]]".Parse::SiLLy::Result::toString($$stashed[1], " ")
+                        )
+                    );
+    } sort({$a <=> $b} keys(%$pos_stash));
+}
+
+# --------------------------------------------------------------------
 sub show_stash($$)
 {
     my ($log, $stash)= (@_);
@@ -560,40 +607,8 @@ sub show_stash($$)
     map {
         my $pos= $_;
         #$log->debug("Showing stash for pos $pos...");
-        my $pos_stash= $stash->{$pos};
-        assert(defined($pos_stash));
-        assert('HASH' eq ref($pos_stash));
-        map {
-            my $spec= $_;
-            #$log->debug("Showing pos_stash for $pos.$spec...");
-            my $elt= $spec;
-
-            # FIXME: This leads to an incomplete error message
-            # (get assert to add the stack trace to $@ in this case):
-            #$elt= "foo";
-            #my $elt_name= ::hash_get($elt, 'name');
-
-            my $elt_name= $elt->{'name'};
-
-            assert(defined($elt_name));
-            assert('' eq ref($elt_name));
-            #$log->debug("Showing pos_stash for $pos.$elt_name...");
-
-            my $stashed= $pos_stash->{$spec};
-            assert(defined($stashed));
-            $log->debug(
-                        #matched($stashed)
-                        #? varstring("$pos.$elt_name", $stashed)
-                        #: "$pos.$elt_name = nomatch"
-                        "stash{$pos}{$elt_name}="
-                        . ( ! matched($stashed) ? 'nomatch'
-                            #: Parse::SiLLy::Result::toString(\@$stashed[1..$#$stashed], " ")
-                            #: Parse::SiLLy::Result::toString(@{@$stashed}[1..$#$stashed], " ")
-                            : "[$$stashed[0]]".Parse::SiLLy::Result::toString($$stashed[1], " ")
-                            )
-                        );
-        } sort(keys(%$pos_stash));
-    } sort(keys(%$stash));
+        show_pos_stash($log, $stash->{$pos}, $pos);
+    } sort({$a <=> $b} keys(%$stash));
 }
 
 # --------------------------------------------------------------------
@@ -610,7 +625,10 @@ sub match_watch_args($$$) {
     assert(defined($ctx));
     $log->debug("$ctx: state->pos=$state->{pos}");
     # FIXME: Use a faster method to access the parser state (array)
-    if (exists($state->{stash})) { show_stash($log, $state->{stash}); }
+    if (exists($state->{stash})) {
+        my $pos= $state->{pos};
+        show_pos_stash($log, $state->{stash}->{$pos}, $pos);
+    }
     $ctx;
 }
 
@@ -663,6 +681,7 @@ sub def3($$@)
     my $val= &{$category}(@rest);
     $log->debug(varstring('val',$val));
 
+    # FIXME: Factor this out:
     # Bind grammar object to variable
     $ {$name}= $val;
     #bind_var($name, $val);
@@ -759,7 +778,8 @@ sub terminal_match($$)
 	    return (nomatch());
 	}
     } else {
-	$log->debug("$ctx: state->pos=$state->{pos}, substr(input, pos)=", substr($input, $pos));
+	$log->debug("$ctx: state->pos=$state->{pos},"
+                    . " substr(input, pos)=", quotemeta(substr($input, $pos)) );
 	#if (length($input)-1 < $pos) {
 	#    $log->info("$ctx: End Of Input reached");
 	#    return (nomatch());
@@ -777,7 +797,7 @@ sub terminal_match($$)
 	    $log->debug("$ctx: state->pos=$state->{pos}");
 	    return ($result);
 	} else {
-	    $log->debug("$ctx: pattern not matched: '$t->{pattern}'");
+	    $log->debug("$ctx: pattern not matched: '".quotemeta($t->{pattern})."'");
 	    return (nomatch());
 	}
     }
@@ -998,12 +1018,15 @@ sub optional_match($$)
     my ($match)= match($element, $state);
     if (matched($match)) {
 	#$log->debug("$ctx: matched element: " . varstring($i,$element));
-	$log->debug("$ctx: matched " . varstring('value', $match));
+	#$log->debug("$ctx: matched " . varstring('value', $match));
+	$log->debug("$ctx: matched " . Parse::SiLLy::Result::toString($match, " "));
 	return (make_result($t, [$match]));
     }
     #$log->debug("$ctx: not matched: '$ctx' (resulting in empty string)");
     #return ('');
     $log->debug("$ctx: not matched: '$ctx'");
+    # FIXME: In case the element does not match,
+    # should return nomatch instead of an empty array
     return (make_result($t, [$match]));
 }
 
@@ -1070,6 +1093,7 @@ sub pelist_match($$)
         }
 	$log->debug("$ctx: ] Matched separator '$separator->{name}'");
     }
+    die("Must not reach this\n");
 }
 
 # --------------------------------------------------------------------
@@ -1197,7 +1221,14 @@ sub match($$)
         {
             my $stashed= $pos_stash->{$t};
             assert(defined($stashed));
-            $log->debug("Found in stash: " . varstring('stashed', $stashed));
+            $log->debug("Found in stash: "
+                        #. format_stashed($stashed)
+                        .
+                        (matched($stashed)
+                         ? "[$$stashed[0]]".Parse::SiLLy::Result::toString($$stashed[1], " ")
+                         : 'nomatch'
+                         )
+                        );
             if (matched($stashed)) {
                 assert('ARRAY' eq ref($stashed));
                 $state->{pos}= $$stashed[0];
@@ -1568,14 +1599,18 @@ sub test_xml()
     #check_result($result, 'Elem', $state->{input});
 
     {
-    #my $top= "Elem";
-    #my $top= "Contentlist";
-    my $top= "Parse::SiLLy::Test::XML::Contentlist";
-    no strict 'refs';
-    $result= Parse::SiLLy::Grammar::match(${"Parse::SiLLy::Test::XML::$top"}, $state);
+    #my $top= "Parse::SiLLy::Test::XML::Elem";
+    #my $top= "Parse::SiLLy::Test::XML::Contentlist";
+    my $top_name= "Parse::SiLLy::Test::XML::Contentlist";
+    # FIXME: Why does this not work?:
+    #no strict 'refs';
+    #$result= Parse::SiLLy::Grammar::match(${"Parse::SiLLy::Test::XML::$top"}, $state);
+    my $top= $Parse::SiLLy::Test::XML::Contentlist
+           = $Parse::SiLLy::Test::XML::Contentlist; # Avoid warning 'Used only once'
+    $result= Parse::SiLLy::Grammar::match($top, $state);
     $log->debug(varstring('match $top result', $result));
     Parse::SiLLy::Grammar::input_show_state($log, $state);
-    check_result($result, $top, $state->{input});
+    check_result($result, $top_name, $state->{input});
     }
 }
 
