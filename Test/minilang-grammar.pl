@@ -11,7 +11,7 @@ use diagnostics;
 # This package does not export anything by default.
 # Instead, all uses of this package's contents should be qualified.
 
-BEGIN { $Exporter::Verbose= 1; }
+#BEGIN { $Exporter::Verbose= 1; }
 #use Exporter;
 #@::ISA= qw(Exporter);
 #%EXPORT_TAGS= ('all' => [qw()]);
@@ -27,6 +27,8 @@ BEGIN { $Exporter::Verbose= 1; }
 
 # This is needed to allow bareword arguments to def. Why?
 #sub def($$$$$@);
+
+# FIXME: Can we get rid of these (or least write them more compactly)?:
 
 sub terminal;
 sub optional;
@@ -94,20 +96,22 @@ pelist Tokenlist,    Token, Owhite;
 alternation Literal, String, Number;
 #alternation Simple_term, Literal, Name;
 
-# Possibly empty list (set): list ::+ e
+# Possibly empty list (set): list ::* e
 
 # Note that Chain has not been defined yet, that is further below.
 #my $Chain;
-#pelist Exprlist,    Expr, Comma;
-pelist Exprlist,     Chain, Comma;
-#pelist Exprlist,    'Chain', Comma;
-#pelist Exprlist,    undef, Comma;
+construction WComma, Owhite, Comma, Owhite;
+#pelist Exprlist,    Expr, WComma;
+pelist Exprlist,     Chain, WComma;
+#pelist Exprlist,    'Chain', WComma;
+#pelist Exprlist,    undef, WComma;
 
 construction Tuple,  Lparen, Exprlist, Rparen;
 
 # In Perl, 'Term' is effectively a reserved name (package 'Term').
 alternation LTerm,   Literal, Name, Tuple;
 
+# Message Chain
 #nelist, Mchain,     LTerm, Whitespace;
 nelist Mchain,       LTerm, Period;
 
