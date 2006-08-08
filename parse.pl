@@ -75,20 +75,27 @@ o Catch EOS in all matching functions
 
 TODO
 
-o Automate regression tests
-o Actually parse the XML input file's content instead of parsing the
-  hard-coded example string.
-o Replace undef by 'not matched' constant
+o Implement the logger as an array
+o Implement state as an array
+o Factor out common parts of parsing functions.
+o Avoid calling debugging code (logging functions, data formatting) when debugging is off.
+o Do a serious benchmark
+o Allow dashes in XML comments
 o Add more regression tests
 o Packagize (Parse::, Parse::LL:: or Parse::SiLLy?, Grammar, Utils, Test, Result)
-p Packagize (Parse::SiLLy::Test::Minilang)
+o Packagize (Parse::SiLLy::Test::Minilang)
 o Packagize (Terminal, Construction, Alternation, Optional, NEList, PEList)
 o Document how to configure logging
-o Result print function with compact output format
 o Result scanner
 
 Done
+o Automate regression tests
 o Separate 'minilang' test from XML test.
+o Parse the hard-coded example string.
+o Replace undef by 'not matched' constant
+o Result print function with compact output format
+o Memoize parse results and make use of them (Packrat parsing)
+o Actually parse the XML input file's content
 
 =cut
 
@@ -184,9 +191,15 @@ sub new
     $self->{logger}= Log::Log4perl::get_logger($name)
 	|| die("$name: Could not get logger.\n");
     #print("$name: Got logger: " . join(', ', keys(%{$self->{logger}})) . "\n");
+    # FIXME: Offer a method for this (that returns the current value):
+    $self->{debugging}= $self->{logger}->is_debug();
     $self->{logger}->debug("Logger constructed: $name.");
     return $self;
 }
+
+# --------------------------------------------------------------------
+#sub is_debug($) { $_[0]->{logger}->is_debug(); }
+sub is_debug($) { $_[0]->{debugging}; }
 
 # --------------------------------------------------------------------
 sub get_logger($) {
@@ -212,6 +225,7 @@ sub info($) {
 sub debug($) {
     my ($self)= shift;
     my $ctx= ::hash_get($self, "name");
+    # FIXME: Why don't I use this line?:
     #$self->{logger}->debug("$ctx: @_");
     get_logger($self)->debug("$ctx: @_");
 }
@@ -360,6 +374,7 @@ sub matched($) { nomatch() ne ($_[0]); }
 sub toString($$);
 sub toString($$)
 {
+    #return "DUMMY";
     my ($self, $indent)= @_;
     assert(defined($self));
     if ( ! matched($self)) { return $indent.'nomatch'; }
@@ -487,6 +502,8 @@ sub log_args($$$)
     assert(defined($context));
     assert($argl);
     #carp(..);
+    if ( ! $log->is_debug()) { return; }
+
     $log->debug("$context: #ARGs=".scalar(@{$argl}));
     #$log->debug("$context: \@ARG=@{$argl}");
     $log->debug("$context: \@ARG='".join("', '", @{$argl})."'");
@@ -564,6 +581,7 @@ sub show_pos_stash($$$)
     my ($log, $pos_stash, $pos)= (@_);
     assert(defined($pos_stash));
     assert('HASH' eq ref($pos_stash));
+    if ( ! $log->is_debug()) { return; }
     map {
         my $spec= $_;
         #$log->debug("Showing pos_stash for $pos.$spec...");
@@ -587,7 +605,8 @@ sub show_pos_stash($$$)
                     "stash{$pos, $elt_name}="
                     #. format_stashed($pos_stash->{$spec})
                     . ( ! matched($stashed) ? 'nomatch'
-                        : "[$$stashed[0]]".Parse::SiLLy::Result::toString($$stashed[1], " ")
+                        : "[$$stashed[0]]"
+                          .Parse::SiLLy::Result::toString($$stashed[1], " ")
                         )
                     );
     } sort({$a <=> $b} keys(%$pos_stash));
@@ -599,6 +618,7 @@ sub show_stash($$)
     my ($log, $stash)= (@_);
     assert(defined($stash));
     assert('HASH' eq ref($stash));
+    if ( ! $log->is_debug()) { return; }
     #$log->debug(vardescr("stash", $stash));
     #$log->debug("Stash:");
     map {
@@ -611,6 +631,7 @@ sub show_stash($$)
 # --------------------------------------------------------------------
 sub input_show_state($$) {
     my ($log, $state)= (@_);
+    if ( ! $log->is_debug()) { return; }
     $log->debug(varstring('state->pos', $state->{pos}));
 }
 
@@ -618,6 +639,7 @@ sub input_show_state($$) {
 sub match_watch_args($$$) {
     my ($log, $t, $state)= (@_);
     assert(defined($log));
+    if ( ! $log->is_debug()) { return; }
     my $ctx= ::hash_get($t, "name");
     assert(defined($ctx));
     $log->debug("$ctx: state->pos=$state->{pos}");
@@ -637,6 +659,7 @@ sub log_val($$) {
     my ($log, $val)= @ARG;
     assert(defined($log));
     assert('' ne ref($log));
+    if ( ! $log->is_debug()) { return; }
     #assert("HASH" eq ref($log));
     if ($log_val) {
         #assert(defined($val));
@@ -756,7 +779,8 @@ sub terminal_match($$)
 	return (nomatch());
     }
     if ('ARRAY' eq ref($input)) {
-	$log->debug("$ctx: state->pos=$state->{pos}, input[0]->name=", $ {@$input}[0]->{name});
+	$log->debug("$ctx: state->pos=$state->{pos},"
+                    . " input[0]->name=", $ {@$input}[0]->{name});
 	#if ($#{@$input} < $pos) {
 	#    $log->debug("$ctx: End of input reached");
 	#    return (nomatch());
@@ -776,7 +800,8 @@ sub terminal_match($$)
 	}
     } else {
 	$log->debug("$ctx: state->pos=$state->{pos},"
-                    . " substr(input, pos)='".quotemeta(substr($input, $pos))."'");
+                    . " substr(input, pos)='"
+                    . quotemeta(substr($input, $pos))."'");
 	#if (length($input)-1 < $pos) {
 	#    $log->debug("$ctx: End Of Input reached");
 	#    return (nomatch());
@@ -794,7 +819,8 @@ sub terminal_match($$)
 	    $log->debug("$ctx: state->pos=$state->{pos}");
 	    return ($result);
 	} else {
-	    $log->debug("$ctx: pattern not matched: '".quotemeta($t->{pattern})."'");
+	    $log->debug("$ctx: pattern not matched: '"
+                        . quotemeta($t->{pattern})."'");
 	    return (nomatch());
 	}
     }
@@ -896,7 +922,8 @@ sub construction_match($$)
 	$log->debug("$ctx: [ Trying to match element[$i]=$element->{name}");
 	my ($match)= match($element, $state);
 	if ( ! matched($match)) {
-            $log->debug("$ctx: ] element[$i] not matched: $element->{name} (giving up on '$ctx')");
+            $log->debug("$ctx: ] element[$i] not matched: $element->{name}"
+                        . " (giving up on '$ctx')");
 	    # FIXME: Is this the best place to put backtracking?
 	    $state->{pos}= $saved_pos;
 	    return (nomatch());
@@ -966,7 +993,8 @@ sub alternation_match($$)
 	    #$log->debug("$ctx: matched element: " . varstring($i, $element));
             $log->debug("$ctx: ] Matched element[$i]: $element->{name}");
 	    #$log->debug("$ctx: matched value: " . varstring('match', $match));
-	    $log->debug("$ctx: match result: " . Parse::SiLLy::Result::toString($match, " "));
+	    $log->debug("$ctx: match result: "
+                        . Parse::SiLLy::Result::toString($match, " "));
 	    #return ($match);
 	    return (make_result($t, [$match]));
 	}
@@ -1016,7 +1044,8 @@ sub optional_match($$)
     if (matched($match)) {
 	#$log->debug("$ctx: matched element: " . varstring($i,$element));
 	#$log->debug("$ctx: matched " . varstring('value', $match));
-	$log->debug("$ctx: matched " . Parse::SiLLy::Result::toString($match, " "));
+	$log->debug("$ctx: matched "
+                    . Parse::SiLLy::Result::toString($match, " "));
 	return (make_result($t, [$match]));
     }
     #$log->debug("$ctx: not matched: '$ctx' (resulting in empty string)");
@@ -1222,7 +1251,8 @@ sub match($$)
                         #. format_stashed($stashed)
                         .
                         (matched($stashed)
-                         ? "[$$stashed[0]]".Parse::SiLLy::Result::toString($$stashed[1], " ")
+                         ? "[$$stashed[0]]"
+                           .Parse::SiLLy::Result::toString($$stashed[1], " ")
                          : 'nomatch'
                          )
                         );
@@ -1260,7 +1290,8 @@ sub match($$)
         $log->debug("Storing result in stash for ${pos} ->{$t} ($t->{name}): "
                     #. varstring('result', $result)
                     # FIXME: use OO syntax here: $result->toString()
-                    . "\$result =" . Parse::SiLLy::Result::toString($result, " ")
+                    . "\$result ="
+                    . Parse::SiLLy::Result::toString($result, " ")
                     );
         #$log->debug(varstring("stashed", $stashed));
         $pos_stash->{$t}= $stashed;
@@ -1339,7 +1370,8 @@ sub check_result($$$) {
     assert(defined($result));
     #assert(Parse::SiLLy::Grammar::matched($result));
     assert('ARRAY' eq ref($result));
-    print(varstring('result', $result)."\n");
+    #print(varstring('result', $result)."\n");
+    #print('$result='.Parse::SiLLy::Result::toString($result)."\n");
     assert(2 <= scalar(@$result));
     assert(defined($expected_typename));
     assert(defined($expected_text));
@@ -1415,15 +1447,21 @@ sub test_minilang()
 
     $log->debug("--- Testing alternation_match...");
     $state= { input => 'blah 123', pos=>0 };
-    test1($log, "alternation_match", "minilang::Token",      $state, ['minilang::Token', ['minilang::Name', 'blah']]);
-    test1($log, "match",             "minilang::Whitespace", $state, " ");
-    test1($log, "match",             "minilang::Token",      $state, ['minilang::Token', ['minilang::Number', '123']]);
+    test1($log, "alternation_match", "minilang::Token",
+          $state, ['minilang::Token', ['minilang::Name', 'blah']]);
+    test1($log, "match",             "minilang::Whitespace",
+          $state, " ");
+    test1($log, "match",             "minilang::Token",
+          $state, ['minilang::Token', ['minilang::Number', '123']]);
 
     $log->debug("--- Testing tokenization 1...");
     $state= { input => 'blah "123"  456', pos=>0 };
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
-    $log->debug(varstring('match minilang::Tokenlist result 1', $result));
+    #$log->debug(varstring('match minilang::Tokenlist result 1', $result));
+    $log->debug("match minilang::Tokenlist result 1='"
+                . Parse::SiLLy::Result::toString($result, " ")
+                . "'");
     Parse::SiLLy::Grammar::input_show_state($log, $state);
     #my $expected= ['Tokenlist',
     #               ['Token', ['Name', 'blah']],
@@ -1457,7 +1495,9 @@ sub test_minilang()
     #                   0....5....0....5..8..0
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
-    $log->debug(varstring('match minilang::Tokenlist result 2', $result));
+    #$log->debug(varstring('match minilang::Tokenlist result 2', $result));
+    $log->debug("match minilang::Tokenlist result 2='"
+                . Parse::SiLLy::Result::toString($result, " ") . "'");
     Parse::SiLLy::Grammar::input_show_state($log, $state);
 
     # FIXME: Use an access function here: $result->elements();
@@ -1475,7 +1515,8 @@ sub test_minilang()
     # FIXME: When we always pass an expected result object,
     # check_result needs only two args.
 
-    check_result($$result_elements[0], 'minilang::Token', ['minilang::Token', ['minilang::Name', 'blah']]);
+    check_result($$result_elements[0], 'minilang::Token',
+                 ['minilang::Token', ['minilang::Name', 'blah']]);
     #check_result($$result_elements[1], 'Period', '.');
     my $i= 0;
     my @token_contents=
@@ -1526,45 +1567,50 @@ sub test_minilang()
     # FIXME: Get this test to work
     #return;
     $result= Parse::SiLLy::Grammar::match($minilang::Program, $state);
-    $log->debug(varstring('match minilang::Program result', $result));
+    #$log->debug(varstring('match minilang::Program result', $result));
+    $log->debug("match minilang::Program result='"
+                . Parse::SiLLy::Result::toString($result, " ") . "'");
     Parse::SiLLy::Grammar::input_show_state($log, $state);
     # FIXME: Add automated test here
     $expected=
     ['minilang::Program',
      ['minilang::Mchain',
-      ['minilang::LTerm', ['minilang::Name',      'blah']],
+      ['minilang::LTerm', ['minilang::Name', 'blah']],
       ['minilang::Period',    '.'],
       ['minilang::LTerm',
        ['minilang::Tuple',
         ['minilang::Lparen',    '('],
         ['minilang::Exprlist',
          ['minilang::Mchain',
-          ['minilang::LTerm', ['minilang::Literal', ['minilang::String',    '"123"']]],
+          ['minilang::LTerm',
+           ['minilang::Literal', ['minilang::String', '"123"']]],
           ],
          ['minilang::Comma',     ','],
          ['minilang::Mchain',
-          ['minilang::LTerm', ['minilang::Name',      'xyz']],
+          ['minilang::LTerm', ['minilang::Name', 'xyz']],
           ['minilang::Period',    '.'],
           ['minilang::LTerm',
            ['minilang::Tuple',
             ['minilang::Lparen',    '('],
             ['minilang::Exprlist',
              ['minilang::Mchain',
-              ['minilang::LTerm', ['minilang::Literal', ['minilang::Number',    456]]],
+              ['minilang::LTerm',
+               ['minilang::Literal', ['minilang::Number', 456]]],
               ['minilang::Period',    '.'],
-              ['minilang::LTerm', ['minilang::Name',      '*']],
+              ['minilang::LTerm', ['minilang::Name', '*']],
               ['minilang::Period',    '.'],
-              ['minilang::LTerm', ['minilang::Literal', ['minilang::Number',    2]]],
+              ['minilang::LTerm',
+               ['minilang::Literal', ['minilang::Number', 2]]],
               ]],
-            ['minilang::Rparen',    ')'],
+            ['minilang::Rparen', ')'],
             ]]]],
-        ['minilang::Rparen',    ')'],
+        ['minilang::Rparen', ')'],
         ],
        ], # Term
       ], # Mchain
      ['minilang::Semicolon', ';'],
      ['minilang::Mchain',
-      ['minilang::LTerm', ['minilang::Name',      'end']],
+      ['minilang::LTerm', ['minilang::Name', 'end']],
       ],
      ['minilang::Semicolon', ';'],
      ];
@@ -1592,7 +1638,8 @@ sub test_xml()
 
     $state= { input => $xml, pos=>0 };
 
-    #$result= Parse::SiLLy::Grammar::match($Parse::SiLLy::Test::XML::Elem, $state);
+    #$result= Parse::SiLLy::Grammar::match($Parse::SiLLy::Test::XML::Elem,
+    #                                      $state);
     #$log->debug(varstring('match XML::Elem result', $result));
     #Parse::SiLLy::Grammar::input_show_state($log, $state);
     #check_result($result, 'Elem', $state->{input});
@@ -1605,10 +1652,13 @@ sub test_xml()
     #no strict 'refs';
     #my $top= ${$top_name}; assert(defined($top));
     #$result= Parse::SiLLy::Grammar::match($top, $state);
+    # Avoid warning 'Used only once':
     my $top= $Parse::SiLLy::Test::XML::Contentlist
-           = $Parse::SiLLy::Test::XML::Contentlist; # Avoid warning 'Used only once'
+           = $Parse::SiLLy::Test::XML::Contentlist;
     $result= Parse::SiLLy::Grammar::match($top, $state);
-    $log->debug(varstring('match $top result', $result));
+    #$log->debug(varstring('match $top result', $result));
+    $log->debug("match $top result='"
+                . Parse::SiLLy::Result::toString($result, " ") . "'");
     Parse::SiLLy::Grammar::input_show_state($log, $state);
     check_result($result, $top_name, $state->{input});
     }
@@ -1646,7 +1696,8 @@ sub main
     
     # Test 'def'
     #Parse::SiLLy::Grammar::def 'foo', {elt=>'bar'};
-    Parse::SiLLy::Grammar::def($log, '<category>', 'foo', {elt=>'bar'}, 'main');
+    Parse::SiLLy::Grammar::def($log, '<category>', 'foo', {elt=>'bar'},
+                               'main');
     $log->debug(varstring('::foo', $::foo));
     #assert($::foo->{elt} eq 'bar');
 
@@ -1689,8 +1740,16 @@ sub main
     my $state= { input => $input_data, pos=>0 };
     my $top= "Parse::SiLLy::Test::XML::Contentlist";
     no strict 'refs';
-    #my $result= Parse::SiLLy::Grammar::match($::Elem, $state);
-    my $result= Parse::SiLLy::Grammar::match(${"$top"}, $state);
+    use Benchmark;
+    my $result;
+    #$result= Parse::SiLLy::Grammar::match($::Elem, $state);
+    #$result= Parse::SiLLy::Grammar::match(${"$top"}, $state);
+    timethis(1, sub { $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state); } );
+    timethis(10, sub {
+        delete($state->{stash});
+        $state->{pos}= 0;
+        $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state);
+         } );
     $log->debug(varstring('match $top result', $result));
     #$log->debug(varstring('state', $state));
     Parse::SiLLy::Grammar::input_show_state($log, $state);
