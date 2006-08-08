@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------
-package Grammar::XML;
+package Parse::SiLLy::Test::XML;
 
 use strict;
 #use warnings;
@@ -13,9 +13,16 @@ use diagnostics;
 # Prefer qualifying all uses of this package's contents
 
 # --------------------------------------------------------------------
-# Import components from package 'Grammar'
+# Import components from package 'Parse::SiLLy::Grammar'
 
-Grammar::import();
+sub terminal;
+sub optional;
+sub construction;
+sub alternation;
+sub nelist;
+sub pelist;
+
+Parse::SiLLy::Grammar::import();
 
 # --------------------------------------------------------------------
 # Allow use of barewords
@@ -44,12 +51,13 @@ terminal     Rangle,          '>';
 
 alternation  OneWhitespace,   Space, Tab, Newline, Cr;
 
-nelist       Whitespace,      OneWhitespace, '';
+#nelist       Whitespace,      OneWhitespace, '';
+terminal     Whitespace,      '[ \t\n\r]+';
 
 # Allow escaped double quotes in string contents
 # FIXME: Does XML allow them?
 #terminal    StringContent,   '[^"]*(?:\"[^"]*)*';
-terminal     StringContent,   '[^"]';
+terminal     StringContent,   '[^"]*';
 
 #terminal    StringLiteral,   '"[^"]*"';
 #terminal    StringLiteral,   "\"[^\"]*?:\\\"[^\"]*)*\"";
@@ -66,11 +74,12 @@ terminal     Cdata,           '[-.,\d()\[\]\{\}\w^!$%&/?+*#\':;|@\s]+';
 # --------------------------------------------------------------------
 # Simple Composites
 
-#optional    Owhite, Whitespace;
-pelist       Owhite, OneWhitespace, '';
+optional    Owhite, Whitespace;
+#pelist       Owhite, OneWhitespace, '';
 
-construction Attr,   Attrname, Equals, Value;
-pelist       Attrsi, Attr, Whitespace;
+construction Attr,   Attrname, Equals, StringLiteral;
+#pelist       Attrsi, Attr, Whitespace;
+nelist       Attrsi, Attr, Whitespace;
 construction Attrs,  Whitespace, Attrsi;
 optional     Oattrs, Attrs;
 
@@ -89,38 +98,47 @@ construction Rtag, Langle, Slash, Owhite, Tagname,                        Owhite
 
 construction ProcessingInstruction,
     Langle, QuestionMark, Tagname,
-    Owhite, Oattrs, Owhite,
+    Oattrs, Owhite,
     QuestionMark, Rangle;
 
-terminal     CommentContent, '(?:[^-]*-)*[^-]+-->';
+# FIXME: Does not handle '--' in the middle of a comment
+#terminal     CommentContent, '(?:[^-]*-)*[^-]+';
+# FIXME: Does not handle '-' in the middle of a comment
+terminal     CommentContent, '[^-]*';
 construction Comment,
     Langle, ExclamationMark, Dash, Dash,
     CommentContent,
-    Dash, Dash, Exclamationmark, Rangle;
+    Dash, Dash, Rangle;
 
 # --------------------------------------------------------------------
 # Nested Composites
 
 # FIXME: Fix handling of "Elem" here:
-alternation  Contentelem, ProcessingInstruction, 'Elem', Cdata;
-#alternation  Contentelem, ProcessingInstruction, Comment, 'Elem', Cdata;
-pelist       Contentlist, Contentelem, Owhite;
-construction Complexelem, Ltag, Contentlist, Rtag;
-#alternation  Elem, Etag, Complexelem;
-$Grammar::XML::Elem= $Grammar::XML::Complexelem;
+#alternation  Contentelem, ProcessingInstruction, 'Elem', Cdata;
+alternation  Contentelem, ProcessingInstruction, Comment, 'Elem', Cdata;
 
-#assert("Elem" eq $ {$Grammar::XML::Contentelem->{elements}}[0]);
-#$ {$Grammar::XML::Contentelem->{elements}}[0]= $Elem;
+pelist       Contentlist, Contentelem, Owhite;
+#pelist       Contentlist, Contentelem, Cdata;
+
+construction Complexelem, Ltag, Contentlist, Rtag;
+
+#alternation  Elem, Etag, Complexelem;
+$Parse::SiLLy::Test::XML::Elem= $Parse::SiLLy::Test::XML::Complexelem;
+
+# FIXME: Document this:
+# FIXME: Simplify this:
+#assert("Elem" eq $ {$Parse::SiLLy::Test::XML::Contentelem->{elements}}[0]);
+#$ {$Parse::SiLLy::Test::XML::Contentelem->{elements}}[0]= $Elem;
 my ($i, $i_elem)= (-1, -1);
 grep { ++$i; if (m/Elem/) { $i_elem= $i; } }
-    @{$Grammar::XML::Contentelem->{elements}};
+    @{$Parse::SiLLy::Test::XML::Contentelem->{elements}};
 #map { ++$i; if ( ! defined($_)) { $i_elem= $i; } }
-#    @{$Grammar::XML::Contentelem->{elements}};
-assert(-1 != $i_elem); #print("Found Elem at $i_elem\n");
-$ {$Grammar::XML::Contentelem->{elements}}[$i_elem]= $Grammar::XML::Elem;
+#    @{$Parse::SiLLy::Test::XML::Contentelem->{elements}};
+assert(-1 != $i_elem); print("Found Elem at $i_elem\n");
+$ {$Parse::SiLLy::Test::XML::Contentelem->{elements}}[$i_elem]= $Parse::SiLLy::Test::XML::Elem;
 
 print("xml-grammar.pl:");
-print("Elem='$Grammar::XML::Elem'\n");
+print("Elem='$Parse::SiLLy::Test::XML::Elem'\n");
 
 # --------------------------------------------------------------------
 # EOF
