@@ -139,6 +139,10 @@ sub import_from($$) {
 # ====================================================================
 # Assertions
 
+# Determines whether assertions are done
+sub ASSERT() { 1 }
+#sub ASSERT() { 0 }
+
 # --------------------------------------------------------------------
 #use Carp::Assert;
 use Carp;
@@ -168,11 +172,11 @@ sub eval_or_die($) {
 sub hash_get($$) {
     my ($hash, $key)= (@_);
     #local $Carp::CarpLevel; ++$Carp::CarpLevel;
-    assert(defined($hash));
-    assert('' ne ref($hash));
-    #assert("HASH" eq ref($hash)); # false if $hash refers to a blessed object
-    #assert(defined($key));
-    assert(exists($hash->{$key}));
+    assert(defined($hash)) if ASSERT();
+    assert('' ne ref($hash)) if ASSERT();
+    #assert("HASH" eq ref($hash)) if ASSERT(); # false if $hash refers to a blessed object
+    #assert(defined($key)) if ASSERT();
+    assert(exists($hash->{$key})) if ASSERT();
     $hash->{$key};
 }
 
@@ -184,6 +188,7 @@ use diagnostics;
 #use English;
 
 ::import_from('main', 'assert');
+::import_from('main', 'ASSERT');
 
 # --------------------------------------------------------------------
 sub new
@@ -226,13 +231,13 @@ sub name($) {
     return $ { @{ $_[0]}}[0];
 
     my ($self)= @_;
-    assert(defined($self));
-    assert('' ne ref($self));
-    #assert('Logger' eq ref($self));
-    assert(0 < scalar(@$self));
+    assert(defined($self)) if ASSERT();
+    assert('' ne ref($self)) if ASSERT();
+    #assert('Logger' eq ref($self)) if ASSERT();
+    assert(0 < scalar(@$self)) if ASSERT();
     my $name= $$self[0];
-    assert(defined($name));
-    assert('' eq ref($name));
+    assert(defined($name)) if ASSERT();
+    assert('' eq ref($name)) if ASSERT();
 }
 
 # --------------------------------------------------------------------
@@ -247,8 +252,8 @@ sub is_debug($) {
     return $ {@ {$_[0]}}[1];
 
     my $self= $_[0];
-    assert(defined($self));
-    assert('' ne ref($self));
+    assert(defined($self)) if ASSERT();
+    assert('' ne ref($self)) if ASSERT();
     $$self[1];
 }
 
@@ -260,13 +265,13 @@ sub get_logger($) {
     #return $ {@ {$_[0]}}[2];
 
     my ($self)= (@_);
-    #::assert(exists($self->{logger}));
-    ::assert(2 <= $#$self);
+    #::assert(exists($self->{logger})) if ASSERT();
+    ::assert(2 <= $#$self) if ASSERT();
     #my $log= $self->{logger};
     my $log= $$self[2];
-    ::assert(defined($log));
+    ::assert(defined($log)) if ASSERT();
     #print(STDERR "ref(log)=".ref($log)."\n");
-    ::assert("Log::Log4perl::Logger" eq ref($log));
+    ::assert("Log::Log4perl::Logger" eq ref($log)) if ASSERT();
     $log;
 }
 
@@ -322,7 +327,7 @@ sub varstring($$) {
 # Otherwise returns undef.
 sub given_name($) {
     my ($val)= @_;
-    assert(defined($val));
+    assert(defined($val)) if ASSERT();
     if (
         #"HASH" eq ref($val) # Does not work if $val is blessed
         '' ne ref($val)
@@ -416,6 +421,7 @@ use diagnostics;
 #use English;
 
 ::import_from('main', 'assert');
+::import_from('main', 'ASSERT');
 
 # --------------------------------------------------------------------
 sub make_result($$) {
@@ -489,18 +495,18 @@ sub toString($$)
 
 sub scan($$) {
     my ($self, $handler)= (@_);
-    assert(defined($self));
-    assert(defined($handler));
-    assert('ARRAY' eq ref($self));
+    assert(defined($self)) if ASSERT();
+    assert(defined($handler)) if ASSERT();
+    assert('ARRAY' eq ref($self)) if ASSERT();
 
     my $typename= $$self[0];
-    assert(defined($typename));
-    assert('' eq ref($typename));
+    assert(defined($typename)) if ASSERT();
+    assert('' eq ref($typename)) if ASSERT();
 
     my $type= do { no strict 'refs'; $ {$typename}; };
-    assert(defined($type));
-    assert('' ne ref($type));
-    assert($typename eq $type->{name});
+    assert(defined($type)) if ASSERT();
+    assert('' ne ref($type)) if ASSERT();
+    assert($typename eq $type->{name}) if ASSERT();
 
     my $category= ::hash_get($type, '_');
 
@@ -539,6 +545,7 @@ use English;
 #main::import(qw(assert));
 #*assert= \&::assert;
 ::import_from('main', 'assert');
+::import_from('main', 'ASSERT');
 ::import_from('main', 'vardescr');
 ::import_from('main', 'varstring');
 
@@ -707,15 +714,15 @@ sub input_show_state($$) {
 # --------------------------------------------------------------------
 sub match_watch_args($$$) {
     my ($log, $t, $state)= (@_);
-    assert(defined($log));
+    assert(defined($log)) if ASSERT();
 
     #my $ctx= ::hash_get($t, "name");
-    assert(defined($t));
-    assert('' ne ref($t));
-    #assert("HASH" eq ref($t));
-    assert(exists($t->{name}));
+    assert(defined($t)) if ASSERT();
+    assert('' ne ref($t)) if ASSERT();
+    #assert("HASH" eq ref($t)) if ASSERT();
+    assert(exists($t->{name})) if ASSERT();
     my $ctx= $t->{name};
-    assert(defined($ctx));
+    assert(defined($ctx)) if ASSERT();
     if ( ! $log->is_debug()) { return $ctx; }
 
     $log->debug("$ctx: state->pos=$state->{pos}");
@@ -733,8 +740,8 @@ my $log_val;
 $log_val= 1;
 sub log_val($$) {
     my ($log, $val)= @ARG;
-    assert(defined($log));
-    assert('' ne ref($log));
+    assert(defined($log)) if ASSERT();
+    assert('' ne ref($log)) if ASSERT();
     if ( ! $log->is_debug()) { return; }
     #assert("HASH" eq ref($log));
     if ($log_val) {
@@ -748,9 +755,9 @@ sub log_val($$) {
 # --------------------------------------------------------------------
 sub eoi($$) {
     my ($input, $pos)= (@_);
-    assert(defined($input));
+    assert(defined($input)) if ASSERT();
     if ('' eq ref($input)) { return (length($input)-1 < $pos); }
-    assert("ARRAY" eq ref($input));
+    assert("ARRAY" eq ref($input)) if ASSERT();
     return ($#{@$input} < $pos);
 }
 
@@ -907,8 +914,8 @@ sub terminal_match($$)
 	#    return (nomatch());
 	#}
         my $pattern= $t->{pattern};
-        assert(defined($pattern));
-        assert('' eq ref($pattern));
+        assert(defined($pattern)) if ASSERT();
+        assert('' eq ref($pattern)) if ASSERT();
 
 	#($match)= substr($input, $pos) =~ m{^($t->{pattern})}g;
         #my $matcher= $t->{matcher};
@@ -1339,8 +1346,8 @@ sub stash_get_pos_stash($$)
     #my ($state, $pos, $t)= @_;
     #my $stash= $state->{stash};
     my ($stash, $pos)= @_;
-    assert(defined($stash));
-    assert('' ne ref($stash));
+    assert(defined($stash)) if ASSERT();
+    assert('' ne ref($stash)) if ASSERT();
 
     if ( ! exists($stash->{$pos})) {
         #$stash_log->debug("New position $pos, creating pos stash for it...");
@@ -1349,8 +1356,8 @@ sub stash_get_pos_stash($$)
         return ($stash->{$pos}= $pos_stash);
     }
     my $pos_stash= $stash->{$pos};
-    assert(defined($pos_stash));
-    assert('' ne ref($pos_stash));
+    assert(defined($pos_stash)) if ASSERT();
+    assert('' ne ref($pos_stash)) if ASSERT();
     $pos_stash;
 }
 
@@ -1369,16 +1376,16 @@ sub match($$)
     my $log= $match_log;
     my ($t, $state)= @ARG;
     # FIXME: Allow defining these asserts away (35 vs. 41 /sec):
-    assert(defined($t));
-    assert('' ne ref($t));
+    assert(defined($t)) if ASSERT();
+    assert('' ne ref($t)) if ASSERT();
 
-    assert(defined($state));
-    assert('' ne ref($state));
+    assert(defined($state)) if ASSERT();
+    assert('' ne ref($state)) if ASSERT();
 
-    assert(exists($state->{pos}));
+    assert(exists($state->{pos})) if ASSERT();
     my $pos= $state->{pos};
-    assert(defined($pos));
-    assert('' eq ref($pos));
+    assert(defined($pos)) if ASSERT();
+    assert('' eq ref($pos)) if ASSERT();
 
     # FIXME: This should be done by a constructor:
     if ( ! exists($state->{stash})) {
@@ -1415,7 +1422,7 @@ sub match($$)
             #if (matched($stashed))
             if (nomatch() ne $stashed)
             {
-                assert('ARRAY' eq ref($stashed));
+                assert('ARRAY' eq ref($stashed)) if ASSERT();
                 $state->{pos}= $$stashed[0];
                 return ($$stashed[1]);
             }
@@ -1447,8 +1454,8 @@ sub match($$)
     }
 }
 
-    #assert(matched($result) || $state->{pos} == $pos);
-    assert((nomatch() ne $result) || $state->{pos} == $pos);
+    #assert(matched($result) || $state->{pos} == $pos) if ASSERT();
+    assert((nomatch() ne $result) || $state->{pos} == $pos) if ASSERT();
 
     if (exists($state->{stash})) {
         #my $stashed= matched($result) ? [$state->{pos}, $result] : nomatch();
