@@ -1,7 +1,10 @@
 #!/usr/bin/perl -w
 # --------------------------------------------------------------------
 # Usage: perl PROGRAM GRAMMAR INPUT > OUTPUT
-# Example: perl parse.pl Test/xml-grammar.pl Test/example.xml
+# Example: perl          parse.pl Test/xml-grammar.pl Test/XML/example.xml
+# Profile: perl -w -d:DProf parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
+# Lint: perl -w -MO=Lint,-context parse.pl Test/xml-grammar.pl Test/XML/example.xml
+
 # --------------------------------------------------------------------
 =ignore
 
@@ -75,7 +78,7 @@ o Catch EOS in all matching functions
 
 TODO
 
-        # FIXME: Using memoization is currently slower than not doing it
+# FIXME: Using memoization is currently slower than not doing it
 o Benchmark without memoization versus with memoization
 o Implement state as an array
 o Factor out common parts of parsing functions.
@@ -83,10 +86,10 @@ o Avoid calling debugging code (logging functions, data formatting) when debuggi
 o Do a serious benchmark
 o Allow dashes in XML comments
 o Add more regression tests
-o Packagize (Parse::, Parse::LL:: or Parse::SiLLy?, Grammar, Utils, Test, Result)
+o Packagize (Parse::, Parse::LL:: or Parse::SiLLy?, Grammar, Utils, Test, Result, Stash)
 o Packagize (Parse::SiLLy::Test::Minilang)
 o Packagize (Terminal, Construction, Alternation, Optional, NEList, PEList)
-o Document how to configure logging
+o Document how to configure logging (search for $DEBUG)
 o Result scanner
 
 Done
@@ -270,7 +273,6 @@ sub get_logger($) {
 # --------------------------------------------------------------------
 sub info($) {
     my ($self)= (@_);
-    #my $ctx= ::hash_get($self, "name");
     my $ctx= $self->name();
     #print("$ctx: @_\n");
     #$self->{logger}->info("$ctx: @_");
@@ -284,7 +286,6 @@ sub debug($) {
     my ($self)= shift;
     #if ( ! $self->is_debug()) { return; }
     #if ( ! $self->get_logger()->is_debug()) { return; }
-    #my $ctx= ::hash_get($self, "name");
     #my $ctx= $$self[0];
     my $ctx= $self->name();
     # FIXME: Why don't I use this line?:
@@ -420,7 +421,8 @@ use diagnostics;
 sub make_result($$) {
     my ($t, $match)= (@_);
     #return {_=>$t, result=>$match};
-    return [::hash_get($t, "name"), @$match];
+    #return [::hash_get($t, "name"), @$match];
+    return [$t->{name}, @$match];
 }
 
 # --------------------------------------------------------------------
@@ -428,8 +430,11 @@ sub make_result($$) {
 #sub matched($) { defined($_[0]); }
 
 #my $nomatch= ['nomatch'];
-my $nomatch= 'nomatch';
-sub nomatch() { $nomatch }
+#my $nomatch= 'nomatch';
+#sub nomatch() { $nomatch }
+#use constant nomatch => 'nomatch';
+sub nomatch() { 'nomatch' }
+#my $nomatch= nomatch();
 sub matched($) { nomatch() ne ($_[0]); }
 
 # --------------------------------------------------------------------
@@ -703,9 +708,16 @@ sub input_show_state($$) {
 sub match_watch_args($$$) {
     my ($log, $t, $state)= (@_);
     assert(defined($log));
-    my $ctx= ::hash_get($t, "name");
+
+    #my $ctx= ::hash_get($t, "name");
+    assert(defined($t));
+    assert('' ne ref($t));
+    #assert("HASH" eq ref($t));
+    assert(exists($t->{name}));
+    my $ctx= $t->{name};
     assert(defined($ctx));
     if ( ! $log->is_debug()) { return $ctx; }
+
     $log->debug("$ctx: state->pos=$state->{pos}");
     # FIXME: Use a faster method to access the parser state (array)
     if (exists($state->{stash})) {
@@ -734,12 +746,12 @@ sub log_val($$) {
 }
 
 # --------------------------------------------------------------------
-sub eoi($) {
-    my ($state)= (@_);
-    my $input= ::hash_get($state, "input"); assert(defined($input));
-    if ('' eq ref($input)) { return (length($input)-1 < $state->{pos}); }
+sub eoi($$) {
+    my ($input, $pos)= (@_);
+    assert(defined($input));
+    if ('' eq ref($input)) { return (length($input)-1 < $pos); }
     assert("ARRAY" eq ref($input));
-    return ($#{@$input} < $state->{pos});
+    return ($#{@$input} < $pos);
 }
 
 # --------------------------------------------------------------------
@@ -821,7 +833,18 @@ sub terminal#($$)
     #return def($log, 'terminal', $ARG[0], {pattern=>$ARG[1]}, caller());
     my ($name, $pattern)= @ARG;
     log_cargs($log, $name, \@ARG);
-    return def($log, 'terminal', $name, {pattern=>$pattern}, caller());
+
+    # Here we create an anonymous subroutine that matches $pattern and
+    # store a reference to it in $element->{matcher}.
+
+    # The goal here is to let Perl compile the pattern matcher only once,
+    # when the terminal is defined (in other words, here, when the
+    # subroutine is compiled), and not at every parse.
+    my $matcher= eval("sub { \$_[0] =~ m{^($pattern)}og; }");
+
+    return def($log, 'terminal', $name,
+               { pattern => $pattern, matcher => $matcher },
+               caller());
 }
 
 # --------------------------------------------------------------------
@@ -831,6 +854,9 @@ sub terminal_match($$)
 {
     my $log= $terminal_match_log;
     my ($t, $state)= @ARG;
+
+    # FIXME: Separate concerns of checking preconditions, determining
+    # the context and argument logging.
     my $ctx= match_watch_args($log, $t, $state);
     
     my $input= $state->{input};
@@ -838,7 +864,7 @@ sub terminal_match($$)
     #my ($match)= $input =~ m{^($t->{pattern})}g;
     my $match;
     #$log->debug("$ctx: ref(input)=" . ref($input) . ".");
-    if (eoi($state)) {
+    if (eoi($input, $pos)) {
 	if ($log->is_debug()) { $log->debug("$ctx: End Of Input reached"); }
 	return (nomatch());
     }
@@ -883,7 +909,11 @@ sub terminal_match($$)
         my $pattern= $t->{pattern};
         assert(defined($pattern));
         assert('' eq ref($pattern));
-	($match)= substr($input, $pos) =~ m{^($t->{pattern})}g;
+
+	#($match)= substr($input, $pos) =~ m{^($t->{pattern})}g;
+        #my $matcher= $t->{matcher};
+	($match)= &{$t->{matcher}}(substr($input, $pos));
+
         if (defined($match)) {
             if ($log->is_debug()) {
                 $log->debug("$ctx: matched text: '".quotemeta($match)."'");
@@ -976,12 +1006,19 @@ sub construction_match($$)
             $log->debug("$ctx: [ Trying to match element[$i]=$element->{name}");
         }
 	my ($match)= match($element, $state);
-	if ( ! matched($match)) {
+	#if ( ! matched($match))
+	if (nomatch() eq $match)
+        {
             if ($log->is_debug()) {
                 $log->debug("$ctx: ] element[$i] not matched: $element->{name}"
                             . " (giving up on '$ctx')");
             }
-	    # FIXME: Is this the best place to put backtracking?
+
+	    # Q: Why is this currently the only place where
+	    # backtracking must be performed? A: Because this is the
+	    # only place where a failure may occur after pos has been
+	    # already moved.
+
 	    $state->{pos}= $saved_pos;
 	    return (nomatch());
 	}
@@ -1035,7 +1072,9 @@ sub alternation_match($$)
     # A: No, then we can not control logging locally.
     my $ctx= match_watch_args($log, $t, $state);
 
-    if (eoi($state)) {
+    # FIXME: Do we need to check for EOI here?
+    # FIXME: Is it beneficial to check for EOI here?
+    if (eoi($state->{input}, $state->{pos})) {
         if ($log->is_debug()) { $log->debug("$ctx: End Of Input reached"); }
 	return (nomatch());
     }
@@ -1053,7 +1092,9 @@ sub alternation_match($$)
             $log->debug("$ctx: [ Trying to match element[$i]=$element->{name}");
         }
 	my ($match)= match($element, $state);
-	if (matched($match))  {
+	#if (matched($match))
+	if (nomatch() ne $match)
+        {
             if ($log->is_debug()) {
                 #$log->debug("$ctx: matched element: " . varstring($i, $element));
                 $log->debug("$ctx: ] Matched element[$i]: $element->{name}");
@@ -1111,7 +1152,9 @@ sub optional_match($$)
     # FIXME: Add backtracking of state in case of mismatch
 
     my ($match)= match($element, $state);
-    if (matched($match)) {
+    #if (matched($match))
+    if (nomatch() ne $match)
+    {
         if ($log->is_debug()) {
             #$log->debug("$ctx: matched element: " . varstring($i,$element));
             #$log->debug("$ctx: matched " . varstring('value', $match));
@@ -1169,7 +1212,9 @@ sub pelist_match($$)
             $log->debug("$ctx: [ Trying to match element '$element->{name}'");
         }
 	my ($match)= match($element, $state);
-	if ( ! matched($match)) {
+	#if ( ! matched($match))
+	if (nomatch() eq $match)
+        {
             if ($log->is_debug()) {
                 $log->debug("$ctx: ] Element not matched: '$element->{name}'");
             }
@@ -1187,7 +1232,9 @@ sub pelist_match($$)
             $log->debug("$ctx: [ Trying to match separator '$separator->{name}'");
         }
 	($match)= match($separator, $state);
-	if ( ! matched($match)) {
+	#if ( ! matched($match))
+	if (nomatch() eq $match)
+        {
             if ($log->is_debug()) {
                 $log->debug("$ctx: ] Separator not matched: '$separator->{name}'");
             }
@@ -1241,7 +1288,9 @@ sub nelist_match($$)
             $log->debug("$ctx: [ Trying to match element '$element->{name}'");
         }
 	my ($match)= match($element, $state);
-	if ( ! matched($match)) {
+	#if ( ! matched($match))
+	if (nomatch() eq $match)
+        {
             if ($log->is_debug()) {
                 $log->debug("$ctx: ] Element not matched: '$element->{name}'");
             }
@@ -1260,7 +1309,9 @@ sub nelist_match($$)
             $log->debug("$ctx: [ Trying to match separator '$separator->{name}'");
         }
 	($match)= match($separator, $state);
-	if ( ! matched($match)) {
+	#if ( ! matched($match))
+	if (nomatch() eq $match)
+        {
             if ($log->is_debug()) {
                 $log->debug("$ctx: ] Separator not matched: '$separator->{name}'");
             }
@@ -1317,6 +1368,7 @@ sub match($$)
 {
     my $log= $match_log;
     my ($t, $state)= @ARG;
+    # FIXME: Allow defining these asserts away (35 vs. 41 /sec):
     assert(defined($t));
     assert('' ne ref($t));
 
@@ -1360,7 +1412,9 @@ sub match($$)
                              )
                             );
             }
-            if (matched($stashed)) {
+            #if (matched($stashed))
+            if (nomatch() ne $stashed)
+            {
                 assert('ARRAY' eq ref($stashed));
                 $state->{pos}= $$stashed[0];
                 return ($$stashed[1]);
@@ -1393,10 +1447,12 @@ sub match($$)
     }
 }
 
-    assert(matched($result) || $state->{pos} == $pos);
+    #assert(matched($result) || $state->{pos} == $pos);
+    assert((nomatch() ne $result) || $state->{pos} == $pos);
 
     if (exists($state->{stash})) {
-        my $stashed= matched($result) ? [$state->{pos}, $result] : nomatch();
+        #my $stashed= matched($result) ? [$state->{pos}, $result] : nomatch();
+        my $stashed= (nomatch() ne $result) ? [$state->{pos}, $result] : nomatch();
         if ($log->is_debug()) {
             $log->debug("Storing result in stash for ${pos} ->{$pos_stash_key} ($t->{name}): "
                         #. varstring('result', $result)
@@ -1599,6 +1655,7 @@ sub test_minilang()
 
     #my $result_elements= $result->{elements};
     # FIXME: Make this a function:
+    # FIXME: Implicit scalar context for array in block:
     my $result_elements= \@$result[1..$#{@$result}];
     #check_result($$result_elements[0], 'Name', 'blah');
     #check_result($$result_elements[1], 'String', '"123"');
@@ -1623,6 +1680,7 @@ sub test_minilang()
     assert(1 < scalar(@$result));
     #$result_elements= {@$result}[0..($#$result-1)];
     #my @result_elements= @$result[1, -1];
+    # FIXME: Implicit scalar context for array in block
     my @result_elements= @{@$result}[1..$#$result];
     if ($log->is_debug()) {
         $log->debug(varstring('@result_elements', \@result_elements));
@@ -1820,6 +1878,23 @@ sub read_data_old {
 }
 
 # --------------------------------------------------------------------
+sub do_one_run($$) {
+    my ($state, $top)= @_;
+    if (exists($state->{stash})) {
+        delete($state->{stash});
+    }
+    $state->{pos}= 0;
+    no strict 'refs';
+    Parse::SiLLy::Grammar::match($ {"$top"}, $state);
+}
+
+# --------------------------------------------------------------------
+sub do_runs($$$) {
+    my ($n, $state, $top)= @_;
+    for (my $i= 0; $i<$n; ++$i) { do_one_run($state, $top); }
+}
+
+# --------------------------------------------------------------------
 sub main
 {
     init();
@@ -1870,17 +1945,19 @@ sub main
     {
     my $state= { input => $input_data, pos=>0 };
     my $top= "Parse::SiLLy::Test::XML::Contentlist";
-    no strict 'refs';
-    use Benchmark;
     my $result;
     #$result= Parse::SiLLy::Grammar::match($::Elem, $state);
-    #$result= Parse::SiLLy::Grammar::match(${"$top"}, $state);
+    no strict 'refs';
+    $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state);
+    #$result= do_one_run($state, $top);
+    #$result= do_runs(100, $state, $top);
+
+    sleep(1);
+    use Benchmark;
     timethis(1, sub { $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state); } );
-    timethis(30, sub {
-        delete($state->{stash});
-        $state->{pos}= 0;
-        $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state);
-         } );
+    # First arg -N means repeat for at least N seconds.
+    timethis(-2, sub { $result= do_one_run($state, $top); } );
+
     if ($log->is_debug()) {
         $log->debug(varstring('match $top result', $result));
         #$log->debug(varstring('state', $state));
