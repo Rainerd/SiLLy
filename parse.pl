@@ -278,9 +278,9 @@ sub info($) {
 
 # --------------------------------------------------------------------
 sub debug($) {
-    #if ( ! $ {@{$_[0]}}[1]) { return; }
+    if ( ! $ {@{$_[0]}}[1]) { return; }
     my ($self)= shift;
-    if ( ! $self->is_debug()) { return; }
+    #if ( ! $self->is_debug()) { return; }
     #if ( ! $self->get_logger()->is_debug()) { return; }
     #my $ctx= ::hash_get($self, "name");
     #my $ctx= $$self[0];
@@ -837,35 +837,45 @@ sub terminal_match($$)
     my $match;
     #$log->debug("$ctx: ref(input)=" . ref($input) . ".");
     if (eoi($state)) {
-	$log->debug("$ctx: End Of Input reached");
+	if ($log->is_debug()) { $log->debug("$ctx: End Of Input reached"); }
 	return (nomatch());
     }
     if ('ARRAY' eq ref($input)) {
-	$log->debug("$ctx: state->pos=$state->{pos},"
-                    . " input[0]->name=", $ {@$input}[0]->{name});
+	if ($log->is_debug()) {
+            $log->debug("$ctx: state->pos=$state->{pos},"
+                        . " input[0]->name=", $ {@$input}[0]->{name});
+        }
 	#if ($#{@$input} < $pos) {
-	#    $log->debug("$ctx: End of input reached");
+	#    if ($log->is_debug()) { $log->debug("$ctx: End of input reached");}
 	#    return (nomatch());
 	#}
 	$match= $ {@$input}[$pos];
 	if ($t == $match->{_}) {
-	    #$log->debug("$ctx: matched token: " . varstring('match', $match));
-	    $log->debug("$ctx: matched token: $ctx, text: '$match->{text}'");
+            if ($log->is_debug()) {
+                #$log->debug("$ctx: matched token: " . varstring('match', $match));
+                $log->debug("$ctx: matched token: $ctx, text: '$match->{text}'");
+            }
 	    my $result= $match;
 	    $state->{pos}= $pos + 1;
-	    #$log->debug(varstring('state', $state));
-	    $log->debug("$ctx: state->pos=$state->{pos}");
+            if ($log->is_debug()) {
+                #$log->debug(varstring('state', $state));
+                $log->debug("$ctx: state->pos=$state->{pos}");
+            }
 	    return ($result);
 	} else {
-	    $log->debug("$ctx: token not matched: '$ctx'");
+            if ($log->is_debug()) {
+                $log->debug("$ctx: token not matched: '$ctx'");
+            }
 	    return (nomatch());
 	}
     } else {
-	$log->debug("$ctx: state->pos=$state->{pos},"
-                    . " substr(input, pos)='"
-                    . quotemeta(substr($input, $pos))."'");
+        if ($log->is_debug()) {
+            $log->debug("$ctx: state->pos=$state->{pos},"
+                        . " substr(input, pos)='"
+                        . quotemeta(substr($input, $pos))."'");
+        }
 	#if (length($input)-1 < $pos) {
-	#    $log->debug("$ctx: End Of Input reached");
+	#    if ($log->is_debug()) {$log->debug("$ctx: End Of Input reached");}
 	#    return (nomatch());
 	#}
         my $pattern= $t->{pattern};
@@ -873,16 +883,22 @@ sub terminal_match($$)
         assert('' eq ref($pattern));
 	($match)= substr($input, $pos) =~ m{^($t->{pattern})}g;
         if (defined($match)) {
-	    $log->debug("$ctx: matched text: '".quotemeta($match)."'");
+            if ($log->is_debug()) {
+                $log->debug("$ctx: matched text: '".quotemeta($match)."'");
+            }
             #my $result= {_=>$t, text=>$match};
 	    my $result= make_result($t, [$match]);
 	    $state->{pos}= $pos + length($match);
-	    #$log->debug(varstring('state', $state));
-	    $log->debug("$ctx: state->pos=$state->{pos}");
+	    if ($log->is_debug()) {
+                #$log->debug(varstring('state', $state));
+                $log->debug("$ctx: state->pos=$state->{pos}");
+            }
 	    return ($result);
 	} else {
-	    $log->debug("$ctx: pattern not matched: '"
-                        . quotemeta($t->{pattern})."'");
+	    if ($log->is_debug()) {
+                $log->debug("$ctx: pattern not matched: '"
+                            . quotemeta($t->{pattern})."'");
+            }
 	    return (nomatch());
 	}
     }
@@ -951,25 +967,34 @@ sub construction_match($$)
     # foreach $element in $t->{elements}
     map {
 	my $i= $_;
-	#$log->debug("$ctx: i=$i");
+	#if ($log->is_debug()) { $log->debug("$ctx: i=$i"); }
 	my $element= $ {@{$t->{elements}}}[$i];
-	#$log->debug(varstring('element', $element));
-	$log->debug("$ctx: [ Trying to match element[$i]=$element->{name}");
+        if ($log->is_debug()) {
+            #$log->debug(varstring('element', $element));
+            $log->debug("$ctx: [ Trying to match element[$i]=$element->{name}");
+        }
 	my ($match)= match($element, $state);
 	if ( ! matched($match)) {
-            $log->debug("$ctx: ] element[$i] not matched: $element->{name}"
-                        . " (giving up on '$ctx')");
+            if ($log->is_debug()) {
+                $log->debug("$ctx: ] element[$i] not matched: $element->{name}"
+                            . " (giving up on '$ctx')");
+            }
 	    # FIXME: Is this the best place to put backtracking?
 	    $state->{pos}= $saved_pos;
 	    return (nomatch());
 	}
-	#$log->debug("$ctx: ] Matched element: " . varstring($i,$element));
-	$log->debug("$ctx: ] Matched element[$i]: $element->{name}");
-	#$log->debug("$ctx: element value: " . varstring('match', $match));
+        if ($log->is_debug()) {
+            #$log->debug("$ctx: ] Matched element: " . varstring($i,$element));
+            $log->debug("$ctx: ] Matched element[$i]: $element->{name}");
+            #$log->debug("$ctx: element value: " . varstring('match', $match));
+        }
 	push(@$result_elements, $match);
     } (0 .. $#{@{$t->{elements}}});
-    $log->debug("$ctx: matched: '$ctx'");
-    #$log->debug(varstring('result_elements', $result_elements));
+
+    if ($log->is_debug()) {
+        $log->debug("$ctx: matched: '$ctx'");
+        #$log->debug(varstring('result_elements', $result_elements));
+    }
     #return ($result_elements);
     #return ({_=>$ctx, elements=>$result_elements});
     return (make_result($t, $result_elements));
@@ -1009,7 +1034,7 @@ sub alternation_match($$)
     my $ctx= match_watch_args($log, $t, $state);
 
     if (eoi($state)) {
-	$log->debug("$ctx: End Of Input reached");
+        if ($log->is_debug()) { $log->debug("$ctx: End Of Input reached"); }
 	return (nomatch());
     }
 
@@ -1017,25 +1042,32 @@ sub alternation_match($$)
     # foreach $element in $elements
     map {
 	my $i= $_;
-	#$log->debug("$ctx: i=$i");
+	#if ($log->is_debug()) { $log->debug("$ctx: i=$i"); }
         # FIXME: shouldn't this be '$elements[$i]'?:
 	#my $element= $$elements[$i];
 	my $element= $ {@$elements}[$i];
-	#$log->debug(varstring('element', $element));
-	$log->debug("$ctx: [ Trying to match element[$i]=$element->{name}");
+        if ($log->is_debug()) {
+            #$log->debug(varstring('element', $element));
+            $log->debug("$ctx: [ Trying to match element[$i]=$element->{name}");
+        }
 	my ($match)= match($element, $state);
 	if (matched($match))  {
-	    #$log->debug("$ctx: matched element: " . varstring($i, $element));
-            $log->debug("$ctx: ] Matched element[$i]: $element->{name}");
-	    #$log->debug("$ctx: matched value: " . varstring('match', $match));
-	    $log->debug("$ctx: match result: "
-                        . Parse::SiLLy::Result::toString($match, " "));
+            if ($log->is_debug()) {
+                #$log->debug("$ctx: matched element: " . varstring($i, $element));
+                $log->debug("$ctx: ] Matched element[$i]: $element->{name}");
+                #$log->debug("$ctx: matched value: " . varstring('match', $match));
+                $log->debug("$ctx: match result: "
+                            . Parse::SiLLy::Result::toString($match, " "));
+            }
 	    #return ($match);
 	    return (make_result($t, [$match]));
 	}
-        $log->debug("$ctx: ] element[$i] not matched: '$element->{name}'");
+        if ($log->is_debug()) {
+            $log->debug("$ctx: ] element[$i] not matched: '$element->{name}'");
+        }
     } (0 .. $#{@$elements});
-    $log->debug("$ctx: not matched: '$ctx'");
+
+    if ($log->is_debug()) { $log->debug("$ctx: not matched: '$ctx'"); }
     return (nomatch());
 }
 
@@ -1069,22 +1101,28 @@ sub optional_match($$)
     my $ctx= match_watch_args($log, $t, $state);
 
     my $element= $t->{element};
-    #$log->debug(varstring('element', $element));
-    $log->debug("$ctx: element=$element->{name}");
+    if ($log->is_debug()) {
+        #$log->debug(varstring('element', $element));
+        $log->debug("$ctx: element=$element->{name}");
+    }
 
     # FIXME: Add backtracking of state in case of mismatch
 
     my ($match)= match($element, $state);
     if (matched($match)) {
-	#$log->debug("$ctx: matched element: " . varstring($i,$element));
-	#$log->debug("$ctx: matched " . varstring('value', $match));
-	$log->debug("$ctx: matched "
-                    . Parse::SiLLy::Result::toString($match, " "));
+        if ($log->is_debug()) {
+            #$log->debug("$ctx: matched element: " . varstring($i,$element));
+            #$log->debug("$ctx: matched " . varstring('value', $match));
+            $log->debug("$ctx: matched "
+                        . Parse::SiLLy::Result::toString($match, " "));
+        }
 	return (make_result($t, [$match]));
     }
-    #$log->debug("$ctx: not matched: '$ctx' (resulting in empty string)");
+    if ($log->is_debug()) {
+        #$log->debug("$ctx: not matched: '$ctx' (resulting in empty string)");
+    }
     #return ('');
-    $log->debug("$ctx: not matched: '$ctx'");
+    if ($log->is_debug()) { $log->debug("$ctx: not matched: '$ctx'"); }
     return (make_result($t, [$match]));
 }
 
@@ -1125,25 +1163,37 @@ sub pelist_match($$)
     my $result= make_result($t, []);
     #my $result_elements= [];
     while (1) {
-	$log->debug("$ctx: [ Trying to match element '$element->{name}'");
+        if ($log->is_debug()) {
+            $log->debug("$ctx: [ Trying to match element '$element->{name}'");
+        }
 	my ($match)= match($element, $state);
 	if ( ! matched($match)) {
-            $log->debug("$ctx: ] Element not matched: '$element->{name}'");
+            if ($log->is_debug()) {
+                $log->debug("$ctx: ] Element not matched: '$element->{name}'");
+            }
             return ($result);
         }
-	$log->debug("$ctx: ] Matched element '$element->{name}'");
+        if ($log->is_debug()) {
+            $log->debug("$ctx: ] Matched element '$element->{name}'");
+        }
 	push(@$result, $match);
 	#push(@{$result->{elements}}, $match);
 
         if ('' eq $separator) { next; }
 
-	$log->debug("$ctx: [ Trying to match separator '$separator->{name}'");
+        if ($log->is_debug()) {
+            $log->debug("$ctx: [ Trying to match separator '$separator->{name}'");
+        }
 	($match)= match($separator, $state);
 	if ( ! matched($match)) {
-            $log->debug("$ctx: ] Separator not matched: '$separator->{name}'");
+            if ($log->is_debug()) {
+                $log->debug("$ctx: ] Separator not matched: '$separator->{name}'");
+            }
             return ($result);
         }
-	$log->debug("$ctx: ] Matched separator '$separator->{name}'");
+        if ($log->is_debug()) {
+            $log->debug("$ctx: ] Matched separator '$separator->{name}'");
+        }
     }
     die("Must not reach this\n");
 }
@@ -1185,26 +1235,38 @@ sub nelist_match($$)
     #my $result= make_result($t, []);
     my $result_elements= [];
     while (1) {
-	$log->debug("$ctx: [ Trying to match element '$element->{name}'");
+        if ($log->is_debug()) {
+            $log->debug("$ctx: [ Trying to match element '$element->{name}'");
+        }
 	my ($match)= match($element, $state);
 	if ( ! matched($match)) {
-            $log->debug("$ctx: ] Element not matched: '$element->{name}'");
+            if ($log->is_debug()) {
+                $log->debug("$ctx: ] Element not matched: '$element->{name}'");
+            }
 	    if (0 == scalar(@$result_elements)) { return (nomatch()); }
 	    else { return (make_result($t, $result_elements)); }
 	}
-	$log->debug("$ctx: ] Matched element '$element->{name}'");
+	if ($log->is_debug()) {
+            $log->debug("$ctx: ] Matched element '$element->{name}'");
+        }
 	#push(@$result, $match);
 	push(@$result_elements, $match);
 
         if ('' eq $separator) { next; }
 
-	$log->debug("$ctx: [ Trying to match separator '$separator->{name}'");
+	if ($log->is_debug()) {
+            $log->debug("$ctx: [ Trying to match separator '$separator->{name}'");
+        }
 	($match)= match($separator, $state);
 	if ( ! matched($match)) {
-            $log->debug("$ctx: ] Separator not matched: '$separator->{name}'");
+            if ($log->is_debug()) {
+                $log->debug("$ctx: ] Separator not matched: '$separator->{name}'");
+            }
             return (make_result($t, $result_elements));
         }
-	$log->debug("$ctx: ] Matched separator '$separator->{name}'");
+        if ($log->is_debug()) {
+            $log->debug("$ctx: ] Matched separator '$separator->{name}'");
+        }
     }
     die("Must not reach this\n");
 }
@@ -1267,15 +1329,17 @@ sub match($$)
         {
             my $stashed= $pos_stash->{$t};
             assert(defined($stashed));
-            $log->debug("Found in stash: "
-                        #. format_stashed($stashed)
-                        .
-                        (matched($stashed)
-                         ? "[$$stashed[0]]"
-                           .Parse::SiLLy::Result::toString($$stashed[1], " ")
-                         : 'nomatch'
-                         )
-                        );
+            if ($log->is_debug()) {
+                $log->debug("Found in stash: "
+                            #. format_stashed($stashed)
+                            .
+                            (matched($stashed)
+                             ? "[$$stashed[0]]"
+                             .Parse::SiLLy::Result::toString($$stashed[1], " ")
+                             : 'nomatch'
+                             )
+                            );
+            }
             if (matched($stashed)) {
                 assert('ARRAY' eq ref($stashed));
                 $state->{pos}= $$stashed[0];
@@ -1307,18 +1371,22 @@ sub match($$)
 
     if (exists($state->{stash})) {
         my $stashed= matched($result) ? [$state->{pos}, $result] : nomatch();
-        $log->debug("Storing result in stash for ${pos} ->{$t} ($t->{name}): "
-                    #. varstring('result', $result)
-                    # FIXME: use OO syntax here: $result->toString()
-                    . "\$result ="
-                    . Parse::SiLLy::Result::toString($result, " ")
-                    );
-        #$log->debug(varstring("stashed", $stashed));
+        if ($log->is_debug()) {
+            $log->debug("Storing result in stash for ${pos} ->{$t} ($t->{name}): "
+                        #. varstring('result', $result)
+                        # FIXME: use OO syntax here: $result->toString()
+                        . "\$result ="
+                        . Parse::SiLLy::Result::toString($result, " ")
+                        );
+            #$log->debug(varstring("stashed", $stashed));
+        }
         $pos_stash->{$t}= $stashed;
 
         # Used this to find out that the $t used above as a hash key
         # was internally (in the hash table) converted to a string.
-        #map { $log->debug("key $_ has ref ".ref($_)); } keys(%$pos_stash);
+        #if ($log->is_debug()) {
+        #    map { $log->debug("key $_ has ref ".ref($_)); } keys(%$pos_stash);
+        #}
         # Used Tie::RefHash to get around that.  Another way might be
         # to use $t's name as the key.
         #map { assert('HASH' eq ref($_)); } keys(%$pos_stash);
@@ -1433,9 +1501,11 @@ sub test1($$$$$)
     if ('' ne $@) { die("eval('$call') failed: '$@'\n"); }
 
     assert(defined($result));
-    #$log->debug(varstring("$matcher $element result", $result));
-    $log->debug("$matcher $element result = "
-                . Parse::SiLLy::Result::toString($result, " "));
+    if ($log->is_debug()) {
+        #$log->debug(varstring("$matcher $element result", $result));
+        $log->debug("$matcher $element result = "
+                    . Parse::SiLLy::Result::toString($result, " "));
+    }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
     #should($result->{_}->{_}, $matcher);
     #should($result->{_}->{name}, $element);
@@ -1475,10 +1545,12 @@ sub test_minilang()
     $state= { input => 'blah "123"  456', pos=>0 };
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
-    #$log->debug(varstring('match minilang::Tokenlist result 1', $result));
-    $log->debug("match minilang::Tokenlist result 1='"
-                . Parse::SiLLy::Result::toString($result, " ")
-                . "'");
+    if ($log->is_debug()) {
+        #$log->debug(varstring('match minilang::Tokenlist result 1', $result));
+        $log->debug("match minilang::Tokenlist result 1='"
+                    . Parse::SiLLy::Result::toString($result, " ")
+                    . "'");
+    }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
     #my $expected= ['Tokenlist',
     #               ['Token', ['Name', 'blah']],
@@ -1512,9 +1584,11 @@ sub test_minilang()
     #                   0....5....0....5..8..0
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
-    #$log->debug(varstring('match minilang::Tokenlist result 2', $result));
-    $log->debug("match minilang::Tokenlist result 2='"
-                . Parse::SiLLy::Result::toString($result, " ") . "'");
+    if ($log->is_debug()) {
+        #$log->debug(varstring('match minilang::Tokenlist result 2', $result));
+        $log->debug("match minilang::Tokenlist result 2='"
+                    . Parse::SiLLy::Result::toString($result, " ") . "'");
+    }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
 
     # FIXME: Use an access function here: $result->elements();
@@ -1523,11 +1597,15 @@ sub test_minilang()
     #$result_elements= {@$result}[0..($#$result-1)];
     #my @result_elements= @$result[1, -1];
     my @result_elements= @{@$result}[1..$#$result];
-    $log->debug(varstring('@result_elements', \@result_elements));
+    if ($log->is_debug()) {
+        $log->debug(varstring('@result_elements', \@result_elements));
+    }
 
     $result_elements= \@result_elements;
     #$result_elements= \@{@$result}[1..$#$result];
-    $log->debug(varstring('result_elements', $result_elements));
+    if ($log->is_debug()) {
+        $log->debug(varstring('result_elements', $result_elements));
+    }
 
     # FIXME: When we always pass an expected result object,
     # check_result needs only two args.
@@ -1561,11 +1639,16 @@ sub test_minilang()
         ["minilang::Token", ["minilang::$$_[0]", $$_[1]]];
     } @token_contents;
     my $expected_tokens= \@expected_tokens;
-    $log->debug(varstring('expected_tokens', $expected_tokens));
+    if ($log->is_debug()) {
+        $log->debug(varstring('expected_tokens', $expected_tokens));
+    }
     #$expected= ['Tokenlist', $expected_tokens];
     map {
         my ($e)= $_;
-        $log->debug(varstring('e', $e));
+        if ($log->is_debug()) {
+            #$log->debug(varstring('e', $e));
+            $log->debug("$e='".Parse::SiLLy::Result::toString($e, " ")."'");
+        }
         check_result($$result_elements[$i],
                      $$e[0],
                      $$e[1]);
@@ -1583,9 +1666,11 @@ sub test_minilang()
 
     # FIXME: Get this test to work
     $result= Parse::SiLLy::Grammar::match($minilang::Program, $state);
-    #$log->debug(varstring('match minilang::Program result', $result));
-    $log->debug("match minilang::Program result='"
-                . Parse::SiLLy::Result::toString($result, " ") . "'");
+    if ($log->is_debug()) {
+        #$log->debug(varstring('match minilang::Program result', $result));
+        $log->debug("match minilang::Program result='"
+                    . Parse::SiLLy::Result::toString($result, " ") . "'");
+    }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
     $expected=
     ['minilang::Program',
@@ -1655,7 +1740,9 @@ sub test_xml()
 
     #$result= Parse::SiLLy::Grammar::match($Parse::SiLLy::Test::XML::Elem,
     #                                      $state);
-    #$log->debug(varstring('match XML::Elem result', $result));
+    #if ($log->is_debug()) {
+    #    $log->debug(varstring('match XML::Elem result', $result));
+    #}
     #Parse::SiLLy::Grammar::input_show_state($log, $state);
     #check_result($result, 'Elem', $state->{input});
 
@@ -1671,9 +1758,11 @@ sub test_xml()
     my $top= $Parse::SiLLy::Test::XML::Contentlist
            = $Parse::SiLLy::Test::XML::Contentlist;
     $result= Parse::SiLLy::Grammar::match($top, $state);
-    #$log->debug(varstring('match $top result', $result));
-    $log->debug("match $top result='"
-                . Parse::SiLLy::Result::toString($result, " ") . "'");
+    if ($log->is_debug()) {
+        #$log->debug(varstring('match $top result', $result));
+        $log->debug("match $top result='"
+                    . Parse::SiLLy::Result::toString($result, " ") . "'");
+    }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
     check_result($result, $top_name, $state->{input});
     }
@@ -1688,7 +1777,7 @@ sub read_INPUT_IRS() {
     undef($INPUT_RECORD_SEPARATOR);
     my $data= <INPUT>;
     $INPUT_RECORD_SEPARATOR= $saved_RS;
-    #$log->debug(varstring('data', $data));
+    #if ($log->is_debug()) { $log->debug(varstring('data', $data)); }
     $data;
 }
 
@@ -1697,7 +1786,7 @@ sub read_data_old {
     $INPUT_RECORD_SEPARATOR= "---";
     while (<INPUT>)
     {
-        #$log->debug("item=\"$ARG\";");
+        #if ($log->is_debug()) { $log->debug("item=\"$ARG\";"); }
         handle_item($ARG);
     }
     $INPUT_RECORD_SEPARATOR= "";
@@ -1765,8 +1854,10 @@ sub main
         $state->{pos}= 0;
         $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state);
          } );
-    $log->debug(varstring('match $top result', $result));
-    #$log->debug(varstring('state', $state));
+    if ($log->is_debug()) {
+        $log->debug(varstring('match $top result', $result));
+        #$log->debug(varstring('state', $state));
+    }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
     Parse::SiLLy::Grammar::show_stash($log, $state->{stash});
     print(Parse::SiLLy::Result::toString($result, " ")."\n");
