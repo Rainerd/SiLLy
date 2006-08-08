@@ -393,13 +393,10 @@ sub toString($$)
     }
     else #($category eq "construction")
     {
-        "${indent}[\n$indent "
+        "[$typename\n$indent "
             . join(",\n$indent ", map { toString($_, "$indent "); } @$self[1..$#$self])
             . "$indent]";
     }
-    #else {
-    #    $handler->print("[$typename '@$self->{elements}']");
-    #}
 }
 
 # --------------------------------------------------------------------
@@ -474,7 +471,7 @@ use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 @EXPORT= qw();
 
 sub import {
-    local $Exporter::Verbose= 1;
+    #local $Exporter::Verbose= 1;
     # This would try to call Parse::SiLLy::Grammar::export_to_level, which is not defined:
     #export_to_level(1, 'Parse::SiLLy::Grammar', @{ $EXPORT_TAGS{'all'} });
 
@@ -755,13 +752,13 @@ sub terminal_match($$)
     my $match;
     #$log->debug("$ctx: ref(input)=" . ref($input) . ".");
     if (eoi($state)) {
-	$log->info("$ctx: End Of Input reached");
+	$log->debug("$ctx: End Of Input reached");
 	return (nomatch());
     }
     if ('ARRAY' eq ref($input)) {
 	$log->debug("$ctx: state->pos=$state->{pos}, input[0]->name=", $ {@$input}[0]->{name});
 	#if ($#{@$input} < $pos) {
-	#    $log->info("$ctx: End of input reached");
+	#    $log->debug("$ctx: End of input reached");
 	#    return (nomatch());
 	#}
 	$match= $ {@$input}[$pos];
@@ -779,9 +776,9 @@ sub terminal_match($$)
 	}
     } else {
 	$log->debug("$ctx: state->pos=$state->{pos},"
-                    . " substr(input, pos)=", quotemeta(substr($input, $pos)) );
+                    . " substr(input, pos)='".quotemeta(substr($input, $pos))."'");
 	#if (length($input)-1 < $pos) {
-	#    $log->info("$ctx: End Of Input reached");
+	#    $log->debug("$ctx: End Of Input reached");
 	#    return (nomatch());
 	#}
         my $pattern= $t->{pattern};
@@ -789,7 +786,7 @@ sub terminal_match($$)
         assert('' eq ref($pattern));
 	($match)= substr($input, $pos) =~ m{^($t->{pattern})}g;
         if (defined($match)) {
-	    $log->debug("$ctx: matched text: '$match'");
+	    $log->debug("$ctx: matched text: '".quotemeta($match)."'");
             #my $result= {_=>$t, text=>$match};
 	    my $result= make_result($t, [$match]);
 	    $state->{pos}= $pos + length($match);
@@ -910,7 +907,7 @@ sub construction_match($$)
 	push(@$result_elements, $match);
     } (0 .. $#{@{$t->{elements}}});
     $log->debug("$ctx: matched: '$ctx'");
-    $log->debug(varstring('result_elements', $result_elements));
+    #$log->debug(varstring('result_elements', $result_elements));
     #return ($result_elements);
     #return ({_=>$ctx, elements=>$result_elements});
     return (make_result($t, $result_elements));
@@ -950,7 +947,7 @@ sub alternation_match($$)
     my $ctx= match_watch_args($log, $t, $state);
 
     if (eoi($state)) {
-	$log->info("$ctx: End Of Input reached");
+	$log->debug("$ctx: End Of Input reached");
 	return (nomatch());
     }
 
@@ -1340,7 +1337,9 @@ sub init()
 sub check_result($$$) {
     my ($result, $expected_typename, $expected_text)= (@_);
     assert(defined($result));
+    #assert(Parse::SiLLy::Grammar::matched($result));
     assert('ARRAY' eq ref($result));
+    print(varstring('result', $result)."\n");
     assert(2 <= scalar(@$result));
     assert(defined($expected_typename));
     assert(defined($expected_text));
@@ -1604,7 +1603,8 @@ sub test_xml()
     my $top_name= "Parse::SiLLy::Test::XML::Contentlist";
     # FIXME: Why does this not work?:
     #no strict 'refs';
-    #$result= Parse::SiLLy::Grammar::match(${"Parse::SiLLy::Test::XML::$top"}, $state);
+    #my $top= ${$top_name}; assert(defined($top));
+    #$result= Parse::SiLLy::Grammar::match($top, $state);
     my $top= $Parse::SiLLy::Test::XML::Contentlist
            = $Parse::SiLLy::Test::XML::Contentlist; # Avoid warning 'Used only once'
     $result= Parse::SiLLy::Grammar::match($top, $state);
@@ -1687,12 +1687,15 @@ sub main
     
     {
     my $state= { input => $input_data, pos=>0 };
-    my $top= "Contentlist";
+    my $top= "Parse::SiLLy::Test::XML::Contentlist";
     no strict 'refs';
     #my $result= Parse::SiLLy::Grammar::match($::Elem, $state);
-    my $result= Parse::SiLLy::Grammar::match(${"::$top"}, $state);
-    $log->debug(varstring('match Elem result', $result));
-    $log->debug(varstring('state', $state));
+    my $result= Parse::SiLLy::Grammar::match(${"$top"}, $state);
+    $log->debug(varstring('match $top result', $result));
+    #$log->debug(varstring('state', $state));
+    Parse::SiLLy::Grammar::input_show_state($log, $state);
+    Parse::SiLLy::Grammar::show_stash($log, $state->{stash});
+    print(Parse::SiLLy::Result::toString($result, " ")."\n");
     }
 }
 
