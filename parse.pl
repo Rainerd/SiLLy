@@ -75,7 +75,8 @@ o Catch EOS in all matching functions
 
 TODO
 
-o Implement the logger as an array
+        # FIXME: Using memoization is currently slower than not doing it
+o Benchmark without memoization versus with memoization
 o Implement state as an array
 o Factor out common parts of parsing functions.
 o Avoid calling debugging code (logging functions, data formatting) when debugging is off.
@@ -96,6 +97,7 @@ o Replace undef by 'not matched' constant
 o Result print function with compact output format
 o Memoize parse results and make use of them (Packrat parsing)
 o Actually parse the XML input file's content
+o Implement the logger as an array
 
 =cut
 
@@ -1274,9 +1276,10 @@ sub nelist_match($$)
 # --------------------------------------------------------------------
 my $match_log;
 
-# Needed to use references as hash keys
+# This is needed in order to use references as hash keys:
 # FIXME: What performance impact does this cause?
-use Tie::RefHash;
+# A: Significant (22 vs. 16 parses per second)
+#use Tie::RefHash;
 
 # --------------------------------------------------------------------
 sub stash_get_pos_stash($$)
@@ -1291,7 +1294,7 @@ sub stash_get_pos_stash($$)
     if ( ! exists($stash->{$pos})) {
         #$stash_log->debug("New position $pos, creating pos stash for it...");
         my $pos_stash= {};
-        tie %$pos_stash, 'Tie::RefHash';
+        #tie %$pos_stash, 'Tie::RefHash';
         return ($stash->{$pos}= $pos_stash);
     }
     my $pos_stash= $stash->{$pos};
@@ -1299,6 +1302,15 @@ sub stash_get_pos_stash($$)
     assert('' ne ref($pos_stash));
     $pos_stash;
 }
+
+# --------------------------------------------------------------------
+my %methods=
+    ('terminal' => \&terminal_match,
+     'alternation' => \&alternation_match,
+     'construction' => \&construction_match,
+     'optional' => \&optional_match,
+     'nelist' => \&nelist_match,
+     'pelist' => \&pelist_match);
 
 # --------------------------------------------------------------------
 sub match($$)
@@ -1318,16 +1330,24 @@ sub match($$)
 
     # FIXME: This should be done by a constructor:
     if ( ! exists($state->{stash})) {
-        $log->debug("Initializing stash...");
-        $state->{stash}= {};
+        # If these are disabled, memoization is not done:
+        # FIXME: Using memoization is currently slower than not doing it
+        #if ($log->is_debug()) { $log->debug("Initializing stash..."); }
+        #$state->{stash}= {};
     }
 
     my $pos_stash;
+
+    # FIXME: Consider implementing the pos_stashes as arrays (need to
+    # map grammar elements to indices, though).
+
+    #my $pos_stash_key= $t;
+    my $pos_stash_key= $t->{name};
     if (exists($state->{stash})) {
         $pos_stash= stash_get_pos_stash($state->{stash}, $pos);
-        if (exists($pos_stash->{$t}))
+        if (exists($pos_stash->{$pos_stash_key}))
         {
-            my $stashed= $pos_stash->{$t};
+            my $stashed= $pos_stash->{$pos_stash_key};
             assert(defined($stashed));
             if ($log->is_debug()) {
                 $log->debug("Found in stash: "
@@ -1352,27 +1372,33 @@ sub match($$)
     }
 
     my $result;
-    if ('terminal' eq $t->{_}) { 
-	$result= terminal_match($t, $state);
-    } elsif ('alternation' eq $t->{_}) {
-	$result= alternation_match($t, $state);
-    } elsif ('construction' eq $t->{_}) {
-	$result= construction_match($t, $state);
-    } elsif ('optional' eq $t->{_}) {
-	$result= optional_match($t, $state);
-    } elsif ('nelist' eq $t->{_}) {
-	$result= nelist_match($t, $state);
-    } elsif ('pelist' eq $t->{_}) {
-	$result= pelist_match($t, $state);
-    } else {
-	die("$log->{name}: Unsupported type " . varstring('t->_', $t->{_}));
+    # FIXME: Speed this up (use a method?)
+    # Hmm, using a method hash here has no noticeable effect on performance.
+    if (0) {
+        my $method= $methods{$t->{_}}
+        ||	die("$log->{name}: Unsupported type " . varstring('t->_', $t->{_}));
+        $result= &$method($t, $state);
     }
+    else {
+
+    my $c= $t->{_}; # category
+    if    ('terminal'     eq $c) { $result=     terminal_match($t, $state); }
+    elsif ('alternation'  eq $c) { $result=  alternation_match($t, $state); }
+    elsif ('construction' eq $c) { $result= construction_match($t, $state); }
+    elsif ('optional'     eq $c) { $result=     optional_match($t, $state); }
+    elsif ('nelist'       eq $c) { $result=       nelist_match($t, $state); }
+    elsif ('pelist'       eq $c) { $result=       pelist_match($t, $state); }
+    else {
+	die("$log->{name}: Unsupported type " . varstring('t->_', $c));
+    }
+}
+
     assert(matched($result) || $state->{pos} == $pos);
 
     if (exists($state->{stash})) {
         my $stashed= matched($result) ? [$state->{pos}, $result] : nomatch();
         if ($log->is_debug()) {
-            $log->debug("Storing result in stash for ${pos} ->{$t} ($t->{name}): "
+            $log->debug("Storing result in stash for ${pos} ->{$pos_stash_key} ($t->{name}): "
                         #. varstring('result', $result)
                         # FIXME: use OO syntax here: $result->toString()
                         . "\$result ="
@@ -1380,7 +1406,7 @@ sub match($$)
                         );
             #$log->debug(varstring("stashed", $stashed));
         }
-        $pos_stash->{$t}= $stashed;
+        $pos_stash->{$pos_stash_key}= $stashed;
 
         # Used this to find out that the $t used above as a hash key
         # was internally (in the hash table) converted to a string.
@@ -1390,7 +1416,8 @@ sub match($$)
         # Used Tie::RefHash to get around that.  Another way might be
         # to use $t's name as the key.
         #map { assert('HASH' eq ref($_)); } keys(%$pos_stash);
-        map { ::should('HASH', ref($_)); } keys(%$pos_stash);
+        # FIXME: is this slow?:
+        #map { ::should('HASH', ref($_)); } keys(%$pos_stash);
     }
     $result;
 }
@@ -1849,7 +1876,7 @@ sub main
     #$result= Parse::SiLLy::Grammar::match($::Elem, $state);
     #$result= Parse::SiLLy::Grammar::match(${"$top"}, $state);
     timethis(1, sub { $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state); } );
-    timethis(10, sub {
+    timethis(30, sub {
         delete($state->{stash});
         $state->{pos}= 0;
         $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state);
@@ -1859,7 +1886,9 @@ sub main
         #$log->debug(varstring('state', $state));
     }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
-    Parse::SiLLy::Grammar::show_stash($log, $state->{stash});
+    if (exists($state->{stash})) {
+        Parse::SiLLy::Grammar::show_stash($log, $state->{stash});
+    }
     print(Parse::SiLLy::Result::toString($result, " ")."\n");
     }
 }
