@@ -44,6 +44,7 @@ terminal     ExclamationMark, '\!';
 terminal     Dash,            '-';
 terminal     Equals,          '=';
 terminal     DQuote,          '"';
+terminal     SQuote,          "'";
 
 terminal     Langle,          '<';
 terminal     Slash,           '/';
@@ -56,16 +57,22 @@ terminal     Whitespace,      '[ \t\n\r]+';
 
 # Allow escaped double quotes in string contents
 # FIXME: Does XML allow them?
-#terminal    StringContent,   '[^"]*(?:\"[^"]*)*';
-terminal     StringContent,   '[^"]*';
+#terminal    DStringContent,   '[^"]*(?:\"[^"]*)*';
+terminal     DStringContent,   '[^"]*';
+terminal     SStringContent,   "[^']*";
 
-#terminal    StringLiteral,   '"[^"]*"';
-#terminal    StringLiteral,   "\"[^\"]*?:\\\"[^\"]*)*\"";
-#terminal    StringLiteral,   '"[^"]*(?:\"[^"]*)*"';
-construction StringLiteral,   DQuote, StringContent, DQuote;
+#terminal    DStringLiteral,   '"[^"]*"';
+#terminal    DStringLiteral,   "\"[^\"]*?:\\\"[^\"]*)*\"";
+#terminal    DStringLiteral,   '"[^"]*(?:\"[^"]*)*"';
+construction DStringLiteral,   DQuote, DStringContent, DQuote;
+construction SStringLiteral,   SQuote, SStringContent, SQuote;
+alternation  StringLiteral,    DStringLiteral, SStringLiteral;
 
-terminal     Attrname,        '\w+';
-terminal     Tagname,         '\w+';
+terminal     Attrname,        '[\w]+';
+#terminal     Attrname,        '[\w:]+';
+terminal     Tagname,         '[\w]+';
+#terminal     Tagname,         '[\w:]+';
+
 #terminal    Cdata,           '[<]+';
 #terminal    Cdata,           '[-.,\d()\[\]\{\}\w^!$%&/?+*#\':;|@\s]*';
 # Use + as a quick fix to ensure progress
