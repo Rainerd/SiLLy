@@ -178,34 +178,87 @@ use strict;
 use diagnostics;
 #use English;
 
+::import_from('main', 'assert');
+
 # --------------------------------------------------------------------
 sub new
 {
     my $proto= shift;
     my $class= ref($proto) || $proto;
-    my $self= {};
+    #my $self= {};
+    my $self= [];
     bless($self, $class);
 
     my $name= shift;
-    $self->{name}= $name;
-    $self->{logger}= Log::Log4perl::get_logger($name)
+
+    #$self->{name}= $name;
+    $$self[0]= $name;
+
+    #$self->{logger}= Log::Log4perl::get_logger($name)
+    $$self[2]= Log::Log4perl::get_logger($name)
 	|| die("$name: Could not get logger.\n");
     #print("$name: Got logger: " . join(', ', keys(%{$self->{logger}})) . "\n");
-    # FIXME: Offer a method for this (that returns the current value):
-    $self->{debugging}= $self->{logger}->is_debug();
-    $self->{logger}->debug("Logger constructed: $name.");
+
+    #$self->{debugging}= $self->{logger}->is_debug();
+    #$$self[1]= $ {@$self}[2]->is_debug();
+    #$$self[1]= ($$self[2])->is_debug();
+    $$self[1]= $self->get_logger()->is_debug();
+    #print("is_debug()=".$self->is_debug()."\n");
+    $self->debug("is_debug()=".$self->is_debug()."\n");
+    #print("get_logger()->is_debug()=".$self->get_logger()->is_debug()."\n");
+    #print("get_logger()->level()=".$self->get_logger()->level()."\n");
+
+    #$self->{logger}->debug("Logger constructed: $name.");
+    #($$self[2])->debug("Logger constructed: $name.");
+    $self->debug("Logger constructed: $name.");
+
     return $self;
 }
 
 # --------------------------------------------------------------------
-#sub is_debug($) { $_[0]->{logger}->is_debug(); }
-sub is_debug($) { $_[0]->{debugging}; }
+sub name($) {
+    # FIXME: Switch to this after testing:
+    return $ { @{ $_[0]}}[0];
+
+    my ($self)= @_;
+    assert(defined($self));
+    assert('' ne ref($self));
+    #assert('Logger' eq ref($self));
+    assert(0 < scalar(@$self));
+    my $name= $$self[0];
+    assert(defined($name));
+    assert('' eq ref($name));
+}
 
 # --------------------------------------------------------------------
+# FIXME: What is the performance impact of returning the current value?
+
+#sub is_debug($) { $_[0]->{logger}->is_debug(); }
+#sub is_debug($) { $_[0]->get_logger()->is_debug(); }
+#sub is_debug($) { $_[0]->{debugging}; }
+#sub is_debug($) { ${@{$_[0]}}[1]; }
+
+sub is_debug($) {
+    return $ {@ {$_[0]}}[1];
+
+    my $self= $_[0];
+    assert(defined($self));
+    assert('' ne ref($self));
+    $$self[1];
+}
+
+# --------------------------------------------------------------------
+# FIXME: What is the performance impact of the assertions?
+# FIXME: What is the performance impact of the binding to $self?
+
 sub get_logger($) {
+    #return $ {@ {$_[0]}}[2];
+
     my ($self)= (@_);
-    ::assert(exists($self->{logger}));
-    my $log= $self->{logger};
+    #::assert(exists($self->{logger}));
+    ::assert(2 <= $#$self);
+    #my $log= $self->{logger};
+    my $log= $$self[2];
     ::assert(defined($log));
     #print(STDERR "ref(log)=".ref($log)."\n");
     ::assert("Log::Log4perl::Logger" eq ref($log));
@@ -215,19 +268,28 @@ sub get_logger($) {
 # --------------------------------------------------------------------
 sub info($) {
     my ($self)= (@_);
-    my $ctx= ::hash_get($self, "name");
+    #my $ctx= ::hash_get($self, "name");
+    my $ctx= $self->name();
     #print("$ctx: @_\n");
     #$self->{logger}->info("$ctx: @_");
+    #($$self[2])->info("$ctx: @_");
     get_logger($self)->info("$ctx: @_");
 }
 
 # --------------------------------------------------------------------
 sub debug($) {
+    #if ( ! $ {@{$_[0]}}[1]) { return; }
     my ($self)= shift;
-    my $ctx= ::hash_get($self, "name");
+    if ( ! $self->is_debug()) { return; }
+    #if ( ! $self->get_logger()->is_debug()) { return; }
+    #my $ctx= ::hash_get($self, "name");
+    #my $ctx= $$self[0];
+    my $ctx= $self->name();
     # FIXME: Why don't I use this line?:
     #$self->{logger}->debug("$ctx: @_");
-    get_logger($self)->debug("$ctx: @_");
+    #($$self[2])->debug("$ctx: @_");
+    #get_logger($self)->debug("$ctx: @_");
+    $self->get_logger()->debug("$ctx: @_");
 }
 
 # ====================================================================
@@ -639,9 +701,9 @@ sub input_show_state($$) {
 sub match_watch_args($$$) {
     my ($log, $t, $state)= (@_);
     assert(defined($log));
-    if ( ! $log->is_debug()) { return; }
     my $ctx= ::hash_get($t, "name");
     assert(defined($ctx));
+    if ( ! $log->is_debug()) { return $ctx; }
     $log->debug("$ctx: state->pos=$state->{pos}");
     # FIXME: Use a faster method to access the parser state (array)
     if (exists($state->{stash})) {
@@ -859,46 +921,19 @@ sub construction
 # --------------------------------------------------------------------
 sub construction
 {
-    # FIXME: Implement this like 'terminal'
+    # FIXME: Clean up
     my $log= $construction_log;
-    #my $log= $def_log;
     #log_cargs($log, \@ARG);
-    #my ($name, $pattern)= (@ARG);
     my $name= shift();
     log_cargs($log, $name, \@ARG);
-    assert(defined($name));
-    assert('' eq ref($name));
     assert(0 < scalar(@ARG));
 
-    #assert(defined($pattern));
-    #assert('' eq ref($pattern));
-
-    # Determine full variable name
-    #my $fullname= "::$name";
     my ($caller_package, $file, $line)= caller();
-    my $fullname= "${caller_package}::$name";
-    $log->debug("Defining '$fullname'...");
-
-    # Construct grammar object to bind the variable to
-    #my $val= &{$category}(@rest);
-    #my $val= { _ => $log->{name}, elements => \@ARG };
-    #my $val= { _ => $log->{name}, elements => [@ARG] };
-    #my $val= { _ => $log->{name}, elements => grammar_objects(\@ARG) };
-    my $val= { _ => $log->{name}, name=>$fullname,
-               elements => grammar_objects($caller_package, \@ARG) };
-    #$log->debug(varstring('val', $val));
-    $log->debug(varstring('elements',$val->{elements}));
-
-    # Bind grammar object to variable
-    eval("\$$fullname=\$val;");
-    #$::def_val_= $val; eval("\$$fullname=\$::def_val_;");
-    # FIXME: Consider moving this to the grammar object constructors:
-    #$val->{name}= $name;
-    #$val->{name}= $fullname;
-    $log->debug("Defined '$fullname' as $val.");
-
-    log_val($log, $val);
-    return $val;
+    my $val= def($log, 'construction', $name,
+                 { elements => grammar_objects($caller_package, \@ARG) },
+                 caller());
+    #$log->debug(varstring('elements',$val->{elements}));
+    $val;
 }
 
 # --------------------------------------------------------------------
@@ -969,7 +1004,7 @@ sub alternation_match($$)
 {
     my $log= $alternation_match_log;
     my ($t, $state)= @ARG;
-    # FIXME: Q: Move argument logging to 'match'?
+    # Q: Move argument logging to 'match'?
     # A: No, then we can not control logging locally.
     my $ctx= match_watch_args($log, $t, $state);
 
@@ -1021,7 +1056,6 @@ sub optional#($)
                  { element => grammar_object($caller_package, $ARG[0]) },
                  $caller_package);
     #$log->debug(varstring('element',$val->{element}));
-    #log_val($log, $val);
     $val;
 }
 
@@ -1051,8 +1085,6 @@ sub optional_match($$)
     #$log->debug("$ctx: not matched: '$ctx' (resulting in empty string)");
     #return ('');
     $log->debug("$ctx: not matched: '$ctx'");
-    # FIXME: In case the element does not match,
-    # should return nomatch instead of an empty array
     return (make_result($t, [$match]));
 }
 
@@ -1066,20 +1098,14 @@ sub pelist#($$)
     #log_cargs($log, \@ARG);
     my $name= shift();
     log_cargs($log, $name, \@ARG);
-    #my $val= { _ => $log->{name}, element => $ARG[0], separator => $ARG[1] };
-    #my $val= {
-    #    _         => $log->{name},
-    #    element   => grammar_object($ARG[0]),
-    #    separator => grammar_object($ARG[1]),
-    #};
     my ($caller_package, $file, $line)= caller();
     my $val= def($log, 'pelist', $name,
                  { element   => grammar_object($caller_package, $ARG[0]),
                    separator => grammar_object($caller_package, $ARG[1]) },
                  $caller_package);
-    $log->debug(varstring('element',$val->{element}));
-    $log->debug(varstring('separator',$val->{separator}));
-    log_val($log, $val);
+    #$log->debug(varstring('element',$val->{element}));
+    #$log->debug(varstring('separator',$val->{separator}));
+    #log_val($log, $val);
     return $val;
 }
 
@@ -1132,20 +1158,14 @@ sub nelist#($$)
     #log_cargs($log, \@ARG);
     my $name= shift();
     log_cargs($log, $name, \@ARG);
-    #my $val= { _ => $log->{name}, element => $ARG[0], separator => $ARG[1] };
-    #my $val= {
-    #    _         => $log->{name},
-    #    element   => grammar_object($ARG[0]),
-    #    separator => grammar_object($ARG[1]),
-    #};
     my ($caller_package, $file, $line)= caller();
     my $val= def($log, 'pelist', $name,
                  { element   => grammar_object($caller_package, $ARG[0]),
                    separator => grammar_object($caller_package, $ARG[1]) },
                  $caller_package);
-    $log->debug(varstring('element',  $val->{element}));
-    $log->debug(varstring('separator',$val->{separator}));
-    log_val($log, $val);
+    #$log->debug(varstring('element',  $val->{element}));
+    #$log->debug(varstring('separator',$val->{separator}));
+    #log_val($log, $val);
     return $val;
 }
 
@@ -1352,8 +1372,8 @@ my $main_log;
 # --------------------------------------------------------------------
 sub init()
 {
-    #Log::Log4perl->easy_init($INFO);
-    Log::Log4perl->easy_init($DEBUG);
+    Log::Log4perl->easy_init($INFO);
+    #Log::Log4perl->easy_init($DEBUG);
     #$logger= get_logger();
     #$logger->info("Running...");
     #if (scalar(@_) > 0) { info(vdump('Args', \@_)); }
@@ -1376,9 +1396,6 @@ sub check_result($$$) {
     assert(defined($expected_typename));
     assert(defined($expected_text));
     #$main_log->debug(varstring('result', $result));
-
-    # FIXME:
-    #return;
 
     #my $actual_type= ::hash_get($result, '_');
     #my $actual_type= $$result[0];
@@ -1565,13 +1582,11 @@ sub test_minilang()
     $state->{pos}= 0;
 
     # FIXME: Get this test to work
-    #return;
     $result= Parse::SiLLy::Grammar::match($minilang::Program, $state);
     #$log->debug(varstring('match minilang::Program result', $result));
     $log->debug("match minilang::Program result='"
                 . Parse::SiLLy::Result::toString($result, " ") . "'");
     Parse::SiLLy::Grammar::input_show_state($log, $state);
-    # FIXME: Add automated test here
     $expected=
     ['minilang::Program',
      ['minilang::Mchain',
