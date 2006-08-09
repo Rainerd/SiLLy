@@ -78,11 +78,11 @@ o Catch EOS in all matching functions
 
 TODO
 
-# FIXME: Provide automated regression tests for the test tools (assert
-# etc., the validation functions).
+o FIXME: Provide automated regression tests for the test tools (assert
+  etc., the validation functions).
 o Avoid array interpolation during result construction.
 o Inline result construction
-# FIXME: Using memoization is currently slower than not doing it
+o FIXME: Using memoization is currently slower than not doing it
 o Benchmark without memoization versus with memoization
 o Share implementation of nelist_match and pelist_match. 
 o Implement state as an array
@@ -1570,8 +1570,8 @@ my $main_log;
 # --------------------------------------------------------------------
 sub init()
 {
-    #Log::Log4perl->easy_init($INFO);
-    Log::Log4perl->easy_init($DEBUG);
+    Log::Log4perl->easy_init($INFO);
+    #Log::Log4perl->easy_init($DEBUG);
     #$logger= get_logger();
     #$logger->info("Running...");
     #if (scalar(@_) > 0) { info(vdump('Args', \@_)); }
@@ -1995,15 +1995,15 @@ sub main
     my $result;
     #$result= Parse::SiLLy::Grammar::match($::Elem, $state);
     no strict 'refs';
+    # FIXME: Why does the first run fail?
     $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state);
     #$result= do_one_run($state, $top);
     #$result= do_runs(100, $state, $top);
 
     sleep(1);
     use Benchmark;
-    # FIXME: Why does the first run fail?
     #timethis(1, sub { $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state); } );
-    timethis(1, sub { $result= do_one_run($state, $top); } );
+    #timethis(1, sub { $result= do_one_run($state, $top); } );
     timethis(1, sub { $result= do_one_run($state, $top); } );
     # First arg -N means repeat for at least N seconds.
     timethis(-2, sub { $result= do_one_run($state, $top); } );
