@@ -78,11 +78,15 @@ o Catch EOS in all matching functions
 
 TODO
 
+# FIXME: Provide automated regression tests for the test tools (assert
+# etc., the validation functions).
+o Avoid array interpolation during result construction.
+o Inline result construction
 # FIXME: Using memoization is currently slower than not doing it
 o Benchmark without memoization versus with memoization
+o Share implementation of nelist_match and pelist_match. 
 o Implement state as an array
 o Factor out common parts of parsing functions.
-o Avoid calling debugging code (logging functions, data formatting) when debugging is off.
 o Do a serious benchmark
 o Allow dashes in XML comments
 o Add more regression tests
@@ -91,6 +95,8 @@ o Packagize (Parse::SiLLy::Test::Minilang)
 o Packagize (Terminal, Construction, Alternation, Optional, NEList, PEList)
 o Document how to configure logging (search for $DEBUG)
 o Result scanner
+o Allow using multiple parsers concurrently
+o Make it easy to switch off memoization (per parser)
 
 Done
 o Automate regression tests
@@ -100,7 +106,11 @@ o Replace undef by 'not matched' constant
 o Result print function with compact output format
 o Memoize parse results and make use of them (Packrat parsing)
 o Actually parse the XML input file's content
+o Make it possible to switch off memoization
 o Implement the logger as an array
+o Avoid calling debugging code (logging functions, data formatting) when debugging is off.
+o Avoid checking contracts (assertions etc.) when ASSERT is off.
+o Unify implementation of nelist_match and pelist_match. 
 
 =cut
 
@@ -429,6 +439,7 @@ sub make_result($$) {
     #return {_=>$t, result=>$match};
     #return [::hash_get($t, "name"), @$match];
     return [$t->{name}, @$match];
+    #return [$t->{name}, $match];
 }
 
 # --------------------------------------------------------------------
@@ -1212,8 +1223,11 @@ sub pelist_match($$)
 
     #my $result= [];
     #my $result= {_=>$ctx, elements=>[]};
-    my $result= make_result($t, []);
-    #my $result_elements= [];
+    #my $result= make_result($t, []);
+    my $result_elements= [];
+    if ($log->is_debug()) {
+        $log->debug("$ctx: [ Trying to match list...");
+    }
     while (1) {
         if ($log->is_debug()) {
             $log->debug("$ctx: [ Trying to match element '$element->{name}'");
@@ -1225,13 +1239,18 @@ sub pelist_match($$)
             if ($log->is_debug()) {
                 $log->debug("$ctx: ] Element not matched: '$element->{name}'");
             }
-            return ($result);
+            if ($log->is_debug()) {
+                $log->debug("$ctx: ...matched ".scalar(@$result_elements)
+                            . " elements.]");
+            }
+            #return ($result);
+            return (make_result($t, $result_elements));
         }
         if ($log->is_debug()) {
             $log->debug("$ctx: ] Matched element '$element->{name}'");
         }
-	push(@$result, $match);
-	#push(@{$result->{elements}}, $match);
+	#push(@$result, $match);
+	push(@$result_elements, $match);
 
         if ('' eq $separator) { next; }
 
@@ -1245,7 +1264,12 @@ sub pelist_match($$)
             if ($log->is_debug()) {
                 $log->debug("$ctx: ] Separator not matched: '$separator->{name}'");
             }
-            return ($result);
+            if ($log->is_debug()) {
+                $log->debug("$ctx: ...matched ".scalar(@$result_elements)
+                            . " elements.]");
+            }
+            #return ($result);
+            return (make_result($t, $result_elements));
         }
         if ($log->is_debug()) {
             $log->debug("$ctx: ] Matched separator '$separator->{name}'");
@@ -1290,6 +1314,9 @@ sub nelist_match($$)
     #my $result= {_=>$ctx, elements=>[]};
     #my $result= make_result($t, []);
     my $result_elements= [];
+    if ($log->is_debug()) {
+        $log->debug("$ctx: [ Trying to match list...");
+    }
     while (1) {
         if ($log->is_debug()) {
             $log->debug("$ctx: [ Trying to match element '$element->{name}'");
@@ -1301,10 +1328,18 @@ sub nelist_match($$)
             if ($log->is_debug()) {
                 $log->debug("$ctx: ] Element not matched: '$element->{name}'");
             }
-	    if (0 == scalar(@$result_elements)) { return (nomatch()); }
-	    else { return (make_result($t, $result_elements)); }
-	}
-	if ($log->is_debug()) {
+	    if (0 == scalar(@$result_elements)) {
+                if ($log->is_debug()) { $log->debug("$ctx: ...not matched.]");}
+                return (nomatch());
+            }
+            if ($log->is_debug()) {
+                $log->debug("$ctx: ...matched ".scalar(@$result_elements)
+                            . " elements.]");
+            }
+            #return ($result);
+            return (make_result($t, $result_elements));
+        }
+        if ($log->is_debug()) {
             $log->debug("$ctx: ] Matched element '$element->{name}'");
         }
 	#push(@$result, $match);
@@ -1312,7 +1347,7 @@ sub nelist_match($$)
 
         if ('' eq $separator) { next; }
 
-	if ($log->is_debug()) {
+        if ($log->is_debug()) {
             $log->debug("$ctx: [ Trying to match separator '$separator->{name}'");
         }
 	($match)= match($separator, $state);
@@ -1322,6 +1357,11 @@ sub nelist_match($$)
             if ($log->is_debug()) {
                 $log->debug("$ctx: ] Separator not matched: '$separator->{name}'");
             }
+            if ($log->is_debug()) {
+                $log->debug("$ctx: ...matched ".scalar(@$result_elements)
+                            . " elements.]");
+            }
+            #return ($result);
             return (make_result($t, $result_elements));
         }
         if ($log->is_debug()) {
@@ -1530,8 +1570,8 @@ my $main_log;
 # --------------------------------------------------------------------
 sub init()
 {
-    Log::Log4perl->easy_init($INFO);
-    #Log::Log4perl->easy_init($DEBUG);
+    #Log::Log4perl->easy_init($INFO);
+    Log::Log4perl->easy_init($DEBUG);
     #$logger= get_logger();
     #$logger->info("Running...");
     #if (scalar(@_) > 0) { info(vdump('Args', \@_)); }
@@ -1961,7 +2001,10 @@ sub main
 
     sleep(1);
     use Benchmark;
-    timethis(1, sub { $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state); } );
+    # FIXME: Why does the first run fail?
+    #timethis(1, sub { $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state); } );
+    timethis(1, sub { $result= do_one_run($state, $top); } );
+    timethis(1, sub { $result= do_one_run($state, $top); } );
     # First arg -N means repeat for at least N seconds.
     timethis(-2, sub { $result= do_one_run($state, $top); } );
 
