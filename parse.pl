@@ -438,7 +438,6 @@ use diagnostics;
 
 # --------------------------------------------------------------------
 sub make_result($$) {
-    #return [$_[0]->{name}, $_[1]];
     my ($t, $match)= (@_);
     #return {_=>$t, result=>$match};
     #return [::hash_get($t, "name"), @$match];
@@ -944,8 +943,7 @@ sub terminal_match($$)
                 $log->debug("$ctx: matched text: '".quotemeta($match)."'");
             }
             #my $result= {_=>$t, text=>$match};
-	    #my $result= make_result($t, [$match]);
-	    my $result= [$t->{name}, [$match]];
+	    my $result= make_result($t, [$match]);
 	    $state->{pos}= $pos + length($match);
 	    if ($log->is_debug()) {
                 #$log->debug(varstring('state', $state));
@@ -1066,8 +1064,7 @@ sub construction_match($$)
     }
     #return ($result_elements);
     #return ({_=>$ctx, elements=>$result_elements});
-    #return (make_result($t, $result_elements));
-    return [$t->{name}, $result_elements];
+    return (make_result($t, $result_elements));
 }
 
 # --------------------------------------------------------------------
@@ -1134,8 +1131,7 @@ sub alternation_match($$)
                             . Parse::SiLLy::Result::toString($match, " "));
             }
 	    #return ($match);
-	    #return (make_result($t, [$match]));
-	    return [$t->{name}, [$match]];
+	    return (make_result($t, [$match]));
 	}
         if ($log->is_debug()) {
             $log->debug("$ctx: element[$i] not matched: '$element->{name}']");
@@ -1193,15 +1189,14 @@ sub optional_match($$)
             $log->debug("$ctx: matched "
                         . Parse::SiLLy::Result::toString($match, " "));
         }
-	#return (make_result($t, [$match]));
-	return [$t->{name}, [$match]];
+	return (make_result($t, [$match]));
     }
     if ($log->is_debug()) {
         #$log->debug("$ctx: not matched: '$ctx' (resulting in empty string)");
     }
     #return ('');
     if ($log->is_debug()) { $log->debug("$ctx: not matched: '$ctx'"); }
-    return [$t->{name}, [$match]];
+    return (make_result($t, [$match]));
 }
 
 # --------------------------------------------------------------------
@@ -1239,7 +1234,6 @@ sub pelist_match($$)
     #my $result= [];
     #my $result= {_=>$ctx, elements=>[]};
     #my $result= make_result($t, []);
-    #my $result= [$t->{name}, []];
     my $result_elements= [];
     if ($log->is_debug()) {
         $log->debug("$ctx: [ Trying to match list...");
@@ -1260,8 +1254,7 @@ sub pelist_match($$)
                             . " elements.\]");
             }
             #return ($result);
-            #return (make_result($t, $result_elements));
-            return [$t->{name}, $result_elements];
+            return (make_result($t, $result_elements));
         }
         if ($log->is_debug()) {
             $log->debug("$ctx: Matched element '$element->{name}']");
@@ -1286,8 +1279,7 @@ sub pelist_match($$)
                             . " elements.\]");
             }
             #return ($result);
-            #return (make_result($t, $result_elements));
-            return [$t->{name}, $result_elements];
+            return (make_result($t, $result_elements));
         }
         if ($log->is_debug()) {
             $log->debug("$ctx: Matched separator '$separator->{name}']");
@@ -1331,7 +1323,6 @@ sub nelist_match($$)
     #my $result= [];
     #my $result= {_=>$ctx, elements=>[]};
     #my $result= make_result($t, []);
-    #my $result= [$t->{name}, []];
     my $result_elements= [];
     if ($log->is_debug()) {
         $log->debug("$ctx: [ Trying to match list...");
@@ -1356,8 +1347,7 @@ sub nelist_match($$)
                             . " elements.\]");
             }
             #return ($result);
-            #return (make_result($t, $result_elements));
-            return [$t->{name}, $result_elements];
+            return (make_result($t, $result_elements));
         }
         if ($log->is_debug()) {
             $log->debug("$ctx: Matched element '$element->{name}']");
@@ -1382,8 +1372,7 @@ sub nelist_match($$)
                             . " elements.\]");
             }
             #return ($result);
-            #return (make_result($t, $result_elements));
-            return [$t->{name}, $result_elements];
+            return (make_result($t, $result_elements));
         }
         if ($log->is_debug()) {
             $log->debug("$ctx: Matched separator '$separator->{name}']");
