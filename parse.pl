@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 # --------------------------------------------------------------------
 # Usage: perl PROGRAM GRAMMAR INPUT > OUTPUT
-# Example: perl          parse.pl Test/xml-grammar.pl Test/XML/example.xml
+# Example: perl -w          parse.pl Test/xml-grammar.pl Test/XML/example.xml
 # Profile: perl -w -d:DProf parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
 # Lint: perl -w -MO=Lint,-context parse.pl Test/xml-grammar.pl Test/XML/example.xml
 
@@ -439,11 +439,11 @@ use diagnostics;
 # --------------------------------------------------------------------
 sub make_result($$) {
     my ($t, $match)= (@_);
+    assert('ARRAY' eq ref($match)) if ASSERT();
     #return {_=>$t, result=>$match};
     #return [::hash_get($t, "name"), @$match];
-    #return [$t->{name}, @$match];
-    assert('ARRAY' eq ref($match)) if ASSERT();
-    return [$t->{name}, $match];
+    return [$t->{name}, @$match];
+    #return [$t->{name}, $match];
 }
 
 # --------------------------------------------------------------------
@@ -487,20 +487,19 @@ sub toString($$)
     my $category= ::hash_get($type, '_');
     #print("categ=$category\n");
 
-    my $match= $$self[1];
+    # FIXME: What is the impact of storing $$self[1] in a my $match here?
     if ($category eq "terminal") {
-        "[$typename '".quotemeta($$match[0])."']";
+        "[$typename '".quotemeta($$self[1])."']";
     }
     elsif ($category eq "alternation") {
-        "[$typename ".toString($$match[0], "$indent ")."]";
+        "[$typename ".toString($$self[1], "$indent ")."]";
     }
     elsif ($category eq "optional") {
-        "[$typename ".toString($$match[0], "$indent ")."]";
+        "[$typename ".toString($$self[1], "$indent ")."]";
     }
     else {
         "[$typename\n$indent "
-            #. join(",\n$indent ", map { toString($_, "$indent "); } @$self[1..$#$self])
-            . join(",\n$indent ", map { toString($_, "$indent "); } @$match)
+            . join(",\n$indent ", map { toString($_, "$indent "); } @$self[1..$#$self])
             #. "$indent]";
             . " ]";
     }
@@ -1018,7 +1017,6 @@ sub construction_match($$)
     my $ctx= match_watch_args($log, $t, $state);
     if ($log->is_debug()) {
         $log->debug("$ctx: [ Trying to match...");
-        #$log->debug(varstring('result_elements', $result_elements));
     }
 
     my $result_elements= [];
@@ -1596,13 +1594,20 @@ sub init()
 sub elements($) {
     #return $ {@{$_[0]}}[1];
     my $result= $_[0];
-    my $elements= $$result[1];
+    #print("\$#\$result=".$#$result."\n");
+    #my $elements= $$result[1];
 
     # Various other attempts:
     #my $elements= $ {@$result}[1];
     #my $elements= \@{@$result}[1..$#$result];
     # FIXME: Implicit scalar context for array in block:
     #my $elements= \@$result[1..$#{@$result}];
+    #my $elements= \ @{ {@$result}[1..$#$result] };
+    #my @result= @$result; #print("\$#result=".$#result."\n");
+    #my $elements= \@result[1..$#result];
+    #my @slice= @result[1..$#result]; #print("\$#slice=".$#slice."\n");
+    my @slice= @{$result}[1..$#$result]; #print("\$#slice=".$#slice."\n");
+    my $elements= \@slice; #print("\$#\$elements=".$#$elements."\n");
 
     #my @elements= @$result[1, -1];
     #my @elements= @{@$result}[1..$#$result];
@@ -1615,6 +1620,7 @@ sub elements($) {
     #    $log->debug(varstring('elements', $elements));
     #}
     assert(defined($elements));
+    #print("ref=".ref($elements)."\n");
     assert('ARRAY' eq ref($elements));
     return $elements;
 }
@@ -1709,11 +1715,11 @@ sub test_minilang()
     $log->debug("--- Testing alternation_match...");
     $state= { input => 'blah 123', pos=>0 };
     test1($log, "alternation_match", "minilang::Token",
-          $state, ['minilang::Name', ['blah']]);
+          $state, ['minilang::Name', 'blah']);
     test1($log, "match",             "minilang::Whitespace",
           $state, " ");
     test1($log, "match",             "minilang::Token",
-          $state, ['minilang::Number', [123]]);
+          $state, ['minilang::Number', 123]);
 
     $log->debug("--- Testing tokenization 1...");
     $state= { input => 'blah "123"  456', pos=>0 };
@@ -1731,16 +1737,11 @@ sub test_minilang()
     #               ['Token', ['String', '"123"']],
     #               ['Token', ['Number', '456']],
     #               ];
-    #my $expected= ['minilang::Tokenlist',
-    #               ['minilang::Token', ['minilang::Name', 'blah']],
-    #               ['minilang::Token', ['minilang::String', '"123"']],
-    #               ['minilang::Token', ['minilang::Number', '456']],
-    #               ];
-    my $expected= ['minilang::Tokenlist', [
-                   ['minilang::Token', [ ['minilang::Name',   ['blah' ]] ]],
-                   ['minilang::Token', [ ['minilang::String', ['"123"']] ]],
-                   ['minilang::Token', [ ['minilang::Number', ['456'  ]] ]],
-                   ] ];
+    my $expected= ['minilang::Tokenlist',
+                   ['minilang::Token', ['minilang::Name', 'blah']],
+                   ['minilang::Token', ['minilang::String', '"123"']],
+                   ['minilang::Token', ['minilang::Number', '456']],
+                   ];
     #use FreezeThaw;
     #assert(0 == strCmp($result, $expected));
     use lib "../SVStream/lib"; # SVStream::Utils
@@ -1778,7 +1779,7 @@ sub test_minilang()
     # check_result needs only two args.
 
     check_result($$result_elements[0], 'minilang::Token',
-                 ['minilang::Name', ['blah']]
+                 ['minilang::Name', 'blah']
                  );
     #check_result($$result_elements[1], 'Period', '.');
     my $i= 0;
@@ -1804,14 +1805,12 @@ sub test_minilang()
          ['Semicolon', ';'],
          );
     my @expected_tokens= map {
-        #["minilang::Token", ["minilang::$$_[0]", $$_[1]]];
-        ["minilang::Token", [ ["minilang::$$_[0]", [ $$_[1] ]] ]];
+        ["minilang::Token", ["minilang::$$_[0]", $$_[1]]];
     } @token_contents;
     my $expected_tokens= \@expected_tokens;
-    $expected= ['minilang::Tokenlist', $expected_tokens];
+    $expected= ['minilang::Tokenlist', @$expected_tokens];
     if ($log->is_debug()) {
         $log->debug('expected_tokens formatted as result: '
-                    #. Parse::SiLLy::Result::toString($expected_tokens, " ")
                     . Parse::SiLLy::Result::toString($expected, " ")
                     );
         $log->debug(varstring('expected_tokens', $expected_tokens));
@@ -1935,7 +1934,7 @@ sub test_minilang()
     $f= sub {
         my ($name, @elts)= (@_);
         ["minilang::$name",
-         ('' eq ref($elts[0]) ? \@elts : [(map { &{$f}(@$_)} @elts)]),
+         ('' eq ref($elts[0]) ? @elts : (map { &{$f}(@$_)} @elts)),
          ];
     };
     $expected= &$f(@$expected);
@@ -1995,7 +1994,7 @@ sub test_xml()
     $f= sub {
         my ($name, @elts)= (@_);
         ["Parse::SiLLy::Test::XML::$name",
-         ('' eq ref($elts[0]) ? \@elts : [(map { &{$f}(@$_)} @elts)]),
+         ('' eq ref($elts[0]) ? @elts : (map { &{$f}(@$_)} @elts)),
          ];
     };
     no strict 'subs';
