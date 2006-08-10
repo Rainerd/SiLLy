@@ -297,7 +297,9 @@ sub info($) {
 
 # --------------------------------------------------------------------
 sub debug($) {
+    # If ! $self->{debugging} return:
     if ( ! $ {@{$_[0]}}[1]) { return; }
+
     my ($self)= shift;
     #if ( ! $self->is_debug()) { return; }
     #if ( ! $self->get_logger()->is_debug()) { return; }
@@ -438,8 +440,9 @@ sub make_result($$) {
     my ($t, $match)= (@_);
     #return {_=>$t, result=>$match};
     #return [::hash_get($t, "name"), @$match];
-    return [$t->{name}, @$match];
-    #return [$t->{name}, $match];
+    #return [$t->{name}, @$match];
+    assert('ARRAY' eq ref($match)) if ASSERT();
+    return [$t->{name}, $match];
 }
 
 # --------------------------------------------------------------------
@@ -483,20 +486,22 @@ sub toString($$)
     my $category= ::hash_get($type, '_');
     #print("categ=$category\n");
 
+    my $match= $$self[1];
     if ($category eq "terminal") {
-        "[$typename '".quotemeta($$self[1])."']";
+        "[$typename '".quotemeta($$match[0])."']";
     }
     elsif ($category eq "alternation") {
-        "[$typename ".toString($$self[1], "$indent ")."]";
+        "[$typename ".toString($$match[0], "$indent ")."]";
     }
     elsif ($category eq "optional") {
-        "[$typename ".toString($$self[1], "$indent ")."]";
+        "[$typename ".toString($$match[0], "$indent ")."]";
     }
-    else #($category eq "construction")
-    {
+    else {
         "[$typename\n$indent "
-            . join(",\n$indent ", map { toString($_, "$indent "); } @$self[1..$#$self])
-            . "$indent]";
+            #. join(",\n$indent ", map { toString($_, "$indent "); } @$self[1..$#$self])
+            . join(",\n$indent ", map { toString($_, "$indent "); } @$match)
+            #. "$indent]";
+            . " ]";
     }
 }
 
@@ -1010,6 +1015,10 @@ sub construction_match($$)
     my $log= $construction_match_log;
     my ($t, $state)= @ARG;
     my $ctx= match_watch_args($log, $t, $state);
+    if ($log->is_debug()) {
+        $log->debug("$ctx: [ Trying to match...");
+        #$log->debug(varstring('result_elements', $result_elements));
+    }
 
     my $result_elements= [];
     my $saved_pos= $state->{pos};
@@ -1028,8 +1037,8 @@ sub construction_match($$)
 	if (nomatch() eq $match)
         {
             if ($log->is_debug()) {
-                $log->debug("$ctx: ] element[$i] not matched: $element->{name}"
-                            . " (giving up on '$ctx')");
+                $log->debug("$ctx: element[$i] not matched: $element->{name}"
+                            . " (giving up on '$ctx')\]\]");
             }
 
 	    # Q: Why is this currently the only place where
@@ -1041,15 +1050,15 @@ sub construction_match($$)
 	    return (nomatch());
 	}
         if ($log->is_debug()) {
-            #$log->debug("$ctx: ] Matched element: " . varstring($i,$element));
-            $log->debug("$ctx: ] Matched element[$i]: $element->{name}");
+            #$log->debug("$ctx: Matched element: " . varstring($i,$element)."\]");
+            $log->debug("$ctx: Matched element[$i]: $element->{name} ]");
             #$log->debug("$ctx: element value: " . varstring('match', $match));
         }
 	push(@$result_elements, $match);
     } (0 .. $#{@{$t->{elements}}});
 
     if ($log->is_debug()) {
-        $log->debug("$ctx: matched: '$ctx'");
+        $log->debug("$ctx: matched: '$ctx']");
         #$log->debug(varstring('result_elements', $result_elements));
     }
     #return ($result_elements);
@@ -1114,8 +1123,9 @@ sub alternation_match($$)
 	if (nomatch() ne $match)
         {
             if ($log->is_debug()) {
-                #$log->debug("$ctx: matched element: " . varstring($i, $element));
-                $log->debug("$ctx: ] Matched element[$i]: $element->{name}");
+                #$log->debug("$ctx: matched element: " . varstring($i, $element)."\]");
+                # FIXME: Move those closing brackets to EOL (for all constructors)
+                $log->debug("$ctx: Matched element[$i]: $element->{name}\]");
                 #$log->debug("$ctx: matched value: " . varstring('match', $match));
                 $log->debug("$ctx: match result: "
                             . Parse::SiLLy::Result::toString($match, " "));
@@ -1124,7 +1134,7 @@ sub alternation_match($$)
 	    return (make_result($t, [$match]));
 	}
         if ($log->is_debug()) {
-            $log->debug("$ctx: ] element[$i] not matched: '$element->{name}'");
+            $log->debug("$ctx: element[$i] not matched: '$element->{name}']");
         }
     } (0 .. $#{@$elements});
 
@@ -1237,17 +1247,17 @@ sub pelist_match($$)
 	if (nomatch() eq $match)
         {
             if ($log->is_debug()) {
-                $log->debug("$ctx: ] Element not matched: '$element->{name}'");
+                $log->debug("$ctx: Element not matched: '$element->{name}'\]");
             }
             if ($log->is_debug()) {
                 $log->debug("$ctx: ...matched ".scalar(@$result_elements)
-                            . " elements.]");
+                            . " elements.\]");
             }
             #return ($result);
             return (make_result($t, $result_elements));
         }
         if ($log->is_debug()) {
-            $log->debug("$ctx: ] Matched element '$element->{name}'");
+            $log->debug("$ctx: Matched element '$element->{name}']");
         }
 	#push(@$result, $match);
 	push(@$result_elements, $match);
@@ -1262,17 +1272,17 @@ sub pelist_match($$)
 	if (nomatch() eq $match)
         {
             if ($log->is_debug()) {
-                $log->debug("$ctx: ] Separator not matched: '$separator->{name}'");
+                $log->debug("$ctx: Separator not matched: '$separator->{name}'\]");
             }
             if ($log->is_debug()) {
                 $log->debug("$ctx: ...matched ".scalar(@$result_elements)
-                            . " elements.]");
+                            . " elements.\]");
             }
             #return ($result);
             return (make_result($t, $result_elements));
         }
         if ($log->is_debug()) {
-            $log->debug("$ctx: ] Matched separator '$separator->{name}'");
+            $log->debug("$ctx: Matched separator '$separator->{name}']");
         }
     }
     die("Must not reach this\n");
@@ -1326,21 +1336,21 @@ sub nelist_match($$)
 	if (nomatch() eq $match)
         {
             if ($log->is_debug()) {
-                $log->debug("$ctx: ] Element not matched: '$element->{name}'");
+                $log->debug("$ctx: Element not matched: '$element->{name}'\]");
             }
 	    if (0 == scalar(@$result_elements)) {
-                if ($log->is_debug()) { $log->debug("$ctx: ...not matched.]");}
+                if ($log->is_debug()) { $log->debug("$ctx: ...not matched.\]");}
                 return (nomatch());
             }
             if ($log->is_debug()) {
                 $log->debug("$ctx: ...matched ".scalar(@$result_elements)
-                            . " elements.]");
+                            . " elements.\]");
             }
             #return ($result);
             return (make_result($t, $result_elements));
         }
         if ($log->is_debug()) {
-            $log->debug("$ctx: ] Matched element '$element->{name}'");
+            $log->debug("$ctx: Matched element '$element->{name}']");
         }
 	#push(@$result, $match);
 	push(@$result_elements, $match);
@@ -1355,17 +1365,17 @@ sub nelist_match($$)
 	if (nomatch() eq $match)
         {
             if ($log->is_debug()) {
-                $log->debug("$ctx: ] Separator not matched: '$separator->{name}'");
+                $log->debug("$ctx: Separator not matched: '$separator->{name}'\]");
             }
             if ($log->is_debug()) {
                 $log->debug("$ctx: ...matched ".scalar(@$result_elements)
-                            . " elements.]");
+                            . " elements.\]");
             }
             #return ($result);
             return (make_result($t, $result_elements));
         }
         if ($log->is_debug()) {
-            $log->debug("$ctx: ] Matched separator '$separator->{name}'");
+            $log->debug("$ctx: Matched separator '$separator->{name}']");
         }
     }
     die("Must not reach this\n");
@@ -1583,6 +1593,33 @@ sub init()
 }
 
 # --------------------------------------------------------------------
+sub elements($) {
+    #return $ {@{$_[0]}}[1];
+    my $result= $_[0];
+    my $elements= $$result[1];
+
+    # Various other attempts:
+    #my $elements= $ {@$result}[1];
+    #my $elements= \@{@$result}[1..$#$result];
+    # FIXME: Implicit scalar context for array in block:
+    #my $elements= \@$result[1..$#{@$result}];
+
+    #my @elements= @$result[1, -1];
+    #my @elements= @{@$result}[1..$#$result];
+    #if ($log->is_debug()) {
+    #    $log->debug(varstring('@elements', \@elements));
+    #}
+    #my $elements= \@elements;
+
+    #if ($log->is_debug()) {
+    #    $log->debug(varstring('elements', $elements));
+    #}
+    assert(defined($elements));
+    assert('ARRAY' eq ref($elements));
+    return $elements;
+}
+
+# --------------------------------------------------------------------
 sub check_result($$$) {
     my ($result, $expected_typename, $expected_text)= (@_);
     assert(defined($result));
@@ -1601,12 +1638,20 @@ sub check_result($$$) {
     my $actual_typename= $$result[0];
     should($actual_typename, $expected_typename);
 
+    my $result_elements= elements($result);
+    assert(defined($result_elements));
+    assert('ARRAY' eq ref($result_elements));
+
     #my $actual_text= ::hash_get($result, "text");
-    my $actual_text= $$result[1];
+    #my $actual_text= $$result[1];
+    #my $actual_text= @{ $$result[1]}[0];
+    my $actual_text= $$result_elements[0];
     #should($actual_text,     $expected_text);
 
     # FIXME: ACTIVATE!
-    #assert(Sump::Validate::Compare($actual_text,     $expected_text));
+    $main_log->debug(varstring("expected_text", $expected_text));
+    $main_log->debug(varstring("actual_text", $actual_text));
+    assert(Sump::Validate::Compare($actual_text,     $expected_text));
 
     $main_log->debug("Okayed: $actual_typename, '$actual_text'");
 }
@@ -1664,12 +1709,16 @@ sub test_minilang()
 
     $log->debug("--- Testing alternation_match...");
     $state= { input => 'blah 123', pos=>0 };
+    #test1($log, "alternation_match", "minilang::Token",
+    #      $state, ['minilang::Token', ['minilang::Name', 'blah']]);
     test1($log, "alternation_match", "minilang::Token",
-          $state, ['minilang::Token', ['minilang::Name', 'blah']]);
+          $state, ['minilang::Name', ['blah']]);
     test1($log, "match",             "minilang::Whitespace",
           $state, " ");
+    #test1($log, "match",             "minilang::Token",
+    #      $state, ['minilang::Token', ['minilang::Number', '123']]);
     test1($log, "match",             "minilang::Token",
-          $state, ['minilang::Token', ['minilang::Number', '123']]);
+          $state, ['minilang::Number', [123]]);
 
     $log->debug("--- Testing tokenization 1...");
     $state= { input => 'blah "123"  456', pos=>0 };
@@ -1687,11 +1736,16 @@ sub test_minilang()
     #               ['Token', ['String', '"123"']],
     #               ['Token', ['Number', '456']],
     #               ];
-    my $expected= ['minilang::Tokenlist',
-                   ['minilang::Token', ['minilang::Name', 'blah']],
-                   ['minilang::Token', ['minilang::String', '"123"']],
-                   ['minilang::Token', ['minilang::Number', '456']],
-                   ];
+    #my $expected= ['minilang::Tokenlist',
+    #               ['minilang::Token', ['minilang::Name', 'blah']],
+    #               ['minilang::Token', ['minilang::String', '"123"']],
+    #               ['minilang::Token', ['minilang::Number', '456']],
+    #               ];
+    my $expected= ['minilang::Tokenlist', [
+                   ['minilang::Token', [ ['minilang::Name',   ['blah' ]] ]],
+                   ['minilang::Token', [ ['minilang::String', ['"123"']] ]],
+                   ['minilang::Token', [ ['minilang::Number', ['456'  ]] ]],
+                   ] ];
     #use FreezeThaw;
     #assert(0 == strCmp($result, $expected));
     use lib "../SVStream/lib"; # SVStream::Utils
@@ -1700,10 +1754,7 @@ sub test_minilang()
     assert(Sump::Validate::Compare($result, $expected));
     #Sump::Validate($result, $expected);
 
-    #my $result_elements= $result->{elements};
-    # FIXME: Make this a function:
-    # FIXME: Implicit scalar context for array in block:
-    my $result_elements= \@$result[1..$#{@$result}];
+    my $result_elements= elements($result);
     #check_result($$result_elements[0], 'Name', 'blah');
     #check_result($$result_elements[1], 'String', '"123"');
     #check_result($$result_elements[2], 'Number', '456');
@@ -1722,19 +1773,8 @@ sub test_minilang()
     }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
 
-    # FIXME: Use an access function here: $result->elements();
-    #$result_elements= $result->{elements};
     assert(1 < scalar(@$result));
-    #$result_elements= {@$result}[0..($#$result-1)];
-    #my @result_elements= @$result[1, -1];
-    # FIXME: Implicit scalar context for array in block
-    my @result_elements= @{@$result}[1..$#$result];
-    if ($log->is_debug()) {
-        $log->debug(varstring('@result_elements', \@result_elements));
-    }
-
-    $result_elements= \@result_elements;
-    #$result_elements= \@{@$result}[1..$#$result];
+    $result_elements= elements($result);
     if ($log->is_debug()) {
         $log->debug(varstring('result_elements', $result_elements));
     }
@@ -1743,7 +1783,10 @@ sub test_minilang()
     # check_result needs only two args.
 
     check_result($$result_elements[0], 'minilang::Token',
-                 ['minilang::Token', ['minilang::Name', 'blah']]);
+                 #['minilang::Token', ['minilang::Name', 'blah']]
+                 #['minilang::Token', [ ['minilang::Name', ['blah']] ]]
+                 ['minilang::Name', ['blah']]
+                 );
     #check_result($$result_elements[1], 'Period', '.');
     my $i= 0;
     my @token_contents=
@@ -1768,22 +1811,29 @@ sub test_minilang()
          ['Semicolon', ';'],
          );
     my @expected_tokens= map {
-        ["minilang::Token", ["minilang::$$_[0]", $$_[1]]];
+        #["minilang::Token", ["minilang::$$_[0]", $$_[1]]];
+        ["minilang::Token", [ ["minilang::$$_[0]", [ $$_[1] ]] ]];
     } @token_contents;
     my $expected_tokens= \@expected_tokens;
+    $expected= ['minilang::Tokenlist', $expected_tokens];
     if ($log->is_debug()) {
+        $log->debug('expected_tokens formatted as result: '
+                    #. Parse::SiLLy::Result::toString($expected_tokens, " ")
+                    . Parse::SiLLy::Result::toString($expected, " ")
+                    );
         $log->debug(varstring('expected_tokens', $expected_tokens));
     }
-    #$expected= ['Tokenlist', $expected_tokens];
     map {
-        my ($e)= $_;
+        my ($expected_result)= $_;
         if ($log->is_debug()) {
-            #$log->debug(varstring('e', $e));
-            $log->debug("$e='".Parse::SiLLy::Result::toString($e, " ")."'");
+            #$log->debug(varstring('expected_result', $expected_result));
+            $log->debug("Checking \$expected_result='"
+                        . Parse::SiLLy::Result::toString($expected_result, " ")."'...");
         }
+        my $expected_elements= elements($expected_result);
         check_result($$result_elements[$i],
-                     $$e[0],
-                     $$e[1]);
+                     $$expected_result[0],
+                     $$expected_elements[0]);
         ++$i;
     }
     #@$expected;
@@ -1804,6 +1854,8 @@ sub test_minilang()
                     . Parse::SiLLy::Result::toString($result, " ") . "'");
     }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
+=ignore
+
     $expected=
     ['minilang::Program',
      ['minilang::Mchain',
@@ -1846,6 +1898,54 @@ sub test_minilang()
       ],
      ['minilang::Semicolon', ';'],
      ];
+
+=cut
+
+    $expected=
+    ['Program',
+     ['Mchain',
+      ['LTerm', ['Name', 'blah']],
+      ['Period',    '.'],
+      ['LTerm', ['Tuple',
+        ['Lparen',    '('],
+        ['Exprlist',
+         ['Mchain',
+          ['LTerm', ['Literal', ['String', '"123"']]],
+          ],
+         ['Comma',     ','],
+         ['Mchain',
+          ['LTerm', ['Name', 'xyz']],
+          ['Period',    '.'],
+          ['LTerm', ['Tuple',
+            ['Lparen',    '('],
+            ['Exprlist',
+             ['Mchain',
+              ['LTerm', ['Literal', ['Number', 456]]],
+              ['Period',    '.'],
+              ['LTerm', ['Name', '*']],
+              ['Period',    '.'],
+              ['LTerm', ['Literal', ['Number', 2]]],
+              ]],
+            ['Rparen', ')'],
+            ]]]],
+        ['Rparen', ')'],
+        ],
+       ], # Term
+      ], # Mchain
+     ['Semicolon', ';'],
+     ['Mchain',
+      ['LTerm', ['Name', 'end']],
+      ],
+     ['Semicolon', ';'],
+     ];
+    my $f;
+    $f= sub {
+        my ($name, @elts)= (@_);
+        ["minilang::$name",
+         ('' eq ref($elts[0]) ? \@elts : [(map { &{$f}(@$_)} @elts)]),
+         ];
+    };
+    $expected= &$f(@$expected);
 
     Sump::Validate::Compare($expected, $result);
 }
@@ -1896,7 +1996,94 @@ sub test_xml()
                     . Parse::SiLLy::Result::toString($result, " ") . "'");
     }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
-    check_result($result, $top_name, $state->{input});
+
+    # FIXME: Unify this with the code in test_minilang:
+    my $f;
+    $f= sub {
+        my ($name, @elts)= (@_);
+        ["Parse::SiLLy::Test::XML::$name",
+         ('' eq ref($elts[0]) ? \@elts : [(map { &{$f}(@$_)} @elts)]),
+         ];
+    };
+    no strict 'subs';
+    #sub nomatch;
+    my $expected=
+ #[Contentlist,
+  [Contentelem, [Complexelem,
+    [Ltag,
+     [Langle, '<'],
+     [Owhite,       nomatch],
+     [Tagname, 'tr'],
+     [Oattrs,       nomatch],
+     [Owhite,       nomatch],
+     [Rangle, '>'] ],
+    [Contentlist,
+     [Contentelem, [Cdata, '
+ ']],
+     [Contentelem, [Complexelem,
+       [Ltag,
+        [Langle, '<'],
+        [Owhite,          nomatch],
+        [Tagname, 'td'],
+        [Oattrs,          nomatch],
+        [Owhite,          nomatch],
+        [Rangle, '>'] ],
+       [Contentlist,
+        [Contentelem, [Cdata, 'Contents']] ],
+       [Rtag,
+        [Langle, '<'],
+        [Slash, '/'],
+        [Owhite,          nomatch],
+        [Tagname, 'td'],
+        [Owhite,          nomatch],
+        [Rangle, '>'] ] ]],
+     [Contentelem, [Complexelem,
+       [Ltag,
+        [Langle, '<'],
+        [Owhite,          nomatch],
+        [Tagname, 'td'],
+        [Oattrs,          nomatch],
+        [Owhite,          nomatch],
+        [Rangle, '>'] ],
+       [Contentlist,
+        [Contentelem, [Cdata, 'Foo Bar']] ],
+       [Rtag,
+        [Langle, '<'],
+        [Slash, '/'],
+        [Owhite,          nomatch],
+        [Tagname, 'td'],
+        [Owhite,          nomatch],
+        [Rangle, '>'] ] ]],
+     [Contentelem, [Complexelem,
+       [Ltag,
+        [Langle, '<'],
+        [Owhite,          nomatch],
+        [Tagname, 'td'],
+        [Oattrs,          nomatch],
+        [Owhite,          nomatch],
+        [Rangle, '>'] ],
+       [Contentlist,
+         ],
+       [Rtag,
+        [Langle, '<'],
+        [Slash, '/'],
+        [Owhite,          nomatch],
+        [Tagname, 'td'],
+        [Owhite,          nomatch],
+        [Rangle, '>'] ] ]] ],
+    [Rtag,
+     [Langle, '<'],
+     [Slash, '/'],
+     [Owhite,       nomatch],
+     [Tagname, 'tr'],
+     [Owhite,       nomatch],
+     [Rangle, '>'] ] ]]
+  #]
+  ;
+    $expected= &$f(@$expected);
+    $log->debug(varstring('expected', $expected));
+    $log->debug('expected formatted as result: '.Parse::SiLLy::Result::toString($expected, " "));
+    check_result($result, $top_name, $expected);
     }
 }
 
