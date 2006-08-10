@@ -99,7 +99,7 @@ o Allow using multiple parsers concurrently
 o Make it easy to switch off memoization (per parser)
 
 Done
-o Automate regression tests
+o Automate minilang regression tests
 o Separate 'minilang' test from XML test.
 o Parse the hard-coded example string.
 o Replace undef by 'not matched' constant
@@ -110,7 +110,8 @@ o Make it possible to switch off memoization
 o Implement the logger as an array
 o Avoid calling debugging code (logging functions, data formatting) when debugging is off.
 o Avoid checking contracts (assertions etc.) when ASSERT is off.
-o Unify implementation of nelist_match and pelist_match. 
+o Unify implementation of nelist_match and pelist_match.
+o Add automated XML parsing regression test.
 
 =cut
 
@@ -437,6 +438,7 @@ use diagnostics;
 
 # --------------------------------------------------------------------
 sub make_result($$) {
+    #return [$_[0]->{name}, $_[1]];
     my ($t, $match)= (@_);
     #return {_=>$t, result=>$match};
     #return [::hash_get($t, "name"), @$match];
@@ -942,7 +944,8 @@ sub terminal_match($$)
                 $log->debug("$ctx: matched text: '".quotemeta($match)."'");
             }
             #my $result= {_=>$t, text=>$match};
-	    my $result= make_result($t, [$match]);
+	    #my $result= make_result($t, [$match]);
+	    my $result= [$t->{name}, [$match]];
 	    $state->{pos}= $pos + length($match);
 	    if ($log->is_debug()) {
                 #$log->debug(varstring('state', $state));
@@ -1063,7 +1066,8 @@ sub construction_match($$)
     }
     #return ($result_elements);
     #return ({_=>$ctx, elements=>$result_elements});
-    return (make_result($t, $result_elements));
+    #return (make_result($t, $result_elements));
+    return [$t->{name}, $result_elements];
 }
 
 # --------------------------------------------------------------------
@@ -1124,14 +1128,14 @@ sub alternation_match($$)
         {
             if ($log->is_debug()) {
                 #$log->debug("$ctx: matched element: " . varstring($i, $element)."\]");
-                # FIXME: Move those closing brackets to EOL (for all constructors)
                 $log->debug("$ctx: Matched element[$i]: $element->{name}\]");
                 #$log->debug("$ctx: matched value: " . varstring('match', $match));
                 $log->debug("$ctx: match result: "
                             . Parse::SiLLy::Result::toString($match, " "));
             }
 	    #return ($match);
-	    return (make_result($t, [$match]));
+	    #return (make_result($t, [$match]));
+	    return [$t->{name}, [$match]];
 	}
         if ($log->is_debug()) {
             $log->debug("$ctx: element[$i] not matched: '$element->{name}']");
@@ -1189,14 +1193,15 @@ sub optional_match($$)
             $log->debug("$ctx: matched "
                         . Parse::SiLLy::Result::toString($match, " "));
         }
-	return (make_result($t, [$match]));
+	#return (make_result($t, [$match]));
+	return [$t->{name}, [$match]];
     }
     if ($log->is_debug()) {
         #$log->debug("$ctx: not matched: '$ctx' (resulting in empty string)");
     }
     #return ('');
     if ($log->is_debug()) { $log->debug("$ctx: not matched: '$ctx'"); }
-    return (make_result($t, [$match]));
+    return [$t->{name}, [$match]];
 }
 
 # --------------------------------------------------------------------
@@ -1234,6 +1239,7 @@ sub pelist_match($$)
     #my $result= [];
     #my $result= {_=>$ctx, elements=>[]};
     #my $result= make_result($t, []);
+    #my $result= [$t->{name}, []];
     my $result_elements= [];
     if ($log->is_debug()) {
         $log->debug("$ctx: [ Trying to match list...");
@@ -1254,7 +1260,8 @@ sub pelist_match($$)
                             . " elements.\]");
             }
             #return ($result);
-            return (make_result($t, $result_elements));
+            #return (make_result($t, $result_elements));
+            return [$t->{name}, $result_elements];
         }
         if ($log->is_debug()) {
             $log->debug("$ctx: Matched element '$element->{name}']");
@@ -1279,7 +1286,8 @@ sub pelist_match($$)
                             . " elements.\]");
             }
             #return ($result);
-            return (make_result($t, $result_elements));
+            #return (make_result($t, $result_elements));
+            return [$t->{name}, $result_elements];
         }
         if ($log->is_debug()) {
             $log->debug("$ctx: Matched separator '$separator->{name}']");
@@ -1323,6 +1331,7 @@ sub nelist_match($$)
     #my $result= [];
     #my $result= {_=>$ctx, elements=>[]};
     #my $result= make_result($t, []);
+    #my $result= [$t->{name}, []];
     my $result_elements= [];
     if ($log->is_debug()) {
         $log->debug("$ctx: [ Trying to match list...");
@@ -1347,7 +1356,8 @@ sub nelist_match($$)
                             . " elements.\]");
             }
             #return ($result);
-            return (make_result($t, $result_elements));
+            #return (make_result($t, $result_elements));
+            return [$t->{name}, $result_elements];
         }
         if ($log->is_debug()) {
             $log->debug("$ctx: Matched element '$element->{name}']");
@@ -1372,7 +1382,8 @@ sub nelist_match($$)
                             . " elements.\]");
             }
             #return ($result);
-            return (make_result($t, $result_elements));
+            #return (make_result($t, $result_elements));
+            return [$t->{name}, $result_elements];
         }
         if ($log->is_debug()) {
             $log->debug("$ctx: Matched separator '$separator->{name}']");
@@ -1648,7 +1659,6 @@ sub check_result($$$) {
     my $actual_text= $$result_elements[0];
     #should($actual_text,     $expected_text);
 
-    # FIXME: ACTIVATE!
     $main_log->debug(varstring("expected_text", $expected_text));
     $main_log->debug(varstring("actual_text", $actual_text));
     assert(Sump::Validate::Compare($actual_text,     $expected_text));
@@ -1709,14 +1719,10 @@ sub test_minilang()
 
     $log->debug("--- Testing alternation_match...");
     $state= { input => 'blah 123', pos=>0 };
-    #test1($log, "alternation_match", "minilang::Token",
-    #      $state, ['minilang::Token', ['minilang::Name', 'blah']]);
     test1($log, "alternation_match", "minilang::Token",
           $state, ['minilang::Name', ['blah']]);
     test1($log, "match",             "minilang::Whitespace",
           $state, " ");
-    #test1($log, "match",             "minilang::Token",
-    #      $state, ['minilang::Token', ['minilang::Number', '123']]);
     test1($log, "match",             "minilang::Token",
           $state, ['minilang::Number', [123]]);
 
@@ -1783,8 +1789,6 @@ sub test_minilang()
     # check_result needs only two args.
 
     check_result($$result_elements[0], 'minilang::Token',
-                 #['minilang::Token', ['minilang::Name', 'blah']]
-                 #['minilang::Token', [ ['minilang::Name', ['blah']] ]]
                  ['minilang::Name', ['blah']]
                  );
     #check_result($$result_elements[1], 'Period', '.');
@@ -2008,78 +2012,26 @@ sub test_xml()
     no strict 'subs';
     #sub nomatch;
     my $expected=
- #[Contentlist,
   [Contentelem, [Complexelem,
-    [Ltag,
-     [Langle, '<'],
-     [Owhite,       nomatch],
-     [Tagname, 'tr'],
-     [Oattrs,       nomatch],
-     [Owhite,       nomatch],
-     [Rangle, '>'] ],
+    [Ltag, [Langle, '<'], [Owhite, nomatch], [Tagname, 'tr'], [Oattrs, nomatch], [Owhite, nomatch], [Rangle, '>']],
     [Contentlist,
      [Contentelem, [Cdata, '
  ']],
      [Contentelem, [Complexelem,
-       [Ltag,
-        [Langle, '<'],
-        [Owhite,          nomatch],
-        [Tagname, 'td'],
-        [Oattrs,          nomatch],
-        [Owhite,          nomatch],
-        [Rangle, '>'] ],
-       [Contentlist,
-        [Contentelem, [Cdata, 'Contents']] ],
-       [Rtag,
-        [Langle, '<'],
-        [Slash, '/'],
-        [Owhite,          nomatch],
-        [Tagname, 'td'],
-        [Owhite,          nomatch],
-        [Rangle, '>'] ] ]],
+       [Ltag, [Langle, '<'], [Owhite, nomatch], [Tagname, 'td'], [Oattrs, nomatch], [Owhite, nomatch], [Rangle, '>']],
+       [Contentlist, [Contentelem, [Cdata, 'Contents']]],
+       [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, nomatch], [Tagname, 'td'], [Owhite, nomatch], [Rangle, '>']] ]],
      [Contentelem, [Complexelem,
-       [Ltag,
-        [Langle, '<'],
-        [Owhite,          nomatch],
-        [Tagname, 'td'],
-        [Oattrs,          nomatch],
-        [Owhite,          nomatch],
-        [Rangle, '>'] ],
-       [Contentlist,
-        [Contentelem, [Cdata, 'Foo Bar']] ],
-       [Rtag,
-        [Langle, '<'],
-        [Slash, '/'],
-        [Owhite,          nomatch],
-        [Tagname, 'td'],
-        [Owhite,          nomatch],
-        [Rangle, '>'] ] ]],
+       [Ltag, [Langle, '<'], [Owhite, nomatch], [Tagname, 'td'], [Oattrs, nomatch], [Owhite, nomatch], [Rangle, '>']],
+       [Contentlist, [Contentelem, [Cdata, 'Foo Bar']]],
+       [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, nomatch], [Tagname, 'td'], [Owhite, nomatch], [Rangle, '>']] ]],
      [Contentelem, [Complexelem,
-       [Ltag,
-        [Langle, '<'],
-        [Owhite,          nomatch],
-        [Tagname, 'td'],
-        [Oattrs,          nomatch],
-        [Owhite,          nomatch],
-        [Rangle, '>'] ],
-       [Contentlist,
-         ],
-       [Rtag,
-        [Langle, '<'],
-        [Slash, '/'],
-        [Owhite,          nomatch],
-        [Tagname, 'td'],
-        [Owhite,          nomatch],
-        [Rangle, '>'] ] ]] ],
-    [Rtag,
-     [Langle, '<'],
-     [Slash, '/'],
-     [Owhite,       nomatch],
-     [Tagname, 'tr'],
-     [Owhite,       nomatch],
-     [Rangle, '>'] ] ]]
-  #]
-  ;
+       [Ltag, [Langle, '<'], [Owhite, nomatch], [Tagname, 'td'], [Oattrs, nomatch], [Owhite, nomatch], [Rangle, '>']],
+       [Contentlist,  ],
+       [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, nomatch], [Tagname, 'td'], [Owhite, nomatch], [Rangle, '>']] ]]
+     ],
+    [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, nomatch], [Tagname, 'tr'], [Owhite, nomatch], [Rangle, '>']]
+    ]];
     $expected= &$f(@$expected);
     $log->debug(varstring('expected', $expected));
     $log->debug('expected formatted as result: '.Parse::SiLLy::Result::toString($expected, " "));
