@@ -5,6 +5,10 @@
 # Profile: perl -w -d:DProf parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
 # Profile: perl -w -I../.. -MDevel::Profiler parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
 # Lint: perl -w -MO=Lint,-context parse.pl Test/xml-grammar.pl Test/XML/example.xml
+# Environment variales:
+
+# PARSE_SILLY_ASSERT=0 Do not check assertions, do not even compute
+# the result.
 
 # --------------------------------------------------------------------
 =ignore
@@ -113,6 +117,12 @@ o Avoid calling debugging code (logging functions, data formatting) when debuggi
 o Avoid checking contracts (assertions etc.) when ASSERT is off.
 o Unify implementation of nelist_match and pelist_match.
 o Add automated XML parsing regression test.
+o Compile-time omission of debugging code (default is true).
+o Command-line control of ASSERT (default is on), DEBUG (default is off)
+  and MEMOIZE (default is off).
+o Compile-time option for MEMOIZATION.
+o Command-line control of MEMOIZE (determines memoization option)
+o Uppercase NOMATCH (formerly nomatch) to get rid of inappropriate warnings.
 
 =cut
 
@@ -452,16 +462,16 @@ sub make_result($$) {
 }
 
 # --------------------------------------------------------------------
-#sub nomatch() { undef; }
+#sub NOMATCH() { undef; }
 #sub matched($) { defined($_[0]); }
 
-#my $nomatch= ['nomatch'];
-#my $nomatch= 'nomatch';
-#sub nomatch() { $nomatch }
-#use constant nomatch => 'nomatch';
-sub nomatch() { 'nomatch' }
-#my $nomatch= nomatch();
-sub matched($) { nomatch() ne ($_[0]); }
+#my $NOMATCH= ['nomatch'];
+#my $NOMATCH= 'nomatch';
+#sub NOMATCH() { $NOMATCH }
+#use constant NOMATCH => 'nomatch';
+sub NOMATCH() { 'NOMATCH' }
+#my $NOMATCH= NOMATCH();
+sub matched($) { NOMATCH() ne ($_[0]); }
 
 # --------------------------------------------------------------------
 # Formats the given result object as a string
@@ -572,7 +582,7 @@ use English;
 ::import_from('main', 'varstring');
 
 ::import_from('Parse::SiLLy::Result', 'matched');
-::import_from('Parse::SiLLy::Result', 'nomatch');
+::import_from('Parse::SiLLy::Result', 'NOMATCH');
 ::import_from('Parse::SiLLy::Result', 'make_result');
 
 use constant DEBUG =>
@@ -594,6 +604,10 @@ sub import {
     Parse::SiLLy::Grammar->
         export_to_level(1, 'Parse::SiLLy::Grammar', @{ $EXPORT_TAGS{'all'} });
 }
+
+# --------------------------------------------------------------------
+use constant MEMOIZE =>
+    (defined($ENV{PARSE_SILLY_MEMOIZE}) ? $ENV{PARSE_SILLY_MEMOIZE} : 0);
 
 # --------------------------------------------------------------------
 sub log_args($$$)
@@ -752,7 +766,7 @@ sub match_watch_args($$$) {
     assert(defined($ctx)) if ASSERT();
     $log->debug("$ctx: state->pos=$state->{pos}");
     # FIXME: Use a faster method to access the parser state (array)
-    if (exists($state->{stash})) {
+    if (MEMOIZE()) {
         my $pos= $state->{pos};
         show_pos_stash($log, $state->{stash}->{$pos}, $pos);
     }
@@ -899,7 +913,7 @@ sub terminal_match($$)
     #$log->debug("$ctx: ref(input)=" . ref($input) . ".");
     if (eoi($input, $pos)) {
 	if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: End Of Input reached"); }
-	return (nomatch());
+	return (NOMATCH());
     }
     if ('ARRAY' eq ref($input)) {
 	if (DEBUG() && $log->is_debug()) {
@@ -908,7 +922,7 @@ sub terminal_match($$)
         }
 	#if ($#{@$input} < $pos) {
 	#    if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: End of input reached");}
-	#    return (nomatch());
+	#    return (NOMATCH());
 	#}
 	$match= $ {@$input}[$pos];
 	if ($t == $match->{_}) {
@@ -927,7 +941,7 @@ sub terminal_match($$)
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: token not matched: '$ctx'");
             }
-	    return (nomatch());
+	    return (NOMATCH());
 	}
     } else {
         if (DEBUG() && $log->is_debug()) {
@@ -937,7 +951,7 @@ sub terminal_match($$)
         }
 	#if (length($input)-1 < $pos) {
 	#    if (DEBUG() && $log->is_debug()) {$log->debug("$ctx: End Of Input reached");}
-	#    return (nomatch());
+	#    return (NOMATCH());
 	#}
         my $pattern= $t->{pattern};
         assert(defined($pattern)) if ASSERT();
@@ -965,7 +979,7 @@ sub terminal_match($$)
                 $log->debug("$ctx: pattern not matched: '"
                             . quotemeta($t->{pattern})."'");
             }
-	    return (nomatch());
+	    return (NOMATCH());
 	}
     }
 }
@@ -1047,7 +1061,7 @@ sub construction_match($$)
         }
 	my ($match)= match($element, $state);
 	#if ( ! matched($match))
-	if (nomatch() eq $match)
+	if (NOMATCH() eq $match)
         {
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: element[$i] not matched: $element->{name}"
@@ -1060,7 +1074,7 @@ sub construction_match($$)
 	    # already moved.
 
 	    $state->{pos}= $saved_pos;
-	    return (nomatch());
+	    return (NOMATCH());
 	}
         if (DEBUG() && $log->is_debug()) {
             #$log->debug("$ctx: Matched element: " . varstring($i,$element)."\]");
@@ -1119,7 +1133,7 @@ sub alternation_match($$)
     # FIXME: Is it beneficial to check for EOI here?
     if (eoi($state->{input}, $state->{pos})) {
         if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: End Of Input reached"); }
-	return (nomatch());
+	return (NOMATCH());
     }
 
     my $elements= $t->{elements};
@@ -1136,7 +1150,7 @@ sub alternation_match($$)
         }
 	my ($match)= match($element, $state);
 	#if (matched($match))
-	if (nomatch() ne $match)
+	if (NOMATCH() ne $match)
         {
             if (DEBUG() && $log->is_debug()) {
                 #$log->debug("$ctx: matched element: " . varstring($i, $element)."\]");
@@ -1155,7 +1169,7 @@ sub alternation_match($$)
     } (0 .. $#{@$elements});
 
     if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: not matched: '$ctx'"); }
-    return (nomatch());
+    return (NOMATCH());
 }
 
 # --------------------------------------------------------------------
@@ -1199,7 +1213,7 @@ sub optional_match($$)
 
     my ($match)= match($element, $state);
     #if (matched($match))
-    if (nomatch() ne $match)
+    if (NOMATCH() ne $match)
     {
         if (DEBUG() && $log->is_debug()) {
             #$log->debug("$ctx: matched element: " . varstring($i,$element));
@@ -1266,7 +1280,7 @@ sub pelist_match($$)
         }
 	my ($match)= match($element, $state);
 	#if ( ! matched($match))
-	if (nomatch() eq $match)
+	if (NOMATCH() eq $match)
         {
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: Element not matched: '$element->{name}'\]");
@@ -1292,7 +1306,7 @@ sub pelist_match($$)
         }
 	($match)= match($separator, $state);
 	#if ( ! matched($match))
-	if (nomatch() eq $match)
+	if (NOMATCH() eq $match)
         {
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: Separator not matched: '$separator->{name}'\]");
@@ -1360,14 +1374,14 @@ sub nelist_match($$)
         }
 	my ($match)= match($element, $state);
 	#if ( ! matched($match))
-	if (nomatch() eq $match)
+	if (NOMATCH() eq $match)
         {
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: Element not matched: '$element->{name}'\]");
             }
 	    if (0 == scalar(@$result_elements)) {
                 if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: ...not matched.\]");}
-                return (nomatch());
+                return (NOMATCH());
             }
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: ...matched ".scalar(@$result_elements)
@@ -1390,7 +1404,7 @@ sub nelist_match($$)
         }
 	($match)= match($separator, $state);
 	#if ( ! matched($match))
-	if (nomatch() eq $match)
+	if (NOMATCH() eq $match)
         {
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: Separator not matched: '$separator->{name}'\]");
@@ -1467,11 +1481,11 @@ sub match($$)
     assert('' eq ref($pos)) if ASSERT();
 
     # FIXME: This should be done by a constructor:
-    if ( ! exists($state->{stash})) {
+    if (MEMOIZE() && ! exists($state->{stash})) {
         # If these are disabled, memoization is not done:
         # FIXME: Using memoization is currently slower than not doing it
-        #if (DEBUG() && $log->is_debug()) { $log->debug("Initializing stash..."); }
-        #$state->{stash}= {};
+        if (DEBUG() && $log->is_debug()) { $log->debug("Initializing stash..."); }
+        $state->{stash}= {};
     }
 
     my $pos_stash;
@@ -1481,7 +1495,7 @@ sub match($$)
 
     #my $pos_stash_key= $t;
     my $pos_stash_key= $t->{name};
-    if (exists($state->{stash})) {
+    if (MEMOIZE()) {
         $pos_stash= stash_get_pos_stash($state->{stash}, $pos);
         if (exists($pos_stash->{$pos_stash_key}))
         {
@@ -1499,14 +1513,14 @@ sub match($$)
                             );
             }
             #if (matched($stashed))
-            if (nomatch() ne $stashed)
+            if (NOMATCH() ne $stashed)
             {
                 assert('ARRAY' eq ref($stashed)) if ASSERT();
                 $state->{pos}= $$stashed[0];
                 return ($$stashed[1]);
             }
             else {
-                return (nomatch());
+                return (NOMATCH());
             }
         }
     }
@@ -1534,11 +1548,11 @@ sub match($$)
 }
 
     #assert(matched($result) || $state->{pos} == $pos) if ASSERT();
-    assert((nomatch() ne $result) || $state->{pos} == $pos) if ASSERT();
+    assert((NOMATCH() ne $result) || $state->{pos} == $pos) if ASSERT();
 
-    if (exists($state->{stash})) {
-        #my $stashed= matched($result) ? [$state->{pos}, $result] : nomatch();
-        my $stashed= (nomatch() ne $result) ? [$state->{pos}, $result] : nomatch();
+    if (MEMOIZE()) {
+        #my $stashed= matched($result) ? [$state->{pos}, $result] : NOMATCH();
+        my $stashed= (NOMATCH() ne $result) ? [$state->{pos}, $result] : NOMATCH();
         if (DEBUG() && $log->is_debug()) {
             $log->debug("Storing result in stash for ${pos} ->{$pos_stash_key} ($t->{name}): "
                         #. varstring('result', $result)
@@ -2028,27 +2042,27 @@ sub test_xml()
          ];
     };
     no strict 'subs';
-    #sub nomatch;
+    #sub NOMATCH;
     my $expected=
   [Contentelem, [Complexelem,
-    [Ltag, [Langle, '<'], [Owhite, nomatch], [Tagname, 'tr'], [Oattrs, nomatch], [Owhite, nomatch], [Rangle, '>']],
+    [Ltag, [Langle, '<'], [Owhite, NOMATCH], [Tagname, 'tr'], [Oattrs, NOMATCH], [Owhite, NOMATCH], [Rangle, '>']],
     [Contentlist,
      [Contentelem, [Cdata, '
  ']],
      [Contentelem, [Complexelem,
-       [Ltag, [Langle, '<'], [Owhite, nomatch], [Tagname, 'td'], [Oattrs, nomatch], [Owhite, nomatch], [Rangle, '>']],
+       [Ltag, [Langle, '<'], [Owhite, NOMATCH], [Tagname, 'td'], [Oattrs, NOMATCH], [Owhite, NOMATCH], [Rangle, '>']],
        [Contentlist, [Contentelem, [Cdata, 'Contents']]],
-       [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, nomatch], [Tagname, 'td'], [Owhite, nomatch], [Rangle, '>']] ]],
+       [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, NOMATCH], [Tagname, 'td'], [Owhite, NOMATCH], [Rangle, '>']] ]],
      [Contentelem, [Complexelem,
-       [Ltag, [Langle, '<'], [Owhite, nomatch], [Tagname, 'td'], [Oattrs, nomatch], [Owhite, nomatch], [Rangle, '>']],
+       [Ltag, [Langle, '<'], [Owhite, NOMATCH], [Tagname, 'td'], [Oattrs, NOMATCH], [Owhite, NOMATCH], [Rangle, '>']],
        [Contentlist, [Contentelem, [Cdata, 'Foo Bar']]],
-       [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, nomatch], [Tagname, 'td'], [Owhite, nomatch], [Rangle, '>']] ]],
+       [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, NOMATCH], [Tagname, 'td'], [Owhite, NOMATCH], [Rangle, '>']] ]],
      [Contentelem, [Complexelem,
-       [Ltag, [Langle, '<'], [Owhite, nomatch], [Tagname, 'td'], [Oattrs, nomatch], [Owhite, nomatch], [Rangle, '>']],
+       [Ltag, [Langle, '<'], [Owhite, NOMATCH], [Tagname, 'td'], [Oattrs, NOMATCH], [Owhite, NOMATCH], [Rangle, '>']],
        [Contentlist,  ],
-       [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, nomatch], [Tagname, 'td'], [Owhite, nomatch], [Rangle, '>']] ]]
+       [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, NOMATCH], [Tagname, 'td'], [Owhite, NOMATCH], [Rangle, '>']] ]]
      ],
-    [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, nomatch], [Tagname, 'tr'], [Owhite, nomatch], [Rangle, '>']]
+    [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, NOMATCH], [Tagname, 'tr'], [Owhite, NOMATCH], [Rangle, '>']]
     ]];
     $expected= &$f(@$expected);
     $log->debug(varstring('expected', $expected));
@@ -2084,7 +2098,7 @@ sub read_data_old {
 # --------------------------------------------------------------------
 sub do_one_run($$) {
     my ($state, $top)= @_;
-    if (exists($state->{stash})) {
+    if (Parse::SiLLy::Grammar::MEMOIZE()) {
         delete($state->{stash});
     }
     $state->{pos}= 0;
