@@ -1,18 +1,17 @@
 #!/usr/bin/perl -w
 # --------------------------------------------------------------------
-# Usage: perl PROGRAM GRAMMAR INPUT > OUTPUT
-# Example: perl          parse.pl Test/xml-grammar.pl Test/XML/example.xml
-# Profile: perl -w -d:DProf parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
-# Profile: perl -w -I../.. -MDevel::Profiler parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
-# Lint: perl -w -MO=Lint,-context parse.pl Test/xml-grammar.pl Test/XML/example.xml
-# Environment variales:
-
-# PARSE_SILLY_ASSERT=0 Do not check assertions, do not even compute
-# the result.
-
-# --------------------------------------------------------------------
 =ignore
 
+Usage: perl PROGRAM GRAMMAR INPUT > OUTPUT
+
+Example: perl          parse.pl Test/xml-grammar.pl Test/XML/example.xml
+Debug:   PARSE_SILLY_DEBUG=1 perl parse.pl Test/xml-grammar.pl Test/XML/example.xml
+Profile: perl -w -d:DProf parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
+Profile: perl -w -I../.. -MDevel::Profiler parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
+Lint:    perl -w -MO=Lint,-context parse.pl Test/xml-grammar.pl Test/XML/example.xml
+Fastest so far: PARSE_SILLY_PRODS_ARE_HASHES=0 PARSE_SILLY_ASSERT=0 perl parse.pl Test/xml-grammar.pl Test/XML/example.xml
+
+--------------------------------------------------------------------
 Copyright (c) 2004-2006 by Rainer Blome
 
 Copying and usage conditions for this document are specified by
@@ -25,6 +24,7 @@ o Do not use my name in advertising.
 o Allow free copying of derivatives.
 
 
+--------------------------------------------------------------------
 Purpose
 
 Parses, according to the given grammar, the given input. Produces an
@@ -62,6 +62,24 @@ a: b
 c: 4
 
 
+Environment Variables
+
+PARSE_SILLY_ASSERT=0 -- Do not check assertions, do not even compute
+  the result.  This can significantly speed up the parser (by a factor
+  of about two).  However, any remaining bugs may manifest themselves
+  much later than when they are encountered.
+
+PARSE_SILLY_MEMOIZE=1 -- Turns on memoization.  This makes this a
+  packrat parser.  Currently, with the grammars and examples that I
+  used for testing, this option slows the parser down by about 30%.
+
+PARSE_SILLY_DEBUG=1 -- Enable debug messages.  This will slow the
+  parser down by a factor of at least ten.
+
+PARSE_SILLY_PRODS_ARE_HASHES=0 -- Implement productions as arrays
+  instead of hashes.
+
+
 Design
 
 Recursive descent with backup (backtracking of state in case of local mismatch).
@@ -85,12 +103,15 @@ TODO
 
 o FIXME: Provide automated regression tests for the test tools (assert
   etc., the validation functions).
-o Avoid array interpolation during result construction.
-o Inline result construction
+o Clean up
+  - def3
+  - scan
+o Implement productions as arrays
 o FIXME: Using memoization is currently slower than not doing it
 o Benchmark without memoization versus with memoization
+o Find examples for which memoization is faster.
 o Share implementation of nelist_match and pelist_match. 
-o Implement state as an array
+o Implement state as an array.
 o Factor out common parts of parsing functions.
 o Do a serious benchmark
 o Allow dashes in XML comments
@@ -102,6 +123,9 @@ o Document how to configure logging (search for $DEBUG)
 o Result scanner
 o Allow using multiple parsers concurrently
 o Make it easy to switch off memoization (per parser)
+o Parameterize result construction (compile-time option):
+  - Inline result construction
+  - array interpolation versus array reference
 
 Done
 o Automate minilang regression tests
@@ -120,6 +144,8 @@ o Add automated XML parsing regression test.
 o Compile-time omission of debugging code (default is true).
 o Command-line control of ASSERT (default is on), DEBUG (default is off)
   and MEMOIZE (default is off).
+o Avoid array interpolation during result construction.
+o Inline result construction
 o Compile-time option for MEMOIZATION.
 o Command-line control of MEMOIZE (determines memoization option)
 o Uppercase NOMATCH (formerly nomatch) to get rid of inappropriate warnings.
@@ -216,6 +242,12 @@ use diagnostics;
 ::import_from('main', 'assert');
 ::import_from('main', 'ASSERT');
 
+# Logger objects are implemented as arrays.  Use these constants as
+# indices to access their fields (array elements):
+use constant LOGGER_NAME   => 0;
+use constant LOGGER_DEBUG  => 1;
+use constant LOGGER_LOGGER => 2;
+
 # --------------------------------------------------------------------
 sub new
 {
@@ -228,40 +260,42 @@ sub new
     my $name= shift;
 
     #$self->{name}= $name;
-    $$self[0]= $name;
+    $$self[LOGGER_NAME]= $name;
 
     #$self->{logger}= Log::Log4perl::get_logger($name)
-    $$self[2]= Log::Log4perl::get_logger($name)
+    $$self[LOGGER_LOGGER]= Log::Log4perl::get_logger($name)
 	|| die("$name: Could not get logger.\n");
     #print("$name: Got logger: " . join(', ', keys(%{$self->{logger}})) . "\n");
 
     #$self->{debugging}= $self->{logger}->is_debug();
-    #$$self[1]= $ {@$self}[2]->is_debug();
-    #$$self[1]= ($$self[2])->is_debug();
-    $$self[1]= $self->get_logger()->is_debug();
+    #$$self[LOGGER_DEBUG]= $ {@$self}[LOGGER_LOGGER]->is_debug();
+    #$$self[LOGGER_DEBUG]=   ($$self[LOGGER_LOGGER])->is_debug();
+    $$self[LOGGER_DEBUG]= $self->get_logger()->is_debug();
     #print("is_debug()=".$self->is_debug()."\n");
     $self->debug("is_debug()=".$self->is_debug()."\n");
+
     #print("get_logger()->is_debug()=".$self->get_logger()->is_debug()."\n");
     #print("get_logger()->level()=".$self->get_logger()->level()."\n");
 
     #$self->{logger}->debug("Logger constructed: $name.");
-    #($$self[2])->debug("Logger constructed: $name.");
+    #($$self[LOGGER_LOGGER])->debug("Logger constructed: $name.");
     $self->debug("Logger constructed: $name.");
 
-    return $self;
+    $self;
 }
 
 # --------------------------------------------------------------------
 sub name($) {
-    # FIXME: Switch to this after testing:
-    return $ { @{ $_[0]}}[0];
+    $ { @{ $_[0]}}[LOGGER_NAME];
+}
 
+sub name_explicit($) {
     my ($self)= @_;
     assert(defined($self)) if ASSERT();
     assert('' ne ref($self)) if ASSERT();
     #assert('Logger' eq ref($self)) if ASSERT();
     assert(0 < scalar(@$self)) if ASSERT();
-    my $name= $$self[0];
+    my $name= $$self[LOGGER_NAME];
     assert(defined($name)) if ASSERT();
     assert('' eq ref($name)) if ASSERT();
 }
@@ -272,28 +306,28 @@ sub name($) {
 #sub is_debug($) { $_[0]->{logger}->is_debug(); }
 #sub is_debug($) { $_[0]->get_logger()->is_debug(); }
 #sub is_debug($) { $_[0]->{debugging}; }
-#sub is_debug($) { ${@{$_[0]}}[1]; }
+#sub is_debug($) { ${@{$_[0]}}[LOGGER_DEBUG]; }
 #sub is_debug($) {
 #    my $self= $_[0];
 #    assert(defined($self)) if ASSERT();
 #    assert('' ne ref($self)) if ASSERT();
-#    $$self[1];
+#    $$self[LOGGER_DEBUG];
 #}
 
-sub is_debug($) { $ {@ {$_[0]}}[1]; }
+sub is_debug($) { $ {@ {$_[0]}}[LOGGER_DEBUG]; }
 
 # --------------------------------------------------------------------
 # FIXME: What is the performance impact of the assertions?
 # FIXME: What is the performance impact of the binding to $self?
 
 sub get_logger($) {
-    #return $ {@ {$_[0]}}[2];
+    #return $ {@ {$_[0]}}[LOGGER_LOGGER];
 
     my ($self)= (@_);
     #::assert(exists($self->{logger})) if ASSERT();
     ::assert(2 <= $#$self) if ASSERT();
     #my $log= $self->{logger};
-    my $log= $$self[2];
+    my $log= $$self[LOGGER_LOGGER];
     ::assert(defined($log)) if ASSERT();
     #print(STDERR "ref(log)=".ref($log)."\n");
     ::assert("Log::Log4perl::Logger" eq ref($log)) if ASSERT();
@@ -306,23 +340,23 @@ sub info($) {
     my $ctx= $self->name();
     #print("$ctx: @_\n");
     #$self->{logger}->info("$ctx: @_");
-    #($$self[2])->info("$ctx: @_");
+    #($$self[LOGGER_LOGGER])->info("$ctx: @_");
     get_logger($self)->info("$ctx: @_");
 }
 
 # --------------------------------------------------------------------
 sub debug($) {
     # If ! $self->{debugging} return:
-    if ( ! $ {@{$_[0]}}[1]) { return; }
+    if ( ! $ {@{$_[0]}}[LOGGER_DEBUG]) { return; }
 
     my ($self)= shift;
     #if ( ! $self->is_debug()) { return; }
     #if ( ! $self->get_logger()->is_debug()) { return; }
-    #my $ctx= $$self[0];
+    #my $ctx= $$self[LOGGER_NAME];
     my $ctx= $self->name();
     # FIXME: Why don't I use this line?:
     #$self->{logger}->debug("$ctx: @_");
-    #($$self[2])->debug("$ctx: @_");
+    #($$self[LOGGER_LOGGER])->debug("$ctx: @_");
     #get_logger($self)->debug("$ctx: @_");
     $self->get_logger()->debug("$ctx: @_");
 }
@@ -350,23 +384,41 @@ sub varstring($$) {
 }
 
 # --------------------------------------------------------------------
+use constant PRODS_ARE_HASHES =>
+    (defined($ENV{PARSE_SILLY_PRODS_ARE_HASHES})
+     ? $ENV{PARSE_SILLY_PRODS_ARE_HASHES}
+     : 1);
+
+# These are only used when productions are arrays (PRODS_ARE_HASHES is false):
+use constant PROD_CATEGORY => 0;
+use constant PROD_NAME     => 1;
+use constant PROD_PATTERN  => 2;
+use constant PROD_MATCHER  => 3;
+
+# --------------------------------------------------------------------
 # If the given reference refers to a named object, returns its name.
 # Otherwise returns undef.
 sub given_name($) {
     my ($val)= @_;
     assert(defined($val)) if ASSERT();
     if (
-        #"HASH" eq ref($val) # Does not work if $val is blessed
         '' ne ref($val)
-        && exists($val->{name}))
+        && (PRODS_ARE_HASHES()
+            ? (
+               #"HASH" eq ref($val) && # Does not work if $val is blessed
+               exists($val->{name})
+               )
+            : (scalar(@$val) >= PROD_NAME())
+            ))
     {
-        my $valname= $val->{name};
+        # FIXME: Decouple logging from parsing packages?
+        my $valname= PRODS_ARE_HASHES() ? $val->{name} : $val->[PROD_NAME];
         if (defined($valname) && '' eq ref($valname)) # name is a string
         {
             return ($valname);
         }
     }
-    return undef;
+    undef;
 }
 
 # --------------------------------------------------------------------
@@ -378,22 +430,7 @@ sub vardescr($$)
     my ($name, $val)= @_;
     if ( ! defined($val)) { return ("$name: <UNDEFINED>\n"); }
     my $valname= given_name($val);
-    return (defined($valname) ? "\$$name = ''$valname''\n" : varstring($name, $val));
-
-    assert(defined($val)) if ASSERT();
-
-    # If $val is a named object, print its name instead of its value
-    if (
-        #"HASH" eq ref($val) # Does not work if $val is blessed
-        '' ne ref($val)
-        && exists($val->{name})) {
-        my $valname= $val->{name};
-        if (defined($valname) && '' eq ref($valname)) # name is a string
-        {
-            return ("$name: $valname\n");
-        }
-    }
-    varstring($name, $val);
+    defined($valname) ? "\$$name = ''$valname''\n" : varstring($name, $val);
 }
 
 # --------------------------------------------------------------------
@@ -407,7 +444,7 @@ use diagnostics;
 sub new($$) {
     my ($class, $log)= (@_);
     my $self= { log=>$log };
-    return $self;
+    $self;
 }
 sub terminal($$$$$) {
     my ($self, $result, $typename, $type, $category)= (@_);
@@ -451,14 +488,26 @@ use diagnostics;
 ::import_from('main', 'ASSERT');
 
 # --------------------------------------------------------------------
+use constant PRODS_ARE_HASHES =>
+    (defined($ENV{PARSE_SILLY_PRODS_ARE_HASHES})
+     ? $ENV{PARSE_SILLY_PRODS_ARE_HASHES}
+     : 1);
+
+# FIXME: Define these only once
+# These are only used when productions are arrays (PRODS_ARE_HASHES is false):
+use constant PROD_CATEGORY  => 0;
+use constant PROD_NAME      => 1;
+use constant PROD_ELEMENTS  => 2;
+
+# --------------------------------------------------------------------
 sub make_result($$) {
-    #return [$_[0]->{name}, $_[1]];
+    #return [$_[0] - > {name}, $_[1]];
     my ($t, $match)= (@_);
-    #return {_=>$t, result=>$match};
-    #return [::hash_get($t, "name"), @$match];
-    #return [$t->{name}, @$match];
+    #{_=>$t, result=>$match};
+    #[::hash_get($t, "name"), @$match];
+    #[PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], @$match];
     assert('ARRAY' eq ref($match)) if ASSERT();
-    return [$t->{name}, $match];
+    [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], $match];
 }
 
 # --------------------------------------------------------------------
@@ -495,11 +544,12 @@ sub toString($$)
 
     my $type= do { no strict 'refs'; $ {$typename}; };
     #print("tn=$typename\n");
+    # FIXME: Introduce predicate 'is_production'
     assert(defined($type));
     assert('' ne ref($type));
-    assert($typename eq $type->{name});
+    assert($typename eq (PRODS_ARE_HASHES() ? $type->{name} : $type->[PROD_NAME]));
 
-    my $category= ::hash_get($type, '_');
+    my $category= PRODS_ARE_HASHES() ? ::hash_get($type, '_') : $type->[PROD_CATEGORY];
     #print("categ=$category\n");
 
     my $match= $$self[1];
@@ -538,9 +588,9 @@ sub scan($$) {
     my $type= do { no strict 'refs'; $ {$typename}; };
     assert(defined($type)) if ASSERT();
     assert('' ne ref($type)) if ASSERT();
-    assert($typename eq $type->{name}) if ASSERT();
+    assert($typename eq (PRODS_ARE_HASHES() ? $type->{name} : $type->[PROD_NAME])) if ASSERT();
 
-    my $category= ::hash_get($type, '_');
+    my $category= PRODS_ARE_HASHES() ? ::hash_get($type, '_') : $type->[PROD_CATEGORY];
 
     # FIXME: separate iteration from printing
 
@@ -562,7 +612,8 @@ sub scan($$) {
         $handler->optional($self, $typename, $type, $category);
     }
     else {
-        $handler->print("[$typename '@$self->{elements}']");
+        my $elements= PRODS_ARE_HASHES() ? $self->{elements} : $self->[PROD_ELEMENTS];
+        $handler->print("[$typename '@$elements']");
     }
 }
 
@@ -608,6 +659,24 @@ sub import {
 # --------------------------------------------------------------------
 use constant MEMOIZE =>
     (defined($ENV{PARSE_SILLY_MEMOIZE}) ? $ENV{PARSE_SILLY_MEMOIZE} : 0);
+
+# --------------------------------------------------------------------
+use constant PRODS_ARE_HASHES =>
+    (defined($ENV{PARSE_SILLY_PRODS_ARE_HASHES})
+     ? $ENV{PARSE_SILLY_PRODS_ARE_HASHES}
+     : 1);
+
+# These are only used when productions are arrays (PRODS_ARE_HASHES is false):
+use constant PROD_CATEGORY  => 0;
+use constant PROD_NAME      => 1;
+
+use constant PROD_PATTERN   => 2;
+use constant PROD_MATCHER   => 3;
+
+use constant PROD_ELEMENTS  => 2;
+
+use constant PROD_ELEMENT   => 2;
+use constant PROD_SEPARATOR => 3;
 
 # --------------------------------------------------------------------
 sub log_args($$$)
@@ -705,8 +774,9 @@ sub show_pos_stash($$$)
         # FIXME: This leads to an incomplete error message
         # (get assert to add the stack trace to $@ in this case):
         #$elt= "foo";
+        # FIXME: Introduce ->name() accessor
         #my $elt_name= ::hash_get($elt, 'name');
-        my $elt_name= $elt->{'name'};
+        my $elt_name= PRODS_ARE_HASHES() ? $elt->{name} : $elt->[PROD_NAME];
         assert(defined($elt_name));
         assert('' eq ref($elt_name));
 
@@ -757,12 +827,20 @@ sub match_check_preconditions($$) {
     assert(defined($t)) if ASSERT();
     assert('' ne ref($t)) if ASSERT();
     #assert("HASH" eq ref($t)) if ASSERT();
-    assert(exists($t->{name})) if ASSERT();
+    #assert(exists($t->{name})) if ASSERT();
+    if (ASSERT()) {
+        if (PRODS_ARE_HASHES()) {
+            assert(exists($t->{name}));
+        }
+        else {
+            assert(scalar(@$t) >= PROD_MATCHER());
+        }
+    }
 }
 
 # --------------------------------------------------------------------
 sub match_watch_args($$$) {
-    my ($log, $ctx, $state)= (@_);
+    my ($ctx, $log, $state)= (@_);
     assert(defined($ctx)) if ASSERT();
     $log->debug("$ctx: state->pos=$state->{pos}");
     # FIXME: Use a faster method to access the parser state (array)
@@ -796,7 +874,7 @@ sub eoi($$) {
     assert(defined($input)) if ASSERT();
     if ('' eq ref($input)) { return (length($input)-1 < $pos); }
     assert("ARRAY" eq ref($input)) if ASSERT();
-    return ($#{@$input} < $pos);
+    $#{@$input} < $pos;
 }
 
 # --------------------------------------------------------------------
@@ -829,7 +907,8 @@ sub def3($$@)
     #eval("\$$name=\$val;");
     #$::def_val_= $val; eval("\$$name=\$::def_val_;");
     # FIXME: Consider moving this to the grammar object constructors:
-    $val->{name}= $name;
+    if (PRODS_ARE_HASHES()) { $val->{name}= $name; }
+    else { $val->[PROD_NAME]= $name; }
     $log->debug("Defined '$name' as $val.");
 }
 
@@ -845,9 +924,15 @@ sub def($$$$$@)
     assert('' ne ref($val));
     #$log->debug(varstring('val', $val));
 
+    # Set this production's category
     assert(defined($category));
     assert('' eq ref($category));
-    $val->{_}= $category;
+    if (PRODS_ARE_HASHES()) {
+        $val->{_}= $category;
+    }
+    else {
+        $val->[PROD_CATEGORY]= $category;
+    }
 
     # Determine full variable name
     assert(defined($name));
@@ -856,7 +941,12 @@ sub def($$$$$@)
     #my ($caller_package, $file, $line)= caller();
     my $fullname= "${caller_package}::$name";
     $log->debug("Defining '$fullname'...");
-    $val->{name}= $fullname;
+    if (PRODS_ARE_HASHES()) {
+        $val->{name}= $fullname;
+    }
+    else {
+        $val->[PROD_NAME]= $fullname;
+    }
 
     # Bind grammar object value to variable
     eval("\$$fullname=\$val;");
@@ -887,9 +977,12 @@ sub terminal#($$)
     # subroutine is compiled), and not at every parse.
     my $matcher= eval("sub { \$_[0] =~ m{^($pattern)}og; }");
 
-    return def($log, 'terminal', $name,
-               { pattern => $pattern, matcher => $matcher },
-               caller());
+    def($log, 'terminal', $name,
+        (PRODS_ARE_HASHES()
+         ? { pattern => $pattern, matcher => $matcher }
+         : [ undef, undef, $pattern, $matcher ]
+         ),
+        caller());
 }
 
 # --------------------------------------------------------------------
@@ -899,16 +992,13 @@ sub terminal_match($$)
 {
     my $log= $terminal_match_log;
     my ($t, $state)= @ARG;
-
-    # FIXME: Separate concerns of checking preconditions, determining
-    # the context and argument logging.
     match_check_preconditions($log, $t) if ASSERT();
-    my $ctx= $t->{name};
+    my $ctx= PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
     
     my $input= $state->{input};
     my $pos= $state->{pos};
-    #my ($match)= $input =~ m{^($t->{pattern})}g;
+    #my ($match)= $input =~ m{^(PRODS_ARE_HASHES() ? $t->{pattern} : $t->[PROD_PATTERN])}g;
     my $match;
     #$log->debug("$ctx: ref(input)=" . ref($input) . ".");
     if (eoi($input, $pos)) {
@@ -918,6 +1008,7 @@ sub terminal_match($$)
     if ('ARRAY' eq ref($input)) {
 	if (DEBUG() && $log->is_debug()) {
             $log->debug("$ctx: state->pos=$state->{pos},"
+                        # FIXME: HASH_ACCESS
                         . " input[0]->name=", $ {@$input}[0]->{name});
         }
 	#if ($#{@$input} < $pos) {
@@ -925,9 +1016,11 @@ sub terminal_match($$)
 	#    return (NOMATCH());
 	#}
 	$match= $ {@$input}[$pos];
+        # FIXME: HASH_ACCESS
 	if ($t == $match->{_}) {
             if (DEBUG() && $log->is_debug()) {
                 #$log->debug("$ctx: matched token: " . varstring('match', $match));
+                # FIXME: HASH_ACCESS
                 $log->debug("$ctx: matched token: $ctx, text: '$match->{text}'");
             }
 	    my $result= $match;
@@ -953,13 +1046,13 @@ sub terminal_match($$)
 	#    if (DEBUG() && $log->is_debug()) {$log->debug("$ctx: End Of Input reached");}
 	#    return (NOMATCH());
 	#}
-        my $pattern= $t->{pattern};
+        my $pattern= PRODS_ARE_HASHES() ? $t->{pattern} : $t->[PROD_PATTERN];
         assert(defined($pattern)) if ASSERT();
         assert('' eq ref($pattern)) if ASSERT();
 
-	#($match)= substr($input, $pos) =~ m{^($t->{pattern})}g;
-        #my $matcher= $t->{matcher};
-	($match)= &{$t->{matcher}}(substr($input, $pos));
+	#($match)= substr($input, $pos) =~ m{^($pattern)}g;
+        my $matcher= PRODS_ARE_HASHES() ? $t->{matcher} : $t->[PROD_MATCHER];
+	($match)= &{$matcher} (substr($input, $pos));
 
         if (defined($match)) {
             if (DEBUG() && $log->is_debug()) {
@@ -967,7 +1060,7 @@ sub terminal_match($$)
             }
             #my $result= {_=>$t, text=>$match};
 	    #my $result= make_result($t, [$match]);
-	    my $result= [$t->{name}, [$match]];
+	    my $result= [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], [$match]];
 	    $state->{pos}= $pos + length($match);
 	    if (DEBUG() && $log->is_debug()) {
                 #$log->debug(varstring('state', $state));
@@ -977,7 +1070,7 @@ sub terminal_match($$)
 	} else {
 	    if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: pattern not matched: '"
-                            . quotemeta($t->{pattern})."'");
+                            . quotemeta(PRODS_ARE_HASHES() ? $t->{pattern} : $t->[PROD_PATTERN])."'");
             }
 	    return (NOMATCH());
 	}
@@ -1004,12 +1097,14 @@ sub construction
     #    }
     #}
 
+    # FIXME: HASH_ACCESS
     #my $val= { _ => $log->{name}, elements => \@ARG };
     #my $val= { _ => $log->{name}, elements => [@ARG] };
+    # FIXME: (PRODS_ARE_HASHES() ? ... : ...)
     my $val= { _ => $log->{name}, elements => grammar_objects(\@ARG) };
     $log->debug(varstring('elements',$val->{elements}));
     log_val($log, $val);
-    return $val;
+    $val;
 }
 
 =cut
@@ -1026,8 +1121,12 @@ sub construction
 
     my ($caller_package, $file, $line)= caller();
     my $val= def($log, 'construction', $name,
-                 { elements => grammar_objects($caller_package, \@ARG) },
+                 (PRODS_ARE_HASHES()
+                  ? { elements => grammar_objects($caller_package, \@ARG) }
+                  : [undef, undef, grammar_objects($caller_package, \@ARG)]
+                  ),
                  caller());
+    # FIXME: HASH_ACCESS
     #$log->debug(varstring('elements',$val->{elements}));
     $val;
 }
@@ -1040,7 +1139,7 @@ sub construction_match($$)
     my $log= $construction_match_log;
     my ($t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
-    my $ctx= $t->{name};
+    my $ctx= PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
     if (DEBUG() && $log->is_debug()) {
         $log->debug("$ctx: [ Trying to match...");
@@ -1050,21 +1149,22 @@ sub construction_match($$)
     my $result_elements= [];
     my $saved_pos= $state->{pos};
 
-    # foreach $element in $t->{elements}
+    # foreach $element in $t's elements
     map {
 	my $i= $_;
 	#if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: i=$i"); }
-	my $element= $ {@{$t->{elements}}}[$i];
+	my $element= $ {@{PRODS_ARE_HASHES() ? $t->{elements} : $t->[PROD_ELEMENTS]}}[$i];
+        my $element_name= PRODS_ARE_HASHES() ? $element->{name} : $element->[PROD_NAME];
         if (DEBUG() && $log->is_debug()) {
             #$log->debug(varstring('element', $element));
-            $log->debug("$ctx: [ Trying to match element[$i]=$element->{name}");
+            $log->debug("$ctx: [ Trying to match element[$i]: $element_name");
         }
 	my ($match)= match($element, $state);
 	#if ( ! matched($match))
 	if (NOMATCH() eq $match)
         {
             if (DEBUG() && $log->is_debug()) {
-                $log->debug("$ctx: element[$i] not matched: $element->{name}"
+                $log->debug("$ctx: element[$i] not matched: $element_name"
                             . " (giving up on '$ctx')\]\]");
             }
 
@@ -1078,20 +1178,20 @@ sub construction_match($$)
 	}
         if (DEBUG() && $log->is_debug()) {
             #$log->debug("$ctx: Matched element: " . varstring($i,$element)."\]");
-            $log->debug("$ctx: Matched element[$i]: $element->{name} ]");
+            $log->debug("$ctx: Matched element[$i]: $element_name ]");
             #$log->debug("$ctx: element value: " . varstring('match', $match));
         }
 	push(@$result_elements, $match);
-    } (0 .. $#{@{$t->{elements}}});
+    } (0 .. $#{@{PRODS_ARE_HASHES() ? $t->{elements} : $t->[PROD_ELEMENTS]}});
 
     if (DEBUG() && $log->is_debug()) {
         $log->debug("$ctx: matched: '$ctx']");
         #$log->debug(varstring('result_elements', $result_elements));
     }
-    #return ($result_elements);
-    #return ({_=>$ctx, elements=>$result_elements});
-    #return (make_result($t, $result_elements));
-    return [$t->{name}, $result_elements];
+    #$result_elements;
+    #{_=>$ctx, elements=>$result_elements};
+    #make_result($t, $result_elements);
+    [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], $result_elements];
 }
 
 # --------------------------------------------------------------------
@@ -1109,9 +1209,14 @@ sub alternation
     #my $val= { _ => $log->{name}, elements => grammar_objects(\@ARG) };
     my ($caller_package, $file, $line)= caller();
     my $val= def($log, 'alternation', $name,
-                 { elements => grammar_objects($caller_package, \@ARG) },
+                 (PRODS_ARE_HASHES()
+                  ? { elements => grammar_objects($caller_package, \@ARG) }
+                  : [undef, undef, grammar_objects($caller_package, \@ARG)]
+                  ),
                  caller());
-    $log->debug(varstring('elements',$val->{elements}));
+    # FIXME: HASH_ACCESS
+    $log->debug(varstring('elements',
+                          PRODS_ARE_HASHES() ? $val->{elements} : $val->[PROD_ELEMENTS]));
     log_val($log, $val);
     $val;
 }
@@ -1126,7 +1231,7 @@ sub alternation_match($$)
     # Q: Move argument logging to 'match'?
     # A: No, then we can not control logging locally.
     match_check_preconditions($log, $t) if ASSERT();
-    my $ctx= $t->{name};
+    my $ctx= PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
 
     # FIXME: Do we need to check for EOI here?
@@ -1136,7 +1241,7 @@ sub alternation_match($$)
 	return (NOMATCH());
     }
 
-    my $elements= $t->{elements};
+    my $elements= PRODS_ARE_HASHES() ? $t->{elements} : $t->[PROD_ELEMENTS];
     # foreach $element in $elements
     map {
 	my $i= $_;
@@ -1144,9 +1249,10 @@ sub alternation_match($$)
         # FIXME: shouldn't this be '$elements[$i]'?:
 	#my $element= $$elements[$i];
 	my $element= $ {@$elements}[$i];
+        my $element_name= PRODS_ARE_HASHES() ? $element->{name} : $element->[PROD_NAME];
         if (DEBUG() && $log->is_debug()) {
             #$log->debug(varstring('element', $element));
-            $log->debug("$ctx: [ Trying to match element[$i]=$element->{name}");
+            $log->debug("$ctx: [ Trying to match element[$i]: $element_name");
         }
 	my ($match)= match($element, $state);
 	#if (matched($match))
@@ -1154,22 +1260,22 @@ sub alternation_match($$)
         {
             if (DEBUG() && $log->is_debug()) {
                 #$log->debug("$ctx: matched element: " . varstring($i, $element)."\]");
-                $log->debug("$ctx: Matched element[$i]: $element->{name}\]");
+                $log->debug("$ctx: Matched element[$i]: $element_name\]");
                 #$log->debug("$ctx: matched value: " . varstring('match', $match));
                 $log->debug("$ctx: match result: "
                             . Parse::SiLLy::Result::toString($match, " "));
             }
 	    #return ($match);
 	    #return (make_result($t, [$match]));
-	    return [$t->{name}, [$match]];
+	    return [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], [$match]];
 	}
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: element[$i] not matched: '$element->{name}']");
+            $log->debug("$ctx: element[$i] not matched: '$element_name']");
         }
     } (0 .. $#{@$elements});
 
     if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: not matched: '$ctx'"); }
-    return (NOMATCH());
+    NOMATCH();
 }
 
 # --------------------------------------------------------------------
@@ -1186,7 +1292,11 @@ sub optional#($)
     #my $val= { _ => $log->{name}, element => grammar_object($ARG[0]) };
     my ($caller_package, $file, $line)= caller();
     my $val= def($log, 'optional', $name,
-                 { element => grammar_object($caller_package, $ARG[0]) },
+                 (PRODS_ARE_HASHES()
+                  ? { element => grammar_object($caller_package, $ARG[0]) }
+                  # FIXME: pass cetegory and name in the array argument:
+                  : [undef, undef, grammar_object($caller_package, $ARG[0])]
+                  ),
                  $caller_package);
     #$log->debug(varstring('element',$val->{element}));
     $val;
@@ -1200,13 +1310,14 @@ sub optional_match($$)
     my $log= $optional_match_log;
     my ($t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
-    my $ctx= $t->{name};
+    my $ctx= PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
 
-    my $element= $t->{element};
+    my $element= PRODS_ARE_HASHES() ? $t->{element} : $t->[PROD_ELEMENT];
+    my $element_name= PRODS_ARE_HASHES() ? $element->{name} : $element->[PROD_NAME];
     if (DEBUG() && $log->is_debug()) {
         #$log->debug(varstring('element', $element));
-        $log->debug("$ctx: element=$element->{name}");
+        $log->debug("$ctx: element=$element_name");
     }
 
     # FIXME: Add backtracking of state in case of mismatch
@@ -1222,14 +1333,14 @@ sub optional_match($$)
                         . Parse::SiLLy::Result::toString($match, " "));
         }
 	#return (make_result($t, [$match]));
-	return [$t->{name}, [$match]];
+	return [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], [$match]];
     }
     if (DEBUG() && $log->is_debug()) {
         #$log->debug("$ctx: not matched: '$ctx' (resulting in empty string)");
     }
-    #return ('');
     if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: not matched: '$ctx'"); }
-    return [$t->{name}, [$match]];
+    #'';
+    [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], [$match]];
 }
 
 # --------------------------------------------------------------------
@@ -1244,13 +1355,18 @@ sub pelist#($$)
     log_cargs($log, $name, \@ARG);
     my ($caller_package, $file, $line)= caller();
     my $val= def($log, 'pelist', $name,
-                 { element   => grammar_object($caller_package, $ARG[0]),
-                   separator => grammar_object($caller_package, $ARG[1]) },
+                 (PRODS_ARE_HASHES()
+                  ? { element   => grammar_object($caller_package, $ARG[0]),
+                      separator => grammar_object($caller_package, $ARG[1]) }
+                  : [undef, undef,
+                     grammar_object($caller_package, $ARG[0]),
+                     grammar_object($caller_package, $ARG[1]) ]
+                  ),
                  $caller_package);
     #$log->debug(varstring('element',$val->{element}));
     #$log->debug(varstring('separator',$val->{separator}));
     #log_val($log, $val);
-    return $val;
+    $val;
 }
 
 # --------------------------------------------------------------------
@@ -1261,29 +1377,31 @@ sub pelist_match($$)
     my $log= $pelist_match_log;
     my ($t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
-    my $ctx= $t->{name};
+    my $ctx= PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
-    my $element=   $t->{element};
-    my $separator= $t->{separator};
+    my $element=   PRODS_ARE_HASHES() ? $t->{element}   : $t->[PROD_ELEMENT];
+    my $separator= PRODS_ARE_HASHES() ? $t->{separator} : $t->[PROD_SEPARATOR];
+    my $element_name=   PRODS_ARE_HASHES() ? $element->{name}   : $element->[PROD_NAME];
+    my $separator_name= PRODS_ARE_HASHES() ? $separator->{name} : $separator->[PROD_NAME];
 
     #my $result= [];
     #my $result= {_=>$ctx, elements=>[]};
     #my $result= make_result($t, []);
-    #my $result= [$t->{name}, []];
+    #my $result= [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], []];
     my $result_elements= [];
     if (DEBUG() && $log->is_debug()) {
         $log->debug("$ctx: [ Trying to match list...");
     }
     while (1) {
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: [ Trying to match element '$element->{name}'");
+            $log->debug("$ctx: [ Trying to match element '$element_name'");
         }
 	my ($match)= match($element, $state);
 	#if ( ! matched($match))
 	if (NOMATCH() eq $match)
         {
             if (DEBUG() && $log->is_debug()) {
-                $log->debug("$ctx: Element not matched: '$element->{name}'\]");
+                $log->debug("$ctx: Element not matched: '$element_name'\]");
             }
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: ...matched ".scalar(@$result_elements)
@@ -1291,10 +1409,10 @@ sub pelist_match($$)
             }
             #return ($result);
             #return (make_result($t, $result_elements));
-            return [$t->{name}, $result_elements];
+            return [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], $result_elements];
         }
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: Matched element '$element->{name}']");
+            $log->debug("$ctx: Matched element '$element_name']");
         }
 	#push(@$result, $match);
 	push(@$result_elements, $match);
@@ -1302,14 +1420,14 @@ sub pelist_match($$)
         if ('' eq $separator) { next; }
 
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: [ Trying to match separator '$separator->{name}'");
+            $log->debug("$ctx: [ Trying to match separator '$separator_name'");
         }
 	($match)= match($separator, $state);
 	#if ( ! matched($match))
 	if (NOMATCH() eq $match)
         {
             if (DEBUG() && $log->is_debug()) {
-                $log->debug("$ctx: Separator not matched: '$separator->{name}'\]");
+                $log->debug("$ctx: Separator not matched: '$separator_name'\]");
             }
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: ...matched ".scalar(@$result_elements)
@@ -1317,10 +1435,10 @@ sub pelist_match($$)
             }
             #return ($result);
             #return (make_result($t, $result_elements));
-            return [$t->{name}, $result_elements];
+            return [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], $result_elements];
         }
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: Matched separator '$separator->{name}']");
+            $log->debug("$ctx: Matched separator '$separator_name']");
         }
     }
     die("Must not reach this\n");
@@ -1338,13 +1456,18 @@ sub nelist#($$)
     log_cargs($log, $name, \@ARG);
     my ($caller_package, $file, $line)= caller();
     my $val= def($log, 'pelist', $name,
-                 { element   => grammar_object($caller_package, $ARG[0]),
-                   separator => grammar_object($caller_package, $ARG[1]) },
+                 (PRODS_ARE_HASHES()
+                  ? { element   => grammar_object($caller_package, $ARG[0]),
+                      separator => grammar_object($caller_package, $ARG[1]) }
+                  : [undef, undef,
+                     grammar_object($caller_package, $ARG[0]),
+                     grammar_object($caller_package, $ARG[1]) ]
+                  ),
                  $caller_package);
     #$log->debug(varstring('element',  $val->{element}));
     #$log->debug(varstring('separator',$val->{separator}));
     #log_val($log, $val);
-    return $val;
+    $val;
 }
 
 # --------------------------------------------------------------------
@@ -1355,29 +1478,31 @@ sub nelist_match($$)
     my $log= $nelist_match_log;
     my ($t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
-    my $ctx= $t->{name};
+    my $ctx= PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
-    my $element=   $t->{element};
-    my $separator= $t->{separator};
+    my $element=   PRODS_ARE_HASHES() ? $t->{element}   : $t->[PROD_ELEMENT];
+    my $separator= PRODS_ARE_HASHES() ? $t->{separator} : $t->[PROD_SEPARATOR];
+    my $element_name=   PRODS_ARE_HASHES() ? $element->{name}   : $element->[PROD_NAME];
+    my $separator_name= PRODS_ARE_HASHES() ? $separator->{name} : $separator->[PROD_NAME];
 
     #my $result= [];
     #my $result= {_=>$ctx, elements=>[]};
     #my $result= make_result($t, []);
-    #my $result= [$t->{name}, []];
+    #my $result= [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], []];
     my $result_elements= [];
     if (DEBUG() && $log->is_debug()) {
         $log->debug("$ctx: [ Trying to match list...");
     }
     while (1) {
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: [ Trying to match element '$element->{name}'");
+            $log->debug("$ctx: [ Trying to match element '$element_name'");
         }
 	my ($match)= match($element, $state);
 	#if ( ! matched($match))
 	if (NOMATCH() eq $match)
         {
             if (DEBUG() && $log->is_debug()) {
-                $log->debug("$ctx: Element not matched: '$element->{name}'\]");
+                $log->debug("$ctx: Element not matched: '$element_name'\]");
             }
 	    if (0 == scalar(@$result_elements)) {
                 if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: ...not matched.\]");}
@@ -1389,10 +1514,10 @@ sub nelist_match($$)
             }
             #return ($result);
             #return (make_result($t, $result_elements));
-            return [$t->{name}, $result_elements];
+            return [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], $result_elements];
         }
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: Matched element '$element->{name}']");
+            $log->debug("$ctx: Matched element '$element_name']");
         }
 	#push(@$result, $match);
 	push(@$result_elements, $match);
@@ -1400,14 +1525,14 @@ sub nelist_match($$)
         if ('' eq $separator) { next; }
 
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: [ Trying to match separator '$separator->{name}'");
+            $log->debug("$ctx: [ Trying to match separator '$separator_name'");
         }
 	($match)= match($separator, $state);
 	#if ( ! matched($match))
 	if (NOMATCH() eq $match)
         {
             if (DEBUG() && $log->is_debug()) {
-                $log->debug("$ctx: Separator not matched: '$separator->{name}'\]");
+                $log->debug("$ctx: Separator not matched: '$separator_name'\]");
             }
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: ...matched ".scalar(@$result_elements)
@@ -1415,10 +1540,10 @@ sub nelist_match($$)
             }
             #return ($result);
             #return (make_result($t, $result_elements));
-            return [$t->{name}, $result_elements];
+            return [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], $result_elements];
         }
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: Matched separator '$separator->{name}']");
+            $log->debug("$ctx: Matched separator '$separator_name']");
         }
     }
     die("Must not reach this\n");
@@ -1494,7 +1619,7 @@ sub match($$)
     # map grammar elements to indices, though).
 
     #my $pos_stash_key= $t;
-    my $pos_stash_key= $t->{name};
+    my $pos_stash_key= PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME];
     if (MEMOIZE()) {
         $pos_stash= stash_get_pos_stash($state->{stash}, $pos);
         if (exists($pos_stash->{$pos_stash_key}))
@@ -1526,16 +1651,16 @@ sub match($$)
     }
 
     my $result;
+    my $c= PRODS_ARE_HASHES() ? $t->{_} : $t->[PROD_CATEGORY]; # category
     # FIXME: Speed this up (use a method?)
     # Hmm, using a method hash here has no noticeable effect on performance.
     if (0) {
-        my $method= $methods{$t->{_}}
-        ||	die("$log->{name}: Unsupported type " . varstring('t->_', $t->{_}));
+        my $method= $methods{$c}
+        ||	die("$log->{name}: Unsupported type " . varstring('category', $c));
         $result= &$method($t, $state);
     }
     else {
 
-    my $c= $t->{_}; # category
     if    ('terminal'     eq $c) { $result=     terminal_match($t, $state); }
     elsif ('alternation'  eq $c) { $result=  alternation_match($t, $state); }
     elsif ('construction' eq $c) { $result= construction_match($t, $state); }
@@ -1543,7 +1668,7 @@ sub match($$)
     elsif ('nelist'       eq $c) { $result=       nelist_match($t, $state); }
     elsif ('pelist'       eq $c) { $result=       pelist_match($t, $state); }
     else {
-	die("$log->{name}: Unsupported type " . varstring('t->_', $c));
+	die($log->name().": Unsupported type " . varstring('category', $c));
     }
 }
 
@@ -1554,7 +1679,9 @@ sub match($$)
         #my $stashed= matched($result) ? [$state->{pos}, $result] : NOMATCH();
         my $stashed= (NOMATCH() ne $result) ? [$state->{pos}, $result] : NOMATCH();
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("Storing result in stash for ${pos} ->{$pos_stash_key} ($t->{name}): "
+            $log->debug("Storing result in stash for ${pos} ->{$pos_stash_key} ("
+                        . (PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME])
+                        . "): "
                         #. varstring('result', $result)
                         # FIXME: use OO syntax here: $result->toString()
                         . "\$result ="
@@ -1614,7 +1741,6 @@ use diagnostics;
 sub handle_item
 {
     printf("$ARG");
-    return;
 }
 
 # --------------------------------------------------------------------
@@ -1623,8 +1749,9 @@ my $main_log;
 # --------------------------------------------------------------------
 sub init()
 {
-    Log::Log4perl->easy_init($INFO);
+    #Log::Log4perl->easy_init($INFO);
     #Log::Log4perl->easy_init($DEBUG);
+    Log::Log4perl->easy_init(Parse::SiLLy::Grammar::DEBUG() ? $DEBUG : $INFO);
     #$logger= get_logger();
     #$logger->info("Running...");
     #if (scalar(@_) > 0) { info(vdump('Args', \@_)); }
@@ -1659,7 +1786,7 @@ sub elements($) {
     #}
     assert(defined($elements));
     assert('ARRAY' eq ref($elements));
-    return $elements;
+    $elements;
 }
 
 # --------------------------------------------------------------------
@@ -1700,7 +1827,7 @@ sub check_result($$$) {
 
 # --------------------------------------------------------------------
 # Suppress 'used only once' warnings
-$minilang::Name= $minilang::Name;
+#$minilang::Name= $minilang::Name;
 $::foo= $::foo;
 
 # --------------------------------------------------------------------
@@ -2120,7 +2247,10 @@ sub main
     
     # Test 'def'
     #Parse::SiLLy::Grammar::def 'foo', {elt=>'bar'};
-    Parse::SiLLy::Grammar::def($log, '<category>', 'foo', {elt=>'bar'},
+    Parse::SiLLy::Grammar::def($log, '<category>', 'foo',
+                               (PRODS_ARE_HASHES()
+                                ? {elt=>'bar'}
+                                : ['dummy1', 'dummy2', 'bar'] ),
                                'main');
     $log->debug(varstring('::foo', $::foo));
     #assert($::foo->{elt} eq 'bar');
