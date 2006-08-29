@@ -132,17 +132,24 @@ construction Complexelem, Ltag, Contentlist, Rtag;
 #alternation  Elem, Etag, Complexelem;
 $Parse::SiLLy::Test::XML::Elem= $Parse::SiLLy::Test::XML::Complexelem;
 
+sub elements( $ ) {
+    my ($production)= @_;
+    Parse::SiLLy::Grammar::PRODS_ARE_HASHES()
+    ? $production->{elements}
+    : $production->[Parse::SiLLy::Grammar::PROD_ELEMENTS];
+}
+
 # FIXME: Document this:
 # FIXME: Simplify this:
-#assert("Elem" eq $ {$Parse::SiLLy::Test::XML::Contentelem->{elements}}[0]);
-#$ {$Parse::SiLLy::Test::XML::Contentelem->{elements}}[0]= $Elem;
+#assert("Elem" eq $ {elements($Parse::SiLLy::Test::XML::Contentelem)}[0]);
+#$ {elements($Parse::SiLLy::Test::XML::Contentelem)}[0]= $Elem;
 my ($i, $i_elem)= (-1, -1);
 grep { ++$i; if (m/Elem/) { $i_elem= $i; } }
-    @{$Parse::SiLLy::Test::XML::Contentelem->{elements}};
+    @{elements($Parse::SiLLy::Test::XML::Contentelem)};
 #map { ++$i; if ( ! defined($_)) { $i_elem= $i; } }
-#    @{$Parse::SiLLy::Test::XML::Contentelem->{elements}};
+#    @{elements($Parse::SiLLy::Test::XML::Contentelem)};
 assert(-1 != $i_elem); print("Found Elem at $i_elem\n");
-$ {$Parse::SiLLy::Test::XML::Contentelem->{elements}}[$i_elem]= $Parse::SiLLy::Test::XML::Elem;
+$ {elements($Parse::SiLLy::Test::XML::Contentelem)}[$i_elem]= $Parse::SiLLy::Test::XML::Elem;
 
 print("xml-grammar.pl:");
 print("Elem='$Parse::SiLLy::Test::XML::Elem'\n");
