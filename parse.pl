@@ -395,8 +395,9 @@ use constant PRODS_ARE_HASHES =>
 # These are only used when productions are arrays (PRODS_ARE_HASHES is false):
 use constant PROD_CATEGORY => 0;
 use constant PROD_NAME     => 1;
-use constant PROD_PATTERN  => 2;
-use constant PROD_MATCHER  => 3;
+use constant PROD_METHOD  => 2;
+use constant PROD_PATTERN  => 3;
+use constant PROD_MATCHER  => 4;
 
 # --------------------------------------------------------------------
 # If the given reference refers to a named object, returns its name.
@@ -500,7 +501,8 @@ use constant PRODS_ARE_HASHES =>
 # These are only used when productions are arrays (PRODS_ARE_HASHES is false):
 use constant PROD_CATEGORY  => 0;
 use constant PROD_NAME      => 1;
-use constant PROD_ELEMENTS  => 2;
+use constant PROD_METHOD   => 2;
+use constant PROD_ELEMENTS  => 3;
 
 # --------------------------------------------------------------------
 sub make_result($$) {
@@ -685,14 +687,15 @@ use constant PRODS_ARE_HASHES =>
 # These are only used when productions are arrays (PRODS_ARE_HASHES is false):
 use constant PROD_CATEGORY  => 0;
 use constant PROD_NAME      => 1;
+use constant PROD_METHOD   => 2;
 
-use constant PROD_PATTERN   => 2;
-use constant PROD_MATCHER   => 3;
+use constant PROD_PATTERN   => 3;
+use constant PROD_MATCHER   => 4;
 
-use constant PROD_ELEMENTS  => 2;
+use constant PROD_ELEMENTS  => 3;
 
-use constant PROD_ELEMENT   => 2;
-use constant PROD_SEPARATOR => 3;
+use constant PROD_ELEMENT   => 3;
+use constant PROD_SEPARATOR => 4;
 
 # --------------------------------------------------------------------
 sub log_args($$$)
@@ -928,6 +931,17 @@ sub def3($$@)
     $log->debug("Defined '$name' as $val.");
 }
 
+# --------------------------------------------------------------------
+my %methods;
+
+use constant terminal_mtch     => \&terminal_match;
+use constant alternation_mtch  => \&alternation_match;
+use constant construction_mtch => \&construction_match;
+use constant optional_mtch     => \&optional_match;
+use constant nelist_mtch       => \&nelist_match;
+use constant pelist_mtch       => \&pelist_match;
+
+# --------------------------------------------------------------------
 sub def($$$$$@)
 {
     #my $log= $def_log;
@@ -943,11 +957,17 @@ sub def($$$$$@)
     # Set this production's category
     assert(defined($category));
     assert('' eq ref($category));
+    my $method= $methods{$category};
+    assert(defined($method));
+    assert('' ne ref($method));
+
     if (PRODS_ARE_HASHES()) {
         $val->{_}= $category;
+        $val->{method}= $method;
     }
     else {
         $val->[PROD_CATEGORY]= $category;
+        $val->[PROD_METHOD] = $method;
     }
 
     # Determine full variable name
@@ -980,7 +1000,6 @@ my $terminal_log;
 sub terminal#($$)
 {
     my $log= $terminal_log;
-    #log_cargs($log, \@ARG);
     #return def($log, 'terminal', $ARG[0], {pattern=>$ARG[1]}, caller());
     my ($name, $pattern)= @ARG;
     log_cargs($log, $name, \@ARG);
@@ -996,7 +1015,7 @@ sub terminal#($$)
     def($log, 'terminal', $name,
         (PRODS_ARE_HASHES()
          ? { pattern => $pattern, matcher => $matcher }
-         : [ undef, undef, $pattern, $matcher ]
+         : [ undef, undef, undef, $pattern, $matcher ]
          ),
         caller());
 }
@@ -1128,9 +1147,7 @@ sub construction
 # --------------------------------------------------------------------
 sub construction
 {
-    # FIXME: Clean up
     my $log= $construction_log;
-    #log_cargs($log, \@ARG);
     my $name= shift();
     log_cargs($log, $name, \@ARG);
     assert(0 < scalar(@ARG));
@@ -1139,7 +1156,7 @@ sub construction
     my $val= def($log, 'construction', $name,
                  (PRODS_ARE_HASHES()
                   ? { elements => grammar_objects($caller_package, \@ARG) }
-                  : [undef, undef, grammar_objects($caller_package, \@ARG)]
+                  : [ undef, undef, undef, grammar_objects($caller_package, \@ARG)]
                   ),
                  caller());
     # FIXME: HASH_ACCESS
@@ -1216,8 +1233,6 @@ my $alternation_log;
 sub alternation
 {
     my $log= $alternation_log;
-    # FIXME: Clean up
-    #log_cargs($log, \@ARG);
     my $name= shift();
     log_cargs($log, $name, \@ARG);
     #my $val= { _ => $log->{name}, elements => \@ARG };
@@ -1227,7 +1242,7 @@ sub alternation
     my $val= def($log, 'alternation', $name,
                  (PRODS_ARE_HASHES()
                   ? { elements => grammar_objects($caller_package, \@ARG) }
-                  : [undef, undef, grammar_objects($caller_package, \@ARG)]
+                  : [ undef, undef, undef, grammar_objects($caller_package, \@ARG)]
                   ),
                  caller());
     # FIXME: HASH_ACCESS
@@ -1300,8 +1315,6 @@ my $optional_log;
 sub optional#($)
 {
     my $log= $optional_log;
-    # FIXME: Clean up
-    #log_cargs($log, \@ARG);
     my $name= shift();
     log_cargs($log, $name, \@ARG);
     #my $val= { _ => $log->{name}, element => $ARG[0] };
@@ -1311,7 +1324,7 @@ sub optional#($)
                  (PRODS_ARE_HASHES()
                   ? { element => grammar_object($caller_package, $ARG[0]) }
                   # FIXME: pass cetegory and name in the array argument:
-                  : [undef, undef, grammar_object($caller_package, $ARG[0])]
+                  : [ undef, undef, undef, grammar_object($caller_package, $ARG[0])]
                   ),
                  $caller_package);
     #$log->debug(varstring('element',$val->{element}));
@@ -1362,18 +1375,15 @@ sub optional_match($$)
 # --------------------------------------------------------------------
 sub list_new($$$$$$)
 {
-    my $log= shift();
-    my $category= shift();
-    my $name= shift();
+    my ($log, $category, $name, $element, $separator, $caller_package)= @_;
     log_cargs($log, $name, \@ARG);
-    my $caller_package= $ARG[2];
     my $val= def($log, $category, $name,
                  (PRODS_ARE_HASHES()
-                  ? { element   => grammar_object($caller_package, $ARG[0]),
-                      separator => grammar_object($caller_package, $ARG[1]) }
-                  : [undef, undef,
-                     grammar_object($caller_package, $ARG[0]),
-                     grammar_object($caller_package, $ARG[1]) ]
+                  ? { element   => grammar_object($caller_package, $element),
+                      separator => grammar_object($caller_package, $separator) }
+                  : [ undef, undef, undef,
+                      grammar_object($caller_package, $element),
+                      grammar_object($caller_package, $separator) ]
                   ),
                  $caller_package);
     #$log->debug(varstring('element',  $val->{element}));
@@ -1490,8 +1500,9 @@ sub nelist_match($$) { list_match($nelist_match_log, 1, $_[0], $_[1]); }
 my $match_log;
 
 # This is needed in order to use references as hash keys:
-# FIXME: What performance impact does this cause?
-# A: Significant (22 vs. 16 parses per second)
+# Q: What performance impact does this cause?
+# A: Significant 25% (22 parses per second without Tie::RefHash vs.
+#    16 parses per second with Tie::RefHash)
 #use Tie::RefHash;
 
 # --------------------------------------------------------------------
@@ -1517,16 +1528,7 @@ sub stash_get_pos_stash($$)
 }
 
 # --------------------------------------------------------------------
-my %methods=
-    ('terminal' => \&terminal_match,
-     'alternation' => \&alternation_match,
-     'construction' => \&construction_match,
-     'optional' => \&optional_match,
-     'nelist' => \&nelist_match,
-     'pelist' => \&pelist_match);
-
-# --------------------------------------------------------------------
-sub match($$)
+sub match_with_memoize($$)
 {
     my $log= $match_log;
     my ($t, $state)= @ARG;
@@ -1643,6 +1645,69 @@ sub match($$)
 }
 
 # --------------------------------------------------------------------
+sub match($$)
+{
+    my $method= PRODS_ARE_HASHES() ? $_[0]->{method} : $_[0]->[PROD_METHOD];
+    &$method($_[0], $_[1]);
+}
+
+# --------------------------------------------------------------------
+sub match_better($$)
+{
+    my ($t, $state)= @ARG;
+    # FIXME:
+    my $method= PRODS_ARE_HASHES() ? $t->{method} : $t->[PROD_METHOD];
+    assert(defined($method)) if ASSERT();
+    assert('' ne ref($method)) if ASSERT();
+    #return &$method($t, $state);
+    &$method($t, $state);
+=ignore
+
+    my $log= $match_log;
+    my $result;
+    my $c= PRODS_ARE_HASHES() ? $t->{_} : $t->[PROD_CATEGORY]; # category
+    # FIXME: Speed this up (use a method?)
+    # Hmm, using a method hash here has no noticeable effect on performance.
+    if (0) {
+        #my $method= $methods{$c}
+        no strict 'refs';
+        # FIXME: Can't coerce array into hash?!?:
+        #my $method= $ {"${c}_mtch"}
+        my $method_name= "${c}_mtch";
+        my $method= ($$method_name)
+        ||	die("$log->{name}: Unsupported type " . varstring('category', $c));
+        $result= &$method($t, $state);
+    }
+    elsif (0) {
+        if    ('terminal'     eq $c) { $result=     terminal_match($t, $state); }
+        elsif ('alternation'  eq $c) { $result=  alternation_match($t, $state); }
+        elsif ('construction' eq $c) { $result= construction_match($t, $state); }
+        elsif ('optional'     eq $c) { $result=     optional_match($t, $state); }
+        elsif ('nelist'       eq $c) { $result=       nelist_match($t, $state); }
+        elsif ('pelist'       eq $c) { $result=       pelist_match($t, $state); }
+        else {
+            die($log->name().": Unsupported type " . varstring('category', $c));
+        }
+    }
+    else {
+      SWITCH: for ($c) {
+          /terminal/     && do { $result=     terminal_match($t, $state); last; };
+          /alternation/  && do { $result=  alternation_match($t, $state); last; };
+          /construction/ && do { $result= construction_match($t, $state); last; };
+          /optional/     && do { $result=     optional_match($t, $state); last; };
+          /nelist/       && do { $result=       nelist_match($t, $state); last; };
+          /pelist/       && do { $result=       pelist_match($t, $state); last; };
+          die($log->name().": Unsupported type " . varstring('category', $c));
+      }
+    }
+
+    $result;
+
+=cut
+
+}
+
+# --------------------------------------------------------------------
 sub init()
 {
     $terminal_log= Logger->new('terminal');
@@ -1665,6 +1730,15 @@ sub init()
 
     $def_log= Logger->new('def');
     $match_log= Logger->new('match');
+
+    %methods=
+        ('terminal'     => \&terminal_match,
+         'alternation'  => \&alternation_match,
+         'construction' => \&construction_match,
+         'optional'     => \&optional_match,
+         'nelist'       => \&nelist_match,
+         'pelist'       => \&pelist_match);
+    #$match_log->info(varstring('methods', \%methods));
 }
 
 # ====================================================================
@@ -2184,7 +2258,7 @@ sub main
     
     # Test 'def'
     #Parse::SiLLy::Grammar::def 'foo', {elt=>'bar'};
-    Parse::SiLLy::Grammar::def($log, '<category>', 'foo',
+    Parse::SiLLy::Grammar::def($log, 'terminal', 'foo',
                                (PRODS_ARE_HASHES()
                                 ? {elt=>'bar'}
                                 : ['dummy1', 'dummy2', 'bar'] ),
@@ -2254,7 +2328,7 @@ sub main
     if (exists($state->{stash})) {
         Parse::SiLLy::Grammar::show_stash($log, $state->{stash});
     }
-    print(Parse::SiLLy::Result::toString($result, " ")."\n");
+    #print(Parse::SiLLy::Result::toString($result, " ")."\n");
     }
 }
 
