@@ -4,10 +4,10 @@
 
 Usage: perl PROGRAM GRAMMAR INPUT > OUTPUT
 
-Example: perl          parse.pl Test/xml-grammar.pl Test/XML/example.xml
+Example: perl -w parse.pl Test/xml-grammar.pl Test/XML/example.xml
 Debug:   PARSE_SILLY_DEBUG=1 perl parse.pl Test/xml-grammar.pl Test/XML/example.xml
-Profile: perl -w -d:DProf parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
-Profile: perl -w -I../.. -MDevel::Profiler parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
+Profile: PARSE_SILLY_ASSERT=0 perl -w -d:DProf parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
+Profile: PARSE_SILLY_ASSERT=0 perl -w -I../.. -MDevel::Profiler parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
 Lint:    perl -w -MO=Lint,-context parse.pl Test/xml-grammar.pl Test/XML/example.xml
 Fastest so far: PARSE_SILLY_PRODS_ARE_HASHES=0 PARSE_SILLY_ASSERT=0 perl parse.pl Test/xml-grammar.pl Test/XML/example.xml
 
@@ -110,7 +110,6 @@ o Implement productions as arrays
 o FIXME: Using memoization is currently slower than not doing it
 o Benchmark without memoization versus with memoization
 o Find examples for which memoization is faster.
-o Share implementation of nelist_match and pelist_match. 
 o Implement state as an array.
 o Factor out common parts of parsing functions.
 o Do a serious benchmark
@@ -127,28 +126,32 @@ o Parameterize result construction (compile-time option):
   - Inline result construction
   - array interpolation versus array reference
 
-Done
-o Automate minilang regression tests
+Features Done
+o Automated minilang regression tests
 o Separate 'minilang' test from XML test.
-o Parse the hard-coded example string.
-o Replace undef by 'not matched' constant
 o Result print function with compact output format
 o Memoize parse results and make use of them (Packrat parsing)
 o Actually parse the XML input file's content
 o Make it possible to switch off memoization
-o Implement the logger as an array
 o Avoid calling debugging code (logging functions, data formatting) when debugging is off.
 o Avoid checking contracts (assertions etc.) when ASSERT is off.
-o Unify implementation of nelist_match and pelist_match.
-o Add automated XML parsing regression test.
+o Automated XML parsing regression test.
 o Compile-time omission of debugging code (default is true).
-o Command-line control of ASSERT (default is on), DEBUG (default is off)
-  and MEMOIZE (default is off).
+o Command-line controls for Compile-time options:
+  o ASSERT (default is on),
+  o DEBUG (default is off),
+  o MEMOIZE (default is off).
+
+Internal Features Done
+o Parse the hard-coded example string.
+o Replace undef by 'not matched' constant
 o Avoid array interpolation during result construction.
+o Implement the logger as an array
 o Inline result construction
 o Compile-time option for MEMOIZATION.
-o Command-line control of MEMOIZE (determines memoization option)
 o Uppercase NOMATCH (formerly nomatch) to get rid of inappropriate warnings.
+o Unified implementation of nelist_match and pelist_match.
+o Shared implementation of nelist_match and pelist_match. 
 
 =cut
 
@@ -615,6 +618,19 @@ sub scan($$) {
         my $elements= PRODS_ARE_HASHES() ? $self->{elements} : $self->[PROD_ELEMENTS];
         $handler->print("[$typename '@$elements']");
     }
+}
+
+# ====================================================================
+package Parse::SiLLy::Terminal;
+use strict; use diagnostics;
+
+sub new($) {
+    my $proto= shift;
+    my $class= ref($proto) || $proto;
+    #my $self= {};
+    my $self= [];
+    bless($self, $class);
+    $self;
 }
 
 # ====================================================================
@@ -1236,10 +1252,10 @@ sub alternation_match($$)
 
     # FIXME: Do we need to check for EOI here?
     # FIXME: Is it beneficial to check for EOI here?
-    if (eoi($state->{input}, $state->{pos})) {
-        if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: End Of Input reached"); }
-	return (NOMATCH());
-    }
+    #if (eoi($state->{input}, $state->{pos})) {
+    #    if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: End Of Input reached"); }
+    #    return (NOMATCH());
+    #}
 
     my $elements= PRODS_ARE_HASHES() ? $t->{elements} : $t->[PROD_ELEMENTS];
     # foreach $element in $elements
@@ -1344,118 +1360,14 @@ sub optional_match($$)
 }
 
 # --------------------------------------------------------------------
-my $pelist_log;
-# --------------------------------------------------------------------
-sub pelist#($$)
+sub list_new($$$$$$)
 {
-    my $log= $pelist_log;
-    # FIXME: Clean up
-    #log_cargs($log, \@ARG);
+    my $log= shift();
+    my $category= shift();
     my $name= shift();
     log_cargs($log, $name, \@ARG);
-    my ($caller_package, $file, $line)= caller();
-    my $val= def($log, 'pelist', $name,
-                 (PRODS_ARE_HASHES()
-                  ? { element   => grammar_object($caller_package, $ARG[0]),
-                      separator => grammar_object($caller_package, $ARG[1]) }
-                  : [undef, undef,
-                     grammar_object($caller_package, $ARG[0]),
-                     grammar_object($caller_package, $ARG[1]) ]
-                  ),
-                 $caller_package);
-    #$log->debug(varstring('element',$val->{element}));
-    #$log->debug(varstring('separator',$val->{separator}));
-    #log_val($log, $val);
-    $val;
-}
-
-# --------------------------------------------------------------------
-my $pelist_match_log;
-# --------------------------------------------------------------------
-sub pelist_match($$)
-{
-    my $log= $pelist_match_log;
-    my ($t, $state)= @ARG;
-    match_check_preconditions($log, $t) if ASSERT();
-    my $ctx= PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME];
-    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
-    my $element=   PRODS_ARE_HASHES() ? $t->{element}   : $t->[PROD_ELEMENT];
-    my $separator= PRODS_ARE_HASHES() ? $t->{separator} : $t->[PROD_SEPARATOR];
-    my $element_name=   PRODS_ARE_HASHES() ? $element->{name}   : $element->[PROD_NAME];
-    my $separator_name= PRODS_ARE_HASHES() ? $separator->{name} : $separator->[PROD_NAME];
-
-    #my $result= [];
-    #my $result= {_=>$ctx, elements=>[]};
-    #my $result= make_result($t, []);
-    #my $result= [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], []];
-    my $result_elements= [];
-    if (DEBUG() && $log->is_debug()) {
-        $log->debug("$ctx: [ Trying to match list...");
-    }
-    while (1) {
-        if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: [ Trying to match element '$element_name'");
-        }
-	my ($match)= match($element, $state);
-	#if ( ! matched($match))
-	if (NOMATCH() eq $match)
-        {
-            if (DEBUG() && $log->is_debug()) {
-                $log->debug("$ctx: Element not matched: '$element_name'\]");
-            }
-            if (DEBUG() && $log->is_debug()) {
-                $log->debug("$ctx: ...matched ".scalar(@$result_elements)
-                            . " elements.\]");
-            }
-            #return ($result);
-            #return (make_result($t, $result_elements));
-            return [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], $result_elements];
-        }
-        if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: Matched element '$element_name']");
-        }
-	#push(@$result, $match);
-	push(@$result_elements, $match);
-
-        if ('' eq $separator) { next; }
-
-        if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: [ Trying to match separator '$separator_name'");
-        }
-	($match)= match($separator, $state);
-	#if ( ! matched($match))
-	if (NOMATCH() eq $match)
-        {
-            if (DEBUG() && $log->is_debug()) {
-                $log->debug("$ctx: Separator not matched: '$separator_name'\]");
-            }
-            if (DEBUG() && $log->is_debug()) {
-                $log->debug("$ctx: ...matched ".scalar(@$result_elements)
-                            . " elements.\]");
-            }
-            #return ($result);
-            #return (make_result($t, $result_elements));
-            return [PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME], $result_elements];
-        }
-        if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: Matched separator '$separator_name']");
-        }
-    }
-    die("Must not reach this\n");
-}
-
-# --------------------------------------------------------------------
-my $nelist_log;
-# --------------------------------------------------------------------
-sub nelist#($$)
-{
-    my $log= $nelist_log;
-    # FIXME: Clean up
-    #log_cargs($log, \@ARG);
-    my $name= shift();
-    log_cargs($log, $name, \@ARG);
-    my ($caller_package, $file, $line)= caller();
-    my $val= def($log, 'pelist', $name,
+    my $caller_package= $ARG[2];
+    my $val= def($log, $category, $name,
                  (PRODS_ARE_HASHES()
                   ? { element   => grammar_object($caller_package, $ARG[0]),
                       separator => grammar_object($caller_package, $ARG[1]) }
@@ -1471,12 +1383,9 @@ sub nelist#($$)
 }
 
 # --------------------------------------------------------------------
-my $nelist_match_log;
-# --------------------------------------------------------------------
-sub nelist_match($$)
+sub list_match($$$$)
 {
-    my $log= $nelist_match_log;
-    my ($t, $state)= @ARG;
+    my ($log, $n_min, $t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
     my $ctx= PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
@@ -1504,7 +1413,7 @@ sub nelist_match($$)
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: Element not matched: '$element_name'\]");
             }
-	    if (0 == scalar(@$result_elements)) {
+	    if ($n_min > scalar(@$result_elements)) {
                 if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: ...not matched.\]");}
                 return (NOMATCH());
             }
@@ -1548,6 +1457,34 @@ sub nelist_match($$)
     }
     die("Must not reach this\n");
 }
+
+# --------------------------------------------------------------------
+my $pelist_log;
+# --------------------------------------------------------------------
+sub pelist#($$$)
+{
+    my ($caller_package, $file, $line)= caller();
+    list_new($pelist_log, 'pelist', $_[0], $_[1], $_[2], $caller_package);
+}
+
+# --------------------------------------------------------------------
+my $pelist_match_log;
+# --------------------------------------------------------------------
+sub pelist_match($$) { list_match($pelist_match_log, 0, $_[0], $_[1]); }
+
+# --------------------------------------------------------------------
+my $nelist_log;
+# --------------------------------------------------------------------
+sub nelist#($$$)
+{
+    my ($caller_package, $file, $line)= caller();
+    list_new($nelist_log, 'nelist', $_[0], $_[1], $_[2], $caller_package);
+}
+
+# --------------------------------------------------------------------
+my $nelist_match_log;
+# --------------------------------------------------------------------
+sub nelist_match($$) { list_match($nelist_match_log, 1, $_[0], $_[1]); }
 
 # --------------------------------------------------------------------
 my $match_log;
