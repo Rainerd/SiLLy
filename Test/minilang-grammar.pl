@@ -125,8 +125,14 @@ print("grammar.pl: ");
 print("Program='$minilang::Program'\n");
 #print("Program='$Program'\n");
 
-$minilang::Exprlist->{element}= $minilang::Mchain;
 #$Exprlist->{element}= $Mchain;
+#$minilang::Exprlist->{element}= $minilang::Mchain;
+if (Parse::SiLLy::Grammar::PRODS_ARE_HASHES()) {
+    $minilang::Exprlist->{element}= $minilang::Mchain;
+}
+else {
+    $minilang::Exprlist->[Parse::SiLLy::Grammar::PROD_ELEMENT()]= $minilang::Mchain;
+}
 
 # --------------------------------------------------------------------
 # EOF
