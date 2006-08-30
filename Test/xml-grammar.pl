@@ -134,9 +134,9 @@ $Parse::SiLLy::Test::XML::Elem= $Parse::SiLLy::Test::XML::Complexelem;
 
 sub elements( $ ) {
     my ($production)= @_;
-    Parse::SiLLy::Grammar::PRODS_ARE_HASHES()
-    ? $production->{elements}
-    : $production->[Parse::SiLLy::Grammar::PROD_ELEMENTS];
+    #Parse::SiLLy::Grammar::PRODS_ARE_HASHES()
+    #? $production->{elements} :
+    $production->[Parse::SiLLy::Grammar::PROD_ELEMENTS];
 }
 
 # FIXME: Document this:
