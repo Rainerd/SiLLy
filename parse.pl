@@ -5,11 +5,13 @@
 Usage: perl PROGRAM GRAMMAR INPUT > OUTPUT
 
 Example: perl -w parse.pl Test/xml-grammar.pl Test/XML/example.xml
-Debug:   PARSE_SILLY_DEBUG=1 perl parse.pl Test/xml-grammar.pl Test/XML/example.xml
+Debug:   PARSE_SILLY_DEBUG=1 perl -w parse.pl Test/xml-grammar.pl Test/XML/example.xml
 Profile: PARSE_SILLY_ASSERT=0 perl -w -d:DProf parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
 Profile: PARSE_SILLY_ASSERT=0 perl -w -I../.. -MDevel::Profiler parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
 Lint:    perl -w -MO=Lint,-context parse.pl Test/xml-grammar.pl Test/XML/example.xml
-Fastest so far: PARSE_SILLY_PRODS_ARE_HASHES=0 PARSE_SILLY_ASSERT=0 perl parse.pl Test/xml-grammar.pl Test/XML/example.xml
+Fastest so far: PARSE_SILLY_PRODS_ARE_HASHES=0 PARSE_SILLY_ASSERT=0 perl -w parse.pl Test/xml-grammar.pl Test/XML/example.xml
+
+Note that the -w option may cost a percent or two of performance.
 
 --------------------------------------------------------------------
 Copyright (c) 2004-2006 by Rainer Blome
@@ -1532,179 +1534,122 @@ sub match_with_memoize($$)
 {
     my $log= $match_log;
     my ($t, $state)= @ARG;
-    # FIXME: Allow defining these asserts away (35 vs. 41 /sec):
-    assert(defined($t)) if ASSERT();
-    assert('' ne ref($t)) if ASSERT();
+    if (ASSERT()) {
+        assert(defined($t));
+        assert('' ne ref($t));
 
-    assert(defined($state)) if ASSERT();
-    assert('' ne ref($state)) if ASSERT();
+        assert(defined($state));
+        assert('' ne ref($state));
 
-    assert(exists($state->{pos})) if ASSERT();
+        assert(exists($state->{pos}));
+    }
+
     my $pos= $state->{pos};
-    assert(defined($pos)) if ASSERT();
-    assert('' eq ref($pos)) if ASSERT();
+    if (ASSERT()) {
+        assert(defined($pos));
+        assert('' eq ref($pos));
+    }
 
     # FIXME: This should be done by a constructor:
-    if (MEMOIZE() && ! exists($state->{stash})) {
+    if ( ! exists($state->{stash})) {
         # If these are disabled, memoization is not done:
         # FIXME: Using memoization is currently slower than not doing it
         if (DEBUG() && $log->is_debug()) { $log->debug("Initializing stash..."); }
         $state->{stash}= {};
     }
 
-    my $pos_stash;
-
-    # FIXME: Consider implementing the pos_stashes as arrays (need to
-    # map grammar elements to indices, though).
+    # FIXME: Consider implementing the pos_stashes as arrays.  This
+    # may need to map productions to indices, though.  This can be
+    # hard when combining grammars.
 
     #my $pos_stash_key= $t;
     my $pos_stash_key= PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME];
-    if (MEMOIZE()) {
-        $pos_stash= stash_get_pos_stash($state->{stash}, $pos);
-        if (exists($pos_stash->{$pos_stash_key}))
-        {
-            my $stashed= $pos_stash->{$pos_stash_key};
-            assert(defined($stashed)) if ASSERT();
-            if (DEBUG() && $log->is_debug()) {
-                $log->debug("Found in stash: "
-                            #. format_stashed($stashed)
-                            .
-                            (matched($stashed)
-                             ? "[$$stashed[0]]"
-                             .Parse::SiLLy::Result::toString($$stashed[1], " ")
-                             : 'nomatch'
-                             )
-                            );
-            }
-            #if (matched($stashed))
-            if (NOMATCH() ne $stashed)
-            {
-                assert('ARRAY' eq ref($stashed)) if ASSERT();
-                $state->{pos}= $$stashed[0];
-                return ($$stashed[1]);
-            }
-            else {
-                return (NOMATCH());
-            }
-        }
-    }
 
-    my $result;
-    my $c= PRODS_ARE_HASHES() ? $t->{_} : $t->[PROD_CATEGORY]; # category
-    # FIXME: Speed this up (use a method?)
-    # Hmm, using a method hash here has no noticeable effect on performance.
-    if (0) {
-        my $method= $methods{$c}
-        ||	die("$log->{name}: Unsupported type " . varstring('category', $c));
-        $result= &$method($t, $state);
-    }
-    else {
-
-    if    ('terminal'     eq $c) { $result=     terminal_match($t, $state); }
-    elsif ('alternation'  eq $c) { $result=  alternation_match($t, $state); }
-    elsif ('construction' eq $c) { $result= construction_match($t, $state); }
-    elsif ('optional'     eq $c) { $result=     optional_match($t, $state); }
-    elsif ('nelist'       eq $c) { $result=       nelist_match($t, $state); }
-    elsif ('pelist'       eq $c) { $result=       pelist_match($t, $state); }
-    else {
-	die($log->name().": Unsupported type " . varstring('category', $c));
-    }
-}
-
-    #assert(matched($result) || $state->{pos} == $pos) if ASSERT();
-    assert((NOMATCH() ne $result) || $state->{pos} == $pos) if ASSERT();
-
-    if (MEMOIZE()) {
-        #my $stashed= matched($result) ? [$state->{pos}, $result] : NOMATCH();
-        my $stashed= (NOMATCH() ne $result) ? [$state->{pos}, $result] : NOMATCH();
+    my $pos_stash= stash_get_pos_stash($state->{stash}, $pos);
+    if (exists($pos_stash->{$pos_stash_key}))
+    {
+        my $stashed= $pos_stash->{$pos_stash_key};
+        assert(defined($stashed)) if ASSERT();
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("Storing result in stash for ${pos} ->{$pos_stash_key} ("
-                        . (PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME])
-                        . "): "
-                        #. varstring('result', $result)
-                        # FIXME: use OO syntax here: $result->toString()
-                        . "\$result ="
-                        . Parse::SiLLy::Result::toString($result, " ")
+            $log->debug("Found in stash: "
+                        #. format_stashed($stashed)
+                        .
+                        (matched($stashed)
+                         ? "[$$stashed[0]]"
+                         .Parse::SiLLy::Result::toString($$stashed[1], " ")
+                         : 'nomatch'
+                         )
                         );
-            #$log->debug(varstring("stashed", $stashed));
         }
-        $pos_stash->{$pos_stash_key}= $stashed;
-
-        # Used this to find out that the $t used above as a hash key
-        # was internally (in the hash table) converted to a string.
-        #if (DEBUG() && $log->is_debug()) {
-        #    map { $log->debug("key $_ has ref ".ref($_)); } keys(%$pos_stash);
-        #}
-        # Used Tie::RefHash to get around that.  Another way might be
-        # to use $t's name as the key.
-        #map { assert('HASH' eq ref($_)); } keys(%$pos_stash);
-        # FIXME: is this slow?:
-        #map { ::should('HASH', ref($_)); } keys(%$pos_stash);
+        #if (matched($stashed))
+        if (NOMATCH() ne $stashed)
+        {
+            assert('ARRAY' eq ref($stashed)) if ASSERT();
+            $state->{pos}= $$stashed[0];
+            return ($$stashed[1]);
+        }
+        else {
+            return (NOMATCH());
+        }
     }
+
+    my $method= PRODS_ARE_HASHES() ? $t->{method} : $t->[PROD_METHOD];
+    my $result= &$method($t, $state);
+
+    if (ASSERT()) {
+        #assert(matched($result) || $state->{pos} == $pos);
+        assert((NOMATCH() ne $result) || $state->{pos} == $pos);
+    }
+
+    #my $stashed= matched($result) ? [$state->{pos}, $result] : NOMATCH();
+    my $stashed= (NOMATCH() ne $result) ? [$state->{pos}, $result] : NOMATCH();
+    if (DEBUG() && $log->is_debug()) {
+        $log->debug("Storing result in stash for ${pos} ->{$pos_stash_key} ("
+                    . (PRODS_ARE_HASHES() ? $t->{name} : $t->[PROD_NAME])
+                    . "): "
+                    #. varstring('result', $result)
+                    # FIXME: use OO syntax here: $result->toString()
+                    . "\$result ="
+                    . Parse::SiLLy::Result::toString($result, " ")
+                    );
+        #$log->debug(varstring("stashed", $stashed));
+    }
+    $pos_stash->{$pos_stash_key}= $stashed;
+
+    # Used this to find out that the $t used above as a hash key
+    # was internally (in the hash table) converted to a string.
+    #if (DEBUG() && $log->is_debug()) {
+    #    map { $log->debug("key $_ has ref ".ref($_)); } keys(%$pos_stash);
+    #}
+    # Used Tie::RefHash to get around that.  Another way might be
+    # to use $t's name as the key.
+    #map { assert('HASH' eq ref($_)); } keys(%$pos_stash);
+    # FIXME: is this slow?:
+    #map { ::should('HASH', ref($_)); } keys(%$pos_stash);
+
     $result;
 }
 
 # --------------------------------------------------------------------
-sub match($$)
+sub match_minimal($$)
 {
     my $method= PRODS_ARE_HASHES() ? $_[0]->{method} : $_[0]->[PROD_METHOD];
     &$method($_[0], $_[1]);
 }
 
 # --------------------------------------------------------------------
-sub match_better($$)
+#sub match_better($$)
+sub match($$)
 {
     my ($t, $state)= @ARG;
-    # FIXME:
+    if (MEMOIZE()) { return match_with_memoize($t, $state); }
+
     my $method= PRODS_ARE_HASHES() ? $t->{method} : $t->[PROD_METHOD];
-    assert(defined($method)) if ASSERT();
-    assert('' ne ref($method)) if ASSERT();
-    #return &$method($t, $state);
+    if (ASSERT()) {
+        assert(defined($method));
+        assert('' ne ref($method));
+    }
     &$method($t, $state);
-=ignore
-
-    my $log= $match_log;
-    my $result;
-    my $c= PRODS_ARE_HASHES() ? $t->{_} : $t->[PROD_CATEGORY]; # category
-    # FIXME: Speed this up (use a method?)
-    # Hmm, using a method hash here has no noticeable effect on performance.
-    if (0) {
-        #my $method= $methods{$c}
-        no strict 'refs';
-        # FIXME: Can't coerce array into hash?!?:
-        #my $method= $ {"${c}_mtch"}
-        my $method_name= "${c}_mtch";
-        my $method= ($$method_name)
-        ||	die("$log->{name}: Unsupported type " . varstring('category', $c));
-        $result= &$method($t, $state);
-    }
-    elsif (0) {
-        if    ('terminal'     eq $c) { $result=     terminal_match($t, $state); }
-        elsif ('alternation'  eq $c) { $result=  alternation_match($t, $state); }
-        elsif ('construction' eq $c) { $result= construction_match($t, $state); }
-        elsif ('optional'     eq $c) { $result=     optional_match($t, $state); }
-        elsif ('nelist'       eq $c) { $result=       nelist_match($t, $state); }
-        elsif ('pelist'       eq $c) { $result=       pelist_match($t, $state); }
-        else {
-            die($log->name().": Unsupported type " . varstring('category', $c));
-        }
-    }
-    else {
-      SWITCH: for ($c) {
-          /terminal/     && do { $result=     terminal_match($t, $state); last; };
-          /alternation/  && do { $result=  alternation_match($t, $state); last; };
-          /construction/ && do { $result= construction_match($t, $state); last; };
-          /optional/     && do { $result=     optional_match($t, $state); last; };
-          /nelist/       && do { $result=       nelist_match($t, $state); last; };
-          /pelist/       && do { $result=       pelist_match($t, $state); last; };
-          die($log->name().": Unsupported type " . varstring('category', $c));
-      }
-    }
-
-    $result;
-
-=cut
-
 }
 
 # --------------------------------------------------------------------
