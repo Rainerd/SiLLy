@@ -743,6 +743,10 @@ sub grammar_objects($$)
 }
 
 # --------------------------------------------------------------------
+use constant STASHED_END   => 0;
+use constant STASHED_MATCH => 1;
+
+# --------------------------------------------------------------------
 sub format_stashed($)
 {
     my $stashed= @_;
@@ -750,7 +754,8 @@ sub format_stashed($)
     ( ! matched($stashed)) ? 'nomatch'
         #: Parse::SiLLy::Result::toString(\@$stashed[1..$#$stashed], " ")
         #: Parse::SiLLy::Result::toString(@{@$stashed}[1..$#$stashed], " ")
-        : "[$$stashed[0]]".Parse::SiLLy::Result::toString($$stashed[1], " ")
+        : "[$$stashed[STASHED_END]]"
+          . Parse::SiLLy::Result::toString($$stashed[STASHED_MATCH], " ")
         ;
 }
 
@@ -777,18 +782,7 @@ sub show_pos_stash($$$)
 
         #$log->debug("Showing pos_stash for $pos.$elt_name...");
         my $stashed= $pos_stash->{$spec};
-        assert(defined($stashed));
-        $log->debug(
-                    #matched($stashed)
-                    #? varstring("$pos.$elt_name", $stashed)
-                    #: "$pos.$elt_name = nomatch"
-                    "stash{$pos, $elt_name}="
-                    #. format_stashed($pos_stash->{$spec})
-                    . ( ! matched($stashed) ? 'nomatch'
-                        : "[$$stashed[0]]"
-                          .Parse::SiLLy::Result::toString($$stashed[1], " ")
-                        )
-                    );
+        $log->debug("stash{$pos, $elt_name}=".format_stashed($stashed));
     } sort({$a <=> $b} keys(%$pos_stash));
 }
 
@@ -1051,7 +1045,11 @@ sub terminal_match($$)
             #my $result= {_=>$t, text=>$match};
 	    #my $result= make_result($t, [$match]);
 	    my $result= [$t->[PROD_NAME], [$match]];
-	    $state->{pos}= $pos + length($match);
+	    $state->{pos}= $pos += length($match);
+            # Move this to match_with_memoize?
+            if (MEMOIZE()) {
+                $state->{pos_stash}= stash_get_pos_stash($state, $pos);
+            }
 	    if (DEBUG() && $log->is_debug()) {
                 #$log->debug(varstring('state', $state));
                 $log->debug("$ctx: state->pos=$state->{pos}");
@@ -1129,6 +1127,9 @@ sub construction_match($$)
 	    # already moved.
 
 	    $state->{pos}= $saved_pos;
+            if (MEMOIZE()) {
+                $state->{pos_stash}= stash_get_pos_stash($state, $saved_pos);
+            }
 	    return (NOMATCH());
 	}
         if (DEBUG() && $log->is_debug()) {
@@ -1415,7 +1416,7 @@ my $match_log;
 #use Tie::RefHash;
 
 # --------------------------------------------------------------------
-sub stash_get_pos_stash($$)
+sub stash_get_pos_stash_with_assert($$)
 {
     # FIXME: Clean up:
     #my ($state, $pos, $t)= @_;
@@ -1434,6 +1435,19 @@ sub stash_get_pos_stash($$)
     assert(defined($pos_stash)) if ASSERT();
     assert('' ne ref($pos_stash)) if ASSERT();
     $pos_stash;
+}
+
+# --------------------------------------------------------------------
+sub stash_get_pos_stash($$)
+{
+    my ($stash, $pos)= @_;
+    if ( ! exists($stash->{$pos})) {
+        #if (DEBUG() && $stash_log->is_debug()) {
+        #    $stash_log->debug("New position $pos, creating pos stash for it...");
+        #}
+        return ($stash->{$pos}= {});
+    }
+    $stash->{$pos};
 }
 
 # --------------------------------------------------------------------
@@ -1457,43 +1471,34 @@ sub match_with_memoize($$)
         assert('' eq ref($pos));
     }
 
-    # FIXME: This should be done by a constructor:
-    if ( ! exists($state->{stash})) {
-        # If these are disabled, memoization is not done:
-        # FIXME: Using memoization is currently slower than not doing it
-        if (DEBUG() && $log->is_debug()) { $log->debug("Initializing stash..."); }
-        $state->{stash}= {};
-    }
-
     # FIXME: Consider implementing the pos_stashes as arrays.  This
     # may need to map productions to indices, though.  This can be
     # hard when combining grammars.
 
-    #my $pos_stash_key= $t;
     my $pos_stash_key= $t->[PROD_NAME];
 
-    my $pos_stash= stash_get_pos_stash($state->{stash}, $pos);
+    #my $pos_stash= stash_get_pos_stash($state->{stash}, $pos);
+    my $stash= $state->{stash};
+    #my $pos_stash= $stash->{$pos};
+    my $pos_stash= $state->{pos_stash};
+    if ( ! defined($pos_stash)) {
+        if (DEBUG() && $log->is_debug()) {
+            $log->debug("New position $pos, creating pos stash for it...");
+        }
+        $state->{$pos_stash}= $pos_stash= $stash->{$pos}= {};
+    }
     if (exists($pos_stash->{$pos_stash_key}))
     {
         my $stashed= $pos_stash->{$pos_stash_key};
         assert(defined($stashed)) if ASSERT();
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("Found in stash: "
-                        #. format_stashed($stashed)
-                        .
-                        (matched($stashed)
-                         ? "[$$stashed[0]]"
-                         .Parse::SiLLy::Result::toString($$stashed[1], " ")
-                         : 'nomatch'
-                         )
-                        );
+            $log->debug("Found in stash: ".format_stashed($stashed));
         }
-        #if (matched($stashed))
         if (NOMATCH() ne $stashed)
         {
             assert('ARRAY' eq ref($stashed)) if ASSERT();
-            $state->{pos}= $$stashed[0];
-            return ($$stashed[1]);
+            $state->{pos}= $$stashed[STASHED_END];
+            return ($$stashed[STASHED_MATCH]);
         }
         else {
             return (NOMATCH());
@@ -1537,15 +1542,7 @@ sub match_with_memoize($$)
 }
 
 # --------------------------------------------------------------------
-sub match_minimal($$)
-{
-    my $method= $_[0]->[PROD_METHOD];
-    &$method($_[0], $_[1]);
-}
-
-# --------------------------------------------------------------------
-#sub match_better($$)
-sub match($$)
+sub match_with_assert($$)
 {
     my ($t, $state)= @ARG;
     if (MEMOIZE()) { return match_with_memoize($t, $state); }
@@ -1556,6 +1553,31 @@ sub match($$)
         assert('' ne ref($method));
     }
     &$method($t, $state);
+}
+
+# --------------------------------------------------------------------
+#sub match_with_bind($$)
+sub match($$)
+{
+    my ($t, $state)= @ARG;
+    if (MEMOIZE()) { return match_with_memoize($t, $state); }
+    my $method= $t->[PROD_METHOD];
+    &$method($t, $state);
+}
+
+# --------------------------------------------------------------------
+sub match_without_bind($$)
+{
+    if (MEMOIZE()) { return match_with_memoize($_[0], $_[1]); }
+    my $method= $_[0]->[PROD_METHOD];
+    &$method($_[0], $_[1]);
+}
+
+# --------------------------------------------------------------------
+sub match_minimal($$)
+{
+    my $method= $_[0]->[PROD_METHOD];
+    &$method($_[0], $_[1]);
 }
 
 # --------------------------------------------------------------------
@@ -1732,6 +1754,14 @@ sub test_minilang()
 
     $log->debug("--- Testing terminal_match...");
     $state= { input => 'blah 123  456', pos=>0 };
+    if (Parse::SiLLy::Grammar::MEMOIZE() && ! exists($state->{stash})) {
+        # If these are disabled, memoization is not done:
+        # FIXME: Using memoization is currently slower than not doing it
+        # FIXME: This should be done by a constructor:
+        if (DEBUG() && $log->is_debug()) { $log->debug("Initializing stash..."); }
+        $state->{stash}= {};
+    }
+
     test1($log, "terminal_match", "minilang::Name",       $state, "blah");
     test1($log, "terminal_match", "minilang::Whitespace", $state, " ");
     test1($log, "terminal_match", "minilang::Number",     $state, "123");
@@ -1993,7 +2023,7 @@ sub test_xml()
  <td></td>
 </tr>
 
-    $state= { input => $xml, pos=>0 };
+    $state= { input => $xml, pos=>0 , stash=>{} };
 
     #$result= Parse::SiLLy::Grammar::match($Parse::SiLLy::Test::XML::Elem,
     #                                      $state);
@@ -2089,6 +2119,7 @@ sub do_one_run($$) {
     my ($state, $top)= @_;
     if (Parse::SiLLy::Grammar::MEMOIZE()) {
         delete($state->{stash});
+        $state->{stash}= {};
     }
     $state->{pos}= 0;
     no strict 'refs';
@@ -2151,7 +2182,7 @@ sub main
     $log->debug("input:\n$input_data");
     
     {
-    my $state= { input => $input_data, pos=>0 };
+    my $state= { input => $input_data, pos=>0, stash=>{} };
     my $top= "Parse::SiLLy::Test::XML::Contentlist";
     my $result;
     #$result= Parse::SiLLy::Grammar::match($::Elem, $state);
