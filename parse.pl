@@ -9,7 +9,7 @@ Debug:   PARSE_SILLY_DEBUG=1 perl -w parse.pl Test/xml-grammar.pl Test/XML/examp
 Profile: PARSE_SILLY_ASSERT=0 perl -w -d:DProf parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
 Profile: PARSE_SILLY_ASSERT=0 perl -w -I../.. -MDevel::Profiler parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
 Lint:    perl -w -MO=Lint,-context parse.pl Test/xml-grammar.pl Test/XML/example.xml
-Fastest so far: PARSE_SILLY_ASSERT=0 perl -w parse.pl Test/xml-grammar.pl Test/XML/example.xml
+Fastest so far: PARSE_SILLY_ASSERT=0 perl parse.pl Test/xml-grammar.pl Test/XML/example.xml
 
 Note that the -w option may cost a percent or two of performance.
 
@@ -27,10 +27,11 @@ o Allow free copying of derivatives.
 
 
 --------------------------------------------------------------------
+--------------------------------------------------------------------
 Purpose
 
 Parses, according to the given grammar, the given input. Produces an
-appropriately structured hash (an abstract syntax tree).
+appropriately structured result (a parse tree alias concrete syntax tree).
 
 Keywords
 
@@ -103,14 +104,20 @@ o Catch EOS in all matching functions
 
 TODO
 
+o Memoization: Idea: When memoizing, do not memoize (store) the result
+  for every equivalent parsing state alias item (nonterminal plus
+  position) separately.  Instead, define item sets as for LR or Earley
+  parsers and memoize results for item sets.
+
 o FIXME: Provide automated regression tests for the test tools (assert
   etc., the validation functions).
 o Clean up
   - def3
   - scan
-o FIXME: Using memoization is currently slower than not doing it
-o Benchmark without memoization versus with memoization
-o Find examples for which memoization is faster.
+o Memoization: FIXME: Using memoization is currently slower than not doing it
+o Memoization: Benchmark without memoization versus with memoization
+o Memoization: Find examples for which memoization is faster.
+o Memoization: Make it easy to switch off memoization (per parser)
 o Implement state as an array.
 o Factor out common parts of parsing functions.
 o Do a serious benchmark
@@ -122,7 +129,6 @@ o Packagize (Terminal, Construction, Alternation, Optional, NEList, PEList)
 o Document how to configure logging (search for $DEBUG)
 o Result scanner
 o Allow using multiple parsers concurrently
-o Make it easy to switch off memoization (per parser)
 o Parameterize result construction (compile-time option):
   - Inline result construction
   - array interpolation versus array reference
@@ -492,23 +498,15 @@ use constant PROD_ELEMENTS  => 3;
 sub make_result($$) {
     #return [$_[0] - > {name}, $_[1]];
     my ($t, $match)= (@_);
-    #{_=>$t, result=>$match};
-    #[::hash_get($t, "name"), @$match];
-    #[$t->[PROD_NAME], @$match];
     assert('ARRAY' eq ref($match)) if ASSERT();
+    #[$t->[PROD_NAME], @$match];
     [$t->[PROD_NAME], $match];
 }
 
 # --------------------------------------------------------------------
-#sub NOMATCH() { undef; }
-#sub matched($) { defined($_[0]); }
-
-#my $NOMATCH= ['nomatch'];
-#my $NOMATCH= 'nomatch';
-#sub NOMATCH() { $NOMATCH }
-#use constant NOMATCH => 'nomatch';
-sub NOMATCH() { 'NOMATCH' }
-#my $NOMATCH= NOMATCH();
+# FIXME: can we use a scalar value here (not a string)?
+use constant NOMATCH => 'NOMATCH';
+#sub NOMATCH() { 'NOMATCH' }
 sub matched($) { NOMATCH() ne ($_[0]); }
 
 # --------------------------------------------------------------------
