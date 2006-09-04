@@ -440,8 +440,9 @@ sub varstring($$) {
 use constant PROD_CATEGORY => 0;
 use constant PROD_NAME     => 1;
 use constant PROD_METHOD   => 2;
-use constant PROD_PATTERN  => 3;
-use constant PROD_MATCHER  => 4;
+use constant PROD_ID       => 3;
+use constant PROD_PATTERN  => 4;
+use constant PROD_MATCHER  => 5;
 
 # --------------------------------------------------------------------
 # If the given reference refers to a named object, returns its name.
@@ -534,7 +535,8 @@ use diagnostics;
 use constant PROD_CATEGORY  => 0;
 use constant PROD_NAME      => 1;
 use constant PROD_METHOD    => 2;
-use constant PROD_ELEMENTS  => 3;
+use constant PROD_ID        => 3;
+use constant PROD_ELEMENTS  => 4;
 
 # --------------------------------------------------------------------
 use constant RESULT_PROD => 0;
@@ -725,14 +727,20 @@ use constant MEMOIZE =>
 use constant PROD_CATEGORY  => 0;
 use constant PROD_NAME      => 1;
 use constant PROD_METHOD    => 2;
+use constant PROD_ID        => 3;
 
-use constant PROD_PATTERN   => 3;
-use constant PROD_MATCHER   => 4;
+#use constant PROD_PATTERN   => 3;
+#use constant PROD_MATCHER   => 4;
+use constant PROD_PATTERN   => PROD_ID + 1;
+use constant PROD_MATCHER   => PROD_PATTERN + 1;
 
-use constant PROD_ELEMENTS  => 3;
+#use constant PROD_ELEMENTS  => 3;
+use constant PROD_ELEMENTS  => PROD_ID + 1;
 
-use constant PROD_ELEMENT   => 3;
-use constant PROD_SEPARATOR => 4;
+#use constant PROD_ELEMENT   => 3;
+#use constant PROD_SEPARATOR => 4;
+use constant PROD_ELEMENT   => PROD_ID + 1;
+use constant PROD_SEPARATOR => PROD_ELEMENT + 1;
 
 # --------------------------------------------------------------------
 sub log_args($$$)
@@ -811,7 +819,8 @@ use constant STASHED_MATCH => 1;
 sub format_stashed($)
 {
     my ($stashed)= @_;
-    assert(defined($stashed)) if ASSERT();
+    if ( ! defined($stashed)) { return 'undef'; }
+    #assert(defined($stashed)) if ASSERT();
     if (matched($stashed)) {
         if (ASSERT()) {
             assert('' ne ref($stashed));
@@ -830,7 +839,7 @@ sub format_stashed($)
 }
 
 # --------------------------------------------------------------------
-sub show_pos_stash($$$)
+sub show_pos_stash_hash($$$)
 {
     my ($log, $pos_stash, $pos)= (@_);
     assert(defined($pos_stash));
@@ -855,7 +864,50 @@ sub show_pos_stash($$$)
         my $stashed= $pos_stash->{$spec};
         #$log->debug(varstring('stashed', $stashed));
         $log->debug("stash{$pos, $elt_name}=" . format_stashed($stashed));
-    } sort({$a <=> $b} keys(%$pos_stash));
+    }
+    #sort( {$a <=> $b} keys(%$pos_stash));
+    sort( {$a cmp $b} keys(%$pos_stash));
+}
+
+# --------------------------------------------------------------------
+my $production_id;
+my $productions_by_id;
+
+# --------------------------------------------------------------------
+#sub show_pos_stash_array($$$)
+sub show_pos_stash($$$)
+{
+    my ($log, $pos_stash, $pos)= (@_);
+    assert(defined($pos_stash));
+    assert('ARRAY' eq ref($pos_stash));
+    if ( ! $log->is_debug()) { return; }
+    map {
+        my $spec= $_;
+        my $stashed= $pos_stash->[$spec];
+        if ( ! defined($stashed)) { goto SHOW_POS_STASH_MAP_END; }
+        #$log->debug("Showing pos_stash for $pos.$spec...");
+        #my $elt= $spec;
+        my $elt= $$productions_by_id[$spec];
+
+        # FIXME: This leads to an incomplete error message
+        # (get assert to add the stack trace to $@ in this case):
+        #$elt= "foo";
+        # FIXME: Introduce ->name() accessor
+        #my $elt_name= ::hash_get($elt, 'name');
+        my $elt_name= $elt->[PROD_NAME];
+        #my $elt_name= $spec;
+        assert(defined($elt_name));
+        assert('' eq ref($elt_name));
+
+        #$log->debug("Showing pos_stash for $pos.$elt_name...");
+        #my $stashed= $pos_stash->[$spec];
+        #$log->debug(varstring('stashed', $stashed));
+        $log->debug("stash{$pos, $elt_name}=" . format_stashed($stashed));
+      SHOW_POS_STASH_MAP_END:
+    }
+    #sort( {$a <=> $b} keys(%$pos_stash));
+    #sort( {$a cmp $b} keys(%$pos_stash));
+    (1..$#$pos_stash);
 }
 
 # --------------------------------------------------------------------
@@ -1011,8 +1063,12 @@ sub def($$$$$@)
     assert(defined($method));
     assert('' ne ref($method));
 
+    unshift(@$val, (undef, undef, undef, undef));
     $val->[PROD_CATEGORY]= $category;
     $val->[PROD_METHOD] = $method;
+    ++$production_id;
+    $val->[PROD_ID] = $production_id;
+    $productions_by_id->[$production_id]= $val;
 
     # Determine full variable name
     assert(defined($name));
@@ -1051,9 +1107,7 @@ sub terminal#($$)
     # subroutine is compiled), and not at every parse.
     my $matcher= eval("sub { \$_[0] =~ m{^($pattern)}og; }");
 
-    def($log, 'terminal', $name,
-        [ undef, undef, undef, $pattern, $matcher ],
-        caller());
+    def($log, 'terminal', $name, [$pattern, $matcher], caller());
 }
 
 # --------------------------------------------------------------------
@@ -1168,7 +1222,7 @@ sub construction
 
     my ($caller_package, $file, $line)= caller();
     my $val= def($log, 'construction', $name,
-                 [ undef, undef, undef, grammar_objects($caller_package, \@ARG)],
+                 [grammar_objects($caller_package, \@ARG)],
                  caller());
     #$log->debug(varstring('elements',$val->[PROD_ELEMENTS]));
     $val;
@@ -1218,7 +1272,8 @@ sub construction_match($$)
 
 	    $state->[STATE_POS]= $saved_pos;
             if (MEMOIZE()) {
-                $state->[STATE_POS_STASH]= stash_get_pos_stash($state->[STATE_STASH], $saved_pos);
+                $state->[STATE_POS_STASH]=
+                    stash_get_pos_stash($state->[STATE_STASH], $saved_pos);
             }
 	    return (NOMATCH());
 	}
@@ -1253,7 +1308,7 @@ sub alternation
     #my $val= { _ => $log->{name}, elements => grammar_objects(\@ARG) };
     my ($caller_package, $file, $line)= caller();
     my $val= def($log, 'alternation', $name,
-                 [ undef, undef, undef, grammar_objects($caller_package, \@ARG)],
+                 [grammar_objects($caller_package, \@ARG)],
                  caller());
     $log->debug(varstring('elements', $val->[PROD_ELEMENTS]));
     log_val($log, $val);
@@ -1329,9 +1384,7 @@ sub optional#($)
     #my $val= { _ => $log->{name}, element => grammar_object($ARG[0]) };
     my ($caller_package, $file, $line)= caller();
     my $val= def($log, 'optional', $name,
-                 # FIXME: Either pass category and name in the array
-                 # argument, or pass a shorter array:
-                 [ undef, undef, undef, grammar_object($caller_package, $ARG[0])],
+                 [grammar_object($caller_package, $ARG[0])],
                  $caller_package);
     #$log->debug(varstring('element',$val->{element}));
     $val;
@@ -1382,8 +1435,7 @@ sub list_new($$$$$$)
     my ($log, $category, $name, $element, $separator, $caller_package)= @_;
     log_cargs($log, $name, \@ARG);
     my $val= def($log, $category, $name,
-                 [ undef, undef, undef,
-                   grammar_object($caller_package, $element),
+                 [ grammar_object($caller_package, $element),
                    grammar_object($caller_package, $separator) ],
                  $caller_package);
     #$log->debug(varstring('element',  $val->{element}));
@@ -1517,7 +1569,8 @@ sub stash_get_pos_stash_with_assert($$)
 
     if ( ! exists($stash->{$pos})) {
         #$stash_log->debug("New position $pos, creating pos stash for it...");
-        my $pos_stash= {};
+        #my $pos_stash= {};
+        my $pos_stash= [];
         #tie %$pos_stash, 'Tie::RefHash';
         return ($stash->{$pos}= $pos_stash);
     }
@@ -1542,7 +1595,8 @@ sub stash_get_pos_stash($$)
         #if (DEBUG() && $stash_log->is_debug()) {
         #    $stash_log->debug("New position $pos, creating pos stash for it...");
         #}
-        return ($stash->{$pos}= {});
+        #return ($stash->{$pos}= {});
+        return ($stash->{$pos}= []);
     }
     $stash->{$pos};
 }
@@ -1572,7 +1626,8 @@ sub match_with_memoize($$)
     # may need to map productions to indices, though.  This can be
     # hard when combining grammars.
 
-    my $pos_stash_key= $t->[PROD_NAME];
+    #my $pos_stash_key= $t->[PROD_NAME];
+    my $pos_stash_key= $t->[PROD_ID];
 
     my $stash= $state->[STATE_STASH];
     my $pos_stash= stash_get_pos_stash($stash, $pos);
@@ -1583,12 +1638,15 @@ sub match_with_memoize($$)
         if (DEBUG() && $log->is_debug()) {
             $log->debug("New position $pos, creating pos stash for it...");
         }
-        $state->[STATE_POS_STASH]= $pos_stash= $stash->{$pos}= {};
+        #$state->[STATE_POS_STASH]= $pos_stash= $stash->{$pos}= {};
+        $state->[STATE_POS_STASH]= $pos_stash= $stash->{$pos}= [];
     }
-    if (exists($pos_stash->{$pos_stash_key}))
+    #if (exists($pos_stash->{$pos_stash_key}))
+    my $stashed= $pos_stash->[$pos_stash_key];
+    if (defined($stashed))
     {
-        my $stashed= $pos_stash->{$pos_stash_key};
-        assert(defined($stashed)) if ASSERT();
+        #my $stashed= $pos_stash->[$pos_stash_key];
+        #assert(defined($stashed)) if ASSERT();
         if (DEBUG() && $log->is_debug()) {
             $log->debug("Found in stash: ".format_stashed($stashed));
         }
@@ -1612,9 +1670,10 @@ sub match_with_memoize($$)
     }
 
     #my $stashed= matched($result) ? [$state->[STATE_POS], $result] : NOMATCH();
-    my $stashed= (NOMATCH() ne $result) ? [$state->[STATE_POS], $result] : NOMATCH();
+    #my
+    $stashed= (NOMATCH() ne $result) ? [$state->[STATE_POS], $result] : NOMATCH();
     if (DEBUG() && $log->is_debug()) {
-        $log->debug("Storing result in stash for ${pos}->{$pos_stash_key}"
+        $log->debug("Storing result in stash for ${pos}->$pos_stash_key"
                     . ($pos_stash_key ne $t->[PROD_NAME] ? " ($t->[PROD_NAME])" : "")
                     . ": "
                     #. varstring('result', $result)
@@ -1624,7 +1683,8 @@ sub match_with_memoize($$)
                     );
         #$log->debug(varstring("stashed", $stashed));
     }
-    $pos_stash->{$pos_stash_key}= $stashed;
+    #$pos_stash->{$pos_stash_key}= $stashed;
+    $pos_stash->[$pos_stash_key]= $stashed;
 
     # Used this to find out that the $t used above as a hash key
     # was internally (in the hash table) converted to a string.
@@ -1711,6 +1771,9 @@ sub init()
          'nelist'       => \&nelist_match,
          'pelist'       => \&pelist_match);
     #$match_log->info(varstring('methods', \%methods));
+
+    $production_id= 0;
+    $productions_by_id= [];
 
     Parse::SiLLy::Result::matched_test();
 }
@@ -2249,9 +2312,7 @@ sub main
     
     # Test 'def'
     #Parse::SiLLy::Grammar::def 'foo', {elt=>'bar'};
-    Parse::SiLLy::Grammar::def($log, 'terminal', 'foo',
-                               ['dummy1', 'dummy2', 'bar'],
-                               'main');
+    Parse::SiLLy::Grammar::def($log, 'terminal', 'foo', ['bar'], 'main');
     $log->debug(varstring('::foo', $::foo));
     #assert($::foo->{elt} eq 'bar');
 
