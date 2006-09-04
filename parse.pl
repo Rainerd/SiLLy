@@ -108,6 +108,7 @@ o Memoization: Idea: When memoizing, do not memoize (store) the result
   for every equivalent parsing state alias item (nonterminal plus
   position) separately.  Instead, define item sets as for LR or Earley
   parsers and memoize results for item sets.
+o Memoization: Memoize input substrings, too?
 
 o FIXME: Provide automated regression tests for the test tools (assert
   etc., the validation functions).
@@ -118,7 +119,6 @@ o Memoization: FIXME: Using memoization is currently slower than not doing it
 o Memoization: Benchmark without memoization versus with memoization
 o Memoization: Find examples for which memoization is faster.
 o Memoization: Make it easy to switch off memoization (per parser)
-o Implement state as an array.
 o Factor out common parts of parsing functions.
 o Do a serious benchmark
 o Allow dashes in XML comments
@@ -160,6 +160,8 @@ o Uppercase NOMATCH (formerly nomatch) to get rid of inappropriate warnings.
 o Unified implementation of nelist_match and pelist_match.
 o Shared implementation of nelist_match and pelist_match. 
 o Productions are implemented as arrays.
+o Parsers (state) are implemented as arrays.
+o Automated regression tests for the assert function.
 
 =cut
 
@@ -211,20 +213,60 @@ use constant ASSERT =>
 use Carp;
 
 # --------------------------------------------------------------------
-sub assert($) { if (! $_[0]) { croak("Assertion failed.\n"); } }
+# Select here whether you want a stack backtrace with your error message
+#my $assert_action= \&croak; # Die without backtrace
+my $assert_action= \&confess; # Die with backtrace
+
+# --------------------------------------------------------------------
+sub assert($) { if (! $_[0]) { &$assert_action("Assertion failed.\n"); } }
+
+# --------------------------------------------------------------------
+# Unit test for 'assert'
+
+sub assert_test($)
+{
+    my ($log)= @_;
+    my $ctx= "assert_test";
+
+    my $flag= 1;
+    eval('assert(0 == 0); $flag= 0;');
+    my $saved_at_value= $@;
+    $log->debug(varstring('@', $saved_at_value));
+    if (1 == $flag) {
+        die("$ctx: 'assert(0==0); \$flag= 0' failed: flag is now 1,"
+            . " but should be 0.\n");
+    }
+    if ("" ne $saved_at_value) {
+        die("$ctx: 'assert(0==0)' failed: \$\@ is not empty,"
+            . " but should be empty: '$@'\n");
+    }
+
+    eval('assert(0 == 1); $flag= 1;');
+    $saved_at_value= $@;
+    $log->debug(varstring('@', $saved_at_value));
+    if (1 == $flag) {
+        die("$ctx: 'assert(0==1); \$flag= 1' failed: flag is now 1,"
+            . " but should be 0.\n");
+    }
+    #assert(1 == $flag);
+    if ("" eq $saved_at_value) {
+        die("$ctx: 'assert(0==1)' failed: \$\@ is empty, but should not.\n");
+    }
+}
 
 # --------------------------------------------------------------------
 sub should($$) {
-    if ($_[0] ne $_[1]) { croak("'$_[0]' should be '$_[1]' but is not.\n"); }
+    if ($_[0] ne $_[1]) { &$assert_action("'$_[0]' should be '$_[1]' but is not.\n"); }
 }
 
 # --------------------------------------------------------------------
 #sub shouldn't($$)
 sub shouldnt($$) { # Fix editor's parenthesis matching: }' sub {
-    if ($_[0] eq $_[1]) { croak("'$_[0]' should not be '$_[1]' but is.\n"); }
+    if ($_[0] eq $_[1]) { &$assert_action("'$_[0]' should not be '$_[1]' but is.\n"); }
 }
 
 # --------------------------------------------------------------------
+# Use this for all evals:
 sub eval_or_die($) {
     my $evalue= eval($_[0]);
     if ('' ne $@) { die("eval('$_[0]') failed: '$@'\n"); }
@@ -495,6 +537,10 @@ use constant PROD_METHOD    => 2;
 use constant PROD_ELEMENTS  => 3;
 
 # --------------------------------------------------------------------
+use constant RESULT_PROD => 0;
+use constant RESULT_MATCH => 1;
+
+# --------------------------------------------------------------------
 sub make_result($$) {
     #return [$_[0] - > {name}, $_[1]];
     my ($t, $match)= (@_);
@@ -505,9 +551,24 @@ sub make_result($$) {
 
 # --------------------------------------------------------------------
 # FIXME: can we use a scalar value here (not a string)?
+# FIXME: Bench these:
 use constant NOMATCH => 'NOMATCH';
-#sub NOMATCH() { 'NOMATCH' }
-sub matched($) { NOMATCH() ne ($_[0]); }
+#use constant NOMATCH => \'NOMATCH';
+
+# --------------------------------------------------------------------
+sub matched      ($) { NOMATCH() ne $_[0]; }
+
+# --------------------------------------------------------------------
+sub matched_with_assert($)
+{
+    if (ASSERT() && NOMATCH() ne $_[0]) { assert('ARRAY' eq ref($_[0])); }
+    NOMATCH() ne ($_[0]);
+}
+
+# --------------------------------------------------------------------
+sub matched_test() {
+    assert( ! matched(NOMATCH()));
+}
 
 # --------------------------------------------------------------------
 # Formats the given result object as a string
@@ -749,14 +810,23 @@ use constant STASHED_MATCH => 1;
 # --------------------------------------------------------------------
 sub format_stashed($)
 {
-    my $stashed= @_;
-    assert(defined($stashed));
-    ( ! matched($stashed)) ? 'nomatch'
+    my ($stashed)= @_;
+    assert(defined($stashed)) if ASSERT();
+    if (matched($stashed)) {
+        if (ASSERT()) {
+            assert('' ne ref($stashed));
+            assert('ARRAY' eq ref($stashed));
+        }
         #: Parse::SiLLy::Result::toString(\@$stashed[1..$#$stashed], " ")
         #: Parse::SiLLy::Result::toString(@{@$stashed}[1..$#$stashed], " ")
-        : "[$$stashed[STASHED_END]]"
-          . Parse::SiLLy::Result::toString($$stashed[STASHED_MATCH], " ")
-        ;
+        "[$$stashed[STASHED_END]]"
+            . Parse::SiLLy::Result::toString($$stashed[STASHED_MATCH], " ")
+            ;
+    }
+    else {
+        #print(STDERR "not matched\n");
+        'nomatch';
+    }
 }
 
 # --------------------------------------------------------------------
@@ -769,20 +839,22 @@ sub show_pos_stash($$$)
     map {
         my $spec= $_;
         #$log->debug("Showing pos_stash for $pos.$spec...");
-        my $elt= $spec;
+        #my $elt= $spec;
 
         # FIXME: This leads to an incomplete error message
         # (get assert to add the stack trace to $@ in this case):
         #$elt= "foo";
         # FIXME: Introduce ->name() accessor
         #my $elt_name= ::hash_get($elt, 'name');
-        my $elt_name= $elt->[PROD_NAME];
+        #my $elt_name= $elt->[PROD_NAME];
+        my $elt_name= $spec;
         assert(defined($elt_name));
         assert('' eq ref($elt_name));
 
         #$log->debug("Showing pos_stash for $pos.$elt_name...");
         my $stashed= $pos_stash->{$spec};
-        $log->debug("stash{$pos, $elt_name}=".format_stashed($stashed));
+        #$log->debug(varstring('stashed', $stashed));
+        $log->debug("stash{$pos, $elt_name}=" . format_stashed($stashed));
     } sort({$a <=> $b} keys(%$pos_stash));
 }
 
@@ -803,10 +875,23 @@ sub show_stash($$)
 }
 
 # --------------------------------------------------------------------
+use constant STATE_INPUT => 0;
+use constant STATE_POS => 1;
+use constant STATE_STASH => 2;
+use constant STATE_POS_STASH => 3;
+
+# --------------------------------------------------------------------
+# FIXME: Packagize, objectify
+sub Parser_new($) {
+    my ($input)= @_;
+    [$input, 0, {}, undef]; # input, pos, stash, pos_stash
+}
+
+# --------------------------------------------------------------------
 sub input_show_state($$) {
     my ($log, $state)= (@_);
     if ( ! $log->is_debug()) { return; }
-    $log->debug(varstring('state->pos', $state->{pos}));
+    $log->debug(varstring('state->pos', $state->[STATE_POS]));
 }
 
 # --------------------------------------------------------------------
@@ -826,11 +911,12 @@ sub match_check_preconditions($$) {
 sub match_watch_args($$$) {
     my ($ctx, $log, $state)= (@_);
     assert(defined($ctx)) if ASSERT();
-    $log->debug("$ctx: state->pos=$state->{pos}");
+    my $pos= $state->[STATE_POS];
+    $log->debug("$ctx: state->pos=$pos");
     # FIXME: Use a faster method to access the parser state (array)
     if (MEMOIZE()) {
-        my $pos= $state->{pos};
-        show_pos_stash($log, $state->{stash}->{$pos}, $pos);
+        show_pos_stash($log, stash_get_pos_stash($state->[STATE_STASH()], $pos),
+                       $pos);
     }
 }
 
@@ -981,8 +1067,8 @@ sub terminal_match($$)
     my $ctx= $t->[PROD_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
     
-    my $input= $state->{input};
-    my $pos= $state->{pos};
+    my $input= $state->[STATE_INPUT];
+    my $pos= $state->[STATE_POS];
     #my ($match)= $input =~ m{^$t->[PROD_PATTERN]}g;
     my $match;
     #$log->debug("$ctx: ref(input)=" . ref($input) . ".");
@@ -992,7 +1078,7 @@ sub terminal_match($$)
     }
     if ('ARRAY' eq ref($input)) {
 	if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: state->pos=$state->{pos},"
+            $log->debug("$ctx: state->pos=$state->[STATE_POS],"
                         . " input[0]->name=", $ {@$input}[0]->[PROD_NAME]);
         }
 	#if ($#{@$input} < $pos) {
@@ -1003,13 +1089,13 @@ sub terminal_match($$)
 	if ($t == $match->[PROD_CATEGORY]) {
             if (DEBUG() && $log->is_debug()) {
                 #$log->debug("$ctx: matched token: " . varstring('match', $match));
-                $log->debug("$ctx: matched token: $ctx, text: '$match->[RESULT_TEXT]'");
+                $log->debug("$ctx: matched token: $ctx, text: '$match->[RESULT_MATCH()]'");
             }
 	    my $result= $match;
-	    $state->{pos}= $pos + 1;
+	    $state->[STATE_POS]= $pos + 1;
             if (DEBUG() && $log->is_debug()) {
                 #$log->debug(varstring('state', $state));
-                $log->debug("$ctx: state->pos=$state->{pos}");
+                $log->debug("$ctx: state->pos=$state->[STATE_POS]");
             }
 	    return ($result);
 	} else {
@@ -1020,7 +1106,7 @@ sub terminal_match($$)
 	}
     } else {
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: state->pos=$state->{pos},"
+            $log->debug("$ctx: state->pos=$state->[STATE_POS],"
                         . " substr(input, pos)='"
                         . quotemeta(substr($input, $pos))."'");
         }
@@ -1034,6 +1120,9 @@ sub terminal_match($$)
             assert('' eq ref($pattern));
         }
 
+        # FIXME: Can we avoid repeated construction or copying of the
+        # same substring?  Looks like momoization does just that.
+        # FIXME: Can we avoid substring construction or copying at all?
 	#($match)= substr($input, $pos) =~ m{^($pattern)}g;
         my $matcher= $t->[PROD_MATCHER];
 	($match)= &{$matcher} (substr($input, $pos));
@@ -1045,14 +1134,15 @@ sub terminal_match($$)
             #my $result= {_=>$t, text=>$match};
 	    #my $result= make_result($t, [$match]);
 	    my $result= [$t->[PROD_NAME], [$match]];
-	    $state->{pos}= $pos += length($match);
+	    $state->[STATE_POS]= $pos += length($match);
             # Move this to match_with_memoize?
             if (MEMOIZE()) {
-                $state->{pos_stash}= stash_get_pos_stash($state, $pos);
+                $state->[STATE_POS_STASH]=
+                    stash_get_pos_stash($state->[STATE_STASH()], $pos);
             }
 	    if (DEBUG() && $log->is_debug()) {
                 #$log->debug(varstring('state', $state));
-                $log->debug("$ctx: state->pos=$state->{pos}");
+                $log->debug("$ctx: state->pos=$state->[STATE_POS]");
             }
 	    $result;
 	} else {
@@ -1100,7 +1190,7 @@ sub construction_match($$)
     }
 
     my $result_elements= [];
-    my $saved_pos= $state->{pos};
+    my $saved_pos= $state->[STATE_POS];
 
     # foreach $element in $t's elements
     map {
@@ -1126,9 +1216,9 @@ sub construction_match($$)
 	    # only place where a failure may occur after pos has been
 	    # already moved.
 
-	    $state->{pos}= $saved_pos;
+	    $state->[STATE_POS]= $saved_pos;
             if (MEMOIZE()) {
-                $state->{pos_stash}= stash_get_pos_stash($state, $saved_pos);
+                $state->[STATE_POS_STASH]= stash_get_pos_stash($state->[STATE_STASH], $saved_pos);
             }
 	    return (NOMATCH());
 	}
@@ -1420,7 +1510,7 @@ sub stash_get_pos_stash_with_assert($$)
 {
     # FIXME: Clean up:
     #my ($state, $pos, $t)= @_;
-    #my $stash= $state->{stash};
+    #my $stash= $state->[STATE_STASH];
     my ($stash, $pos)= @_;
     assert(defined($stash)) if ASSERT();
     assert('' ne ref($stash)) if ASSERT();
@@ -1441,6 +1531,13 @@ sub stash_get_pos_stash_with_assert($$)
 sub stash_get_pos_stash($$)
 {
     my ($stash, $pos)= @_;
+    if (ASSERT()) {
+        assert(defined($stash));
+        assert('' ne ref($stash));
+        'HASH' eq ref($stash) || $match_log->info(varstring('stash', $stash));
+        assert('HASH' eq ref($stash));
+        assert(defined($pos));
+    }
     if ( ! exists($stash->{$pos})) {
         #if (DEBUG() && $stash_log->is_debug()) {
         #    $stash_log->debug("New position $pos, creating pos stash for it...");
@@ -1462,10 +1559,10 @@ sub match_with_memoize($$)
         assert(defined($state));
         assert('' ne ref($state));
 
-        assert(exists($state->{pos}));
+        #assert(exists($state->[STATE_POS]));
     }
 
-    my $pos= $state->{pos};
+    my $pos= $state->[STATE_POS];
     if (ASSERT()) {
         assert(defined($pos));
         assert('' eq ref($pos));
@@ -1477,15 +1574,16 @@ sub match_with_memoize($$)
 
     my $pos_stash_key= $t->[PROD_NAME];
 
-    #my $pos_stash= stash_get_pos_stash($state->{stash}, $pos);
-    my $stash= $state->{stash};
+    my $stash= $state->[STATE_STASH];
+    my $pos_stash= stash_get_pos_stash($stash, $pos);
     #my $pos_stash= $stash->{$pos};
-    my $pos_stash= $state->{pos_stash};
+    # FIXME: Activate:
+    #my $pos_stash= $state->[STATE_POS_STASH];
     if ( ! defined($pos_stash)) {
         if (DEBUG() && $log->is_debug()) {
             $log->debug("New position $pos, creating pos stash for it...");
         }
-        $state->{$pos_stash}= $pos_stash= $stash->{$pos}= {};
+        $state->[STATE_POS_STASH]= $pos_stash= $stash->{$pos}= {};
     }
     if (exists($pos_stash->{$pos_stash_key}))
     {
@@ -1497,7 +1595,7 @@ sub match_with_memoize($$)
         if (NOMATCH() ne $stashed)
         {
             assert('ARRAY' eq ref($stashed)) if ASSERT();
-            $state->{pos}= $$stashed[STASHED_END];
+            $state->[STATE_POS]= $$stashed[STASHED_END];
             return ($$stashed[STASHED_MATCH]);
         }
         else {
@@ -1509,15 +1607,16 @@ sub match_with_memoize($$)
     my $result= &$method($t, $state);
 
     if (ASSERT()) {
-        #assert(matched($result) || $state->{pos} == $pos);
-        assert((NOMATCH() ne $result) || $state->{pos} == $pos);
+        #assert(matched($result) || $state->[STATE_POS] == $pos);
+        assert((NOMATCH() ne $result) || $state->[STATE_POS] == $pos);
     }
 
-    #my $stashed= matched($result) ? [$state->{pos}, $result] : NOMATCH();
-    my $stashed= (NOMATCH() ne $result) ? [$state->{pos}, $result] : NOMATCH();
+    #my $stashed= matched($result) ? [$state->[STATE_POS], $result] : NOMATCH();
+    my $stashed= (NOMATCH() ne $result) ? [$state->[STATE_POS], $result] : NOMATCH();
     if (DEBUG() && $log->is_debug()) {
-        $log->debug("Storing result in stash for ${pos} ->{$pos_stash_key} ("
-                    . $t->[PROD_NAME] . "): "
+        $log->debug("Storing result in stash for ${pos}->{$pos_stash_key}"
+                    . ($pos_stash_key ne $t->[PROD_NAME] ? " ($t->[PROD_NAME])" : "")
+                    . ": "
                     #. varstring('result', $result)
                     # FIXME: use OO syntax here: $result->toString()
                     . "\$result ="
@@ -1612,6 +1711,8 @@ sub init()
          'nelist'       => \&nelist_match,
          'pelist'       => \&pelist_match);
     #$match_log->info(varstring('methods', \%methods));
+
+    Parse::SiLLy::Result::matched_test();
 }
 
 # ====================================================================
@@ -1641,9 +1742,10 @@ sub init()
     #if (scalar(@_) > 0) { info(vdump('Args', \@_)); }
     $Data::Dumper::Indent= 1;
 
-    Parse::SiLLy::Grammar::init();
-
     $main_log= Logger->new('main');
+    assert_test($main_log);
+
+    Parse::SiLLy::Grammar::init();
 }
 
 # --------------------------------------------------------------------
@@ -1753,14 +1855,7 @@ sub test_minilang()
     require $grammar;
 
     $log->debug("--- Testing terminal_match...");
-    $state= { input => 'blah 123  456', pos=>0 };
-    if (Parse::SiLLy::Grammar::MEMOIZE() && ! exists($state->{stash})) {
-        # If these are disabled, memoization is not done:
-        # FIXME: Using memoization is currently slower than not doing it
-        # FIXME: This should be done by a constructor:
-        if (DEBUG() && $log->is_debug()) { $log->debug("Initializing stash..."); }
-        $state->{stash}= {};
-    }
+    $state= Parse::SiLLy::Grammar::Parser_new('blah 123  456');
 
     test1($log, "terminal_match", "minilang::Name",       $state, "blah");
     test1($log, "terminal_match", "minilang::Whitespace", $state, " ");
@@ -1769,7 +1864,7 @@ sub test_minilang()
     test1($log, "terminal_match", "minilang::Number",     $state, "456");
 
     $log->debug("--- Testing alternation_match...");
-    $state= { input => 'blah 123', pos=>0 };
+    $state= Parse::SiLLy::Grammar::Parser_new('blah 123');
     test1($log, "alternation_match", "minilang::Token",
           $state, ['minilang::Name', ['blah']]);
     test1($log, "match",             "minilang::Whitespace",
@@ -1778,7 +1873,7 @@ sub test_minilang()
           $state, ['minilang::Number', [123]]);
 
     $log->debug("--- Testing tokenization 1...");
-    $state= { input => 'blah "123"  456', pos=>0 };
+    $state= Parse::SiLLy::Grammar::Parser_new('blah "123"  456');
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
     if (DEBUG() && $log->is_debug()) {
@@ -1818,9 +1913,10 @@ sub test_minilang()
 
 
     $log->debug("--- Testing tokenization 2...");
-    #$state= { input => 'blah ("123", xyz(456 * 2)); end;', pos=>0 };
-    $state= { input => 'blah.("123", xyz.(456.*.2)); end;', pos=>0 };
-    #                   0....5....0....5..8..0
+    #$state= Parse::SiLLy::Grammar::Parser_new('blah ("123", xyz(456 * 2)); end;');
+    $state= Parse::SiLLy::Grammar::Parser_new('blah.("123", xyz.(456.*.2)); end;');
+    #                   0         1         2         3
+    #                   0....5....0....5..8.0....5....0.2
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
     if (DEBUG() && $log->is_debug()) {
@@ -1898,8 +1994,8 @@ sub test_minilang()
     $log->debug("--- Testing Program...");
     $log->debug("Program=$minilang::Program.");
     # FIXME: Get this (two-stage parsing) to work:
-    #$state= { input => $result, pos=>0 };
-    $state->{pos}= 0;
+    #$state= Parse::SiLLy::Grammar::Parser_new($result);
+    $state->[Parse::SiLLy::Grammar::STATE_POS()]= 0;
 
     # FIXME: Get this test to work
     $result= Parse::SiLLy::Grammar::match($minilang::Program, $state);
@@ -2006,6 +2102,9 @@ sub test_minilang()
 }
 
 # --------------------------------------------------------------------
+use constant NOMATCH => Parse::SiLLy::Result::NOMATCH();
+
+# --------------------------------------------------------------------
 sub test_xml()
 {
     my $log= $main_log;
@@ -2023,7 +2122,7 @@ sub test_xml()
  <td></td>
 </tr>
 
-    $state= { input => $xml, pos=>0 , stash=>{} };
+    $state= Parse::SiLLy::Grammar::Parser_new($xml);
 
     #$result= Parse::SiLLy::Grammar::match($Parse::SiLLy::Test::XML::Elem,
     #                                      $state);
@@ -2031,7 +2130,7 @@ sub test_xml()
     #    $log->debug(varstring('match XML::Elem result', $result));
     #}
     #Parse::SiLLy::Grammar::input_show_state($log, $state);
-    #check_result($result, 'Elem', $state->{input});
+    #check_result($result, 'Elem', $state->[STATE_INPUT]);
 
     {
     #my $top= "Parse::SiLLy::Test::XML::Elem";
@@ -2053,15 +2152,21 @@ sub test_xml()
     Parse::SiLLy::Grammar::input_show_state($log, $state);
 
     # FIXME: Unify this with the code in test_minilang:
+    # Decorates (qualifies) the names in the given 'expected' spec
     my $f;
     $f= sub {
         my ($name, @elts)= (@_);
         ["Parse::SiLLy::Test::XML::$name",
-         ('' eq ref($elts[0]) ? \@elts : [(map { &{$f}(@$_)} @elts)]),
+         (
+          'ARRAY' eq ref($elts[0]) ? [(map { &$f(@$_)} @elts)]
+          #: '' eq ref($elts[0]) ? \@elts
+          #: 'STRING' eq ref($elts[0]) ? \@elts
+          #'ERROR'
+          : \@elts
+          )
          ];
     };
     no strict 'subs';
-    #sub NOMATCH;
     my $expected=
   [Contentelem, [Complexelem,
     [Ltag, [Langle, '<'], [Owhite, NOMATCH], [Tagname, 'tr'], [Oattrs, NOMATCH], [Owhite, NOMATCH], [Rangle, '>']],
@@ -2083,8 +2188,12 @@ sub test_xml()
      ],
     [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, NOMATCH], [Tagname, 'tr'], [Owhite, NOMATCH], [Rangle, '>']]
     ]];
+    use strict 'subs';
+
+    #$log->info(varstring('expected before decorating', $expected));
     $expected= &$f(@$expected);
     $log->debug(varstring('expected', $expected));
+    #$log->info(varstring('expected', $expected));
     $log->debug('expected formatted as result: '.Parse::SiLLy::Result::toString($expected, " "));
     check_result($result, $top_name, $expected);
     }
@@ -2118,10 +2227,10 @@ sub read_data_old {
 sub do_one_run($$) {
     my ($state, $top)= @_;
     if (Parse::SiLLy::Grammar::MEMOIZE()) {
-        delete($state->{stash});
-        $state->{stash}= {};
+        #delete($state->{stash});
+        $state->[Parse::SiLLy::Grammar::STATE_STASH()]= {};
     }
-    $state->{pos}= 0;
+    $state->[Parse::SiLLy::Grammar::STATE_POS()]= 0;
     no strict 'refs';
     Parse::SiLLy::Grammar::match($ {"$top"}, $state);
 }
@@ -2182,7 +2291,7 @@ sub main
     $log->debug("input:\n$input_data");
     
     {
-    my $state= { input => $input_data, pos=>0, stash=>{} };
+    my $state= Parse::SiLLy::Grammar::Parser_new($input_data);
     my $top= "Parse::SiLLy::Test::XML::Contentlist";
     my $result;
     #$result= Parse::SiLLy::Grammar::match($::Elem, $state);
@@ -2205,8 +2314,9 @@ sub main
         #$log->debug(varstring('state', $state));
     }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
-    if (exists($state->{stash})) {
-        Parse::SiLLy::Grammar::show_stash($log, $state->{stash});
+    if (Parse::SiLLy::Grammar::MEMOIZE()) {
+        Parse::SiLLy::Grammar::show_stash(
+            $log, $state->[Parse::SiLLy::Grammar::STATE_STASH()] );
     }
     #print(Parse::SiLLy::Result::toString($result, " ")."\n");
     }
