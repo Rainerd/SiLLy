@@ -8,10 +8,12 @@ Example: perl -w parse.pl Test/xml-grammar.pl Test/XML/example.xml
 Debug:   PARSE_SILLY_DEBUG=1 perl -w parse.pl Test/xml-grammar.pl Test/XML/example.xml
 Profile: PARSE_SILLY_ASSERT=0 perl -w -d:DProf parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
 Profile: PARSE_SILLY_ASSERT=0 perl -w -I../.. -MDevel::Profiler parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
-Lint:    perl -w -MO=Lint,-context parse.pl Test/xml-grammar.pl Test/XML/example.xml
+Lint:    perl -w -MO=Lint parse.pl Test/xml-grammar.pl Test/XML/example.xml
 Fastest so far: PARSE_SILLY_ASSERT=0 perl parse.pl Test/xml-grammar.pl Test/XML/example.xml
 
 Note that the -w option may cost a percent or two of performance.
+
+Does not work with my Perl: PERL_DEBUG_MSTATS=2
 
 --------------------------------------------------------------------
 Copyright (c) 2004-2006 by Rainer Blome
@@ -218,7 +220,12 @@ use Carp;
 my $assert_action= \&confess; # Die with backtrace
 
 # --------------------------------------------------------------------
-sub assert($) { if (! $_[0]) { &$assert_action("Assertion failed.\n"); } }
+sub assert($) {
+    if (! $_[0]) {
+        $Carp::CarpLevel = 1;
+        &$assert_action("Assertion failed.\n");
+    }
+}
 
 # --------------------------------------------------------------------
 # Unit test for 'assert'
@@ -281,7 +288,13 @@ sub hash_get($$) {
     assert('' ne ref($hash)) if ASSERT();
     #assert("HASH" eq ref($hash)) if ASSERT(); # false if $hash refers to a blessed object
     #assert(defined($key)) if ASSERT();
-    assert(exists($hash->{$key})) if ASSERT();
+    #assert(exists($hash->{$key})) if ASSERT();
+    if (ASSERT()) {
+        # This silences the Lint-warning 'Implicit scalar context for hash',
+        # but is not acceptable:
+        #my %lhash= %$hash; assert(exists($lhash{$key}));
+        assert(exists($hash->{$key}));
+    }
     $hash->{$key};
 }
 
@@ -931,12 +944,14 @@ use constant STATE_INPUT => 0;
 use constant STATE_POS => 1;
 use constant STATE_STASH => 2;
 use constant STATE_POS_STASH => 3;
+# FIXME: Benchmark 'STATE_POS_INPUTS => 4' vs. 'STATE_POS_INPUTS => STATE_POS_STASH + 1'
+use constant STATE_POS_INPUTS => 4;
 
 # --------------------------------------------------------------------
 # FIXME: Packagize, objectify
 sub Parser_new($) {
     my ($input)= @_;
-    [$input, 0, {}, undef]; # input, pos, stash, pos_stash
+    [$input, 0, {}, undef, {}]; # input, pos, stash, pos_stash, pos_inputs
 }
 
 # --------------------------------------------------------------------
@@ -1112,6 +1127,8 @@ sub terminal#($$)
 
 # --------------------------------------------------------------------
 my $terminal_match_log;
+#my $pos_inputs= {};
+
 # --------------------------------------------------------------------
 sub terminal_match($$)
 {
@@ -1158,11 +1175,19 @@ sub terminal_match($$)
             }
 	    return (NOMATCH());
 	}
-    } else {
+    }
+    else {
+        # FIXME: Find out whether substrings are implemented as lightweight objects
+        # (refer to the original string).
+        #my $pos_input= $pos_inputs->{$pos};
+        my $pos_input= $state->[STATE_POS_INPUTS]->{$pos};
+        if ( ! defined($pos_input)) {
+            #$pos_input= $pos_inputs->{$pos}= substr($input, $pos);
+            $pos_input= $state->[STATE_POS_INPUTS]->{$pos}= substr($input, $pos);
+        }
         if (DEBUG() && $log->is_debug()) {
             $log->debug("$ctx: state->pos=$state->[STATE_POS],"
-                        . " substr(input, pos)='"
-                        . quotemeta(substr($input, $pos))."'");
+                        . " input at pos ='".quotemeta($pos_input)."'");
         }
 	#if (length($input)-1 < $pos) {
 	#    if (DEBUG() && $log->is_debug()) {$log->debug("$ctx: End Of Input reached");}
@@ -1175,11 +1200,12 @@ sub terminal_match($$)
         }
 
         # FIXME: Can we avoid repeated construction or copying of the
-        # same substring?  Looks like momoization does just that.
+        # same substring?  Looks like memoization does just that.
         # FIXME: Can we avoid substring construction or copying at all?
 	#($match)= substr($input, $pos) =~ m{^($pattern)}g;
         my $matcher= $t->[PROD_MATCHER];
-	($match)= &{$matcher} (substr($input, $pos));
+        #($match)= &{$matcher} (substr($input, $pos));
+        ($match)= &{$matcher}($pos_input);
 
         if (defined($match)) {
             if (DEBUG() && $log->is_debug()) {
@@ -2307,8 +2333,14 @@ sub do_runs($$$) {
 # --------------------------------------------------------------------
 sub main
 {
+    # Activate this to get a chance to attach a process monitor:
+    #sleep(5);
     init();
     my $log= $main_log;
+
+    # If Perl is started with -DL (which needs a Perl built with
+    # -DDEBUGGING), this prints memory usage statistics:
+    #warn('!');
     
     # Test 'def'
     #Parse::SiLLy::Grammar::def 'foo', {elt=>'bar'};
@@ -2323,7 +2355,7 @@ sub main
     (1 == $#ARG) or die($usage);
 
     $log->debug("---Reading and Evaluating grammar...");
-    my $grammar_filename= shift();
+    my $grammar_filename= shift(@_);
 =ignore
 
     open(GRAMMAR, "< $grammar_filename")
@@ -2343,7 +2375,7 @@ sub main
     $log->debug("Grammar evaluated.");
 
     $log->debug("---Reading input file...");
-    my $input= shift();
+    my $input= shift(@_);
     open(INPUT, "< $input") or die("Can't open \`$input'.");
     #read_data_old();
     my $input_data= read_INPUT_IRS();
@@ -2381,6 +2413,8 @@ sub main
     }
     #print(Parse::SiLLy::Result::toString($result, " ")."\n");
     }
+    #warn('!!!');
+    #sleep(5);
 }
 
 # --------------------------------------------------------------------
