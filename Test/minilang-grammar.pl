@@ -117,22 +117,17 @@ nelist Mchain,       LTerm, Period;
 
 #construction Expr,  Mchain;
 
+construction WSemicolon, Owhite, Semicolon, Owhite;
 # Non-empty list: Program ::+ Expr
-#nelist Program,     Expr, Semicolon;
-nelist Program,      Mchain, Semicolon;
+#nelist Program,     Expr, WSemicolon;
+nelist Program,      Mchain, WSemicolon;
 
 print("grammar.pl: ");
 print("Program='$minilang::Program'\n");
 #print("Program='$Program'\n");
 
-#$Exprlist->{element}= $Mchain;
-#$minilang::Exprlist->{element}= $minilang::Mchain;
-if (Parse::SiLLy::Grammar::PRODS_ARE_HASHES()) {
-    $minilang::Exprlist->{element}= $minilang::Mchain;
-}
-else {
-    $minilang::Exprlist->[Parse::SiLLy::Grammar::PROD_ELEMENT()]= $minilang::Mchain;
-}
+# Establish recursion:
+$minilang::Exprlist->[Parse::SiLLy::Grammar::PROD_ELEMENT()]= $minilang::Mchain;
 
 # --------------------------------------------------------------------
 # EOF
