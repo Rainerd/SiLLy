@@ -81,9 +81,6 @@ PARSE_SILLY_MEMOIZE=1 -- Turns on memoization.  This makes this a
 PARSE_SILLY_DEBUG=1 -- Enable debug messages.  This will slow the
   parser down by a factor of at least ten.
 
-PARSE_SILLY_PRODS_ARE_HASHES=0 -- Implement productions as arrays
-  instead of hashes.
-
 
 Design
 
@@ -105,6 +102,11 @@ o tuple rule attribute 'elements' is empty
 o Catch EOS in all matching functions
 
 TODO
+
+o pos: EOI: Set a flag in the state object, update the flag whenever
+  pos changes.
+o pos: EOI: Explicitly store the input length in the parser object?
+  No, using a flag seems better.
 
 o Memoization: Idea: When memoizing, do not memoize (store) the result
   for every equivalent parsing state alias item (nonterminal plus
@@ -943,18 +945,36 @@ sub show_stash($$)
 
 # --------------------------------------------------------------------
 use constant STATE_INPUT => 0;
-use constant STATE_POS => 1;
-use constant STATE_STASH => 2;
-# FIXME: Benchmark 'STATE_STASH => 4' vs. 'STATE_STASH => STATE_POS + 1'
-use constant STATE_POS_STASH => 3;
+#use constant STATE_POS => 1;
+use constant STATE_POS => STATE_INPUT + 1;
+#use constant STATE_STASH => 2;
+# FIXME: Benchmark 'STATE_STASH => 2' vs. 'STATE_STASH => STATE_POS + 1'
+use constant STATE_STASH => STATE_POS + 1;
+#use constant STATE_POS_STASH => 3;
+use constant STATE_POS_STASH => STATE_STASH + 1;
+
+# --------------------------------------------------------------------
+sub get_pos($) { pos($_[0]->[STATE_INPUT]); }
+
+# --------------------------------------------------------------------
+sub set_pos($$) {
+    pos($_[0]->[STATE_INPUT])= $_[1];
+
+    # FIXME: Move this decision up on the call stack, out of the
+    # top-level call to 'match'.
+    #if ('' eq ref($_[0]->[STATE_INPUT])) {
+    #    pos($_[0]->[STATE_INPUT])= $_[1];
+    #} else {
+    #    $_[0]->[STATE_POS]= $_[1];
+    #}
+}
 
 # --------------------------------------------------------------------
 # FIXME: Packagize, objectify
 sub Parser_new($) {
     my ($input)= @_;
     my $state= [$input, 0, {}, undef]; # input, pos, stash, pos_stash
-    #$state->[STATE_INPUT]=~ m/^/go; # Sets pos(input) to zero
-    pos($state->[STATE_INPUT])= 0;
+    set_pos($state, 0);
     $state;
 }
 
@@ -962,7 +982,7 @@ sub Parser_new($) {
 sub input_show_state($$) {
     my ($log, $state)= (@_);
     if ( ! $log->is_debug()) { return; }
-    $log->debug(varstring('state->pos', $state->[STATE_POS]));
+    $log->debug(varstring('state->pos', get_pos($state)));
 }
 
 # --------------------------------------------------------------------
@@ -982,9 +1002,8 @@ sub match_check_preconditions($$) {
 sub match_watch_args($$$) {
     my ($ctx, $log, $state)= (@_);
     assert(defined($ctx)) if ASSERT();
-    my $pos= $state->[STATE_POS];
+    my $pos= get_pos($state);
     $log->debug("$ctx: state->pos=$pos");
-    # FIXME: Use a faster method to access the parser state (array)
     if (MEMOIZE()) {
         show_pos_stash($log, stash_get_pos_stash($state->[STATE_STASH()], $pos),
                        $pos);
@@ -1139,7 +1158,7 @@ sub terminal#($$)
         eval('sub { my $bef= pos($_[0]->['.STATE_INPUT().']);'
              .(ASSERT()?' assert(defined($bef));':'')
     #         .' if ($_[0]->['.STATE_INPUT().'] !~ m{\G('.$pattern.')}og)'
-            .' if ($_[0]->['.STATE_INPUT().'] !~ m{\G'.$pattern.'}og)'
+             .' if ($_[0]->['.STATE_INPUT().'] !~ m{\G'.$pattern.'}og)'
              .' { pos($_[0]->['.STATE_INPUT().'])= $bef; undef; }'
     #         .' else { $1; }'
              .' else'
@@ -1168,7 +1187,7 @@ sub terminal_match($$)
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
     
     my $input= $state->[STATE_INPUT];
-    my $pos= $state->[STATE_POS];
+    my $pos= get_pos($state);
     #my ($match)= $state->[STATE_INPUT]=~ m{^$t->[PROD_PATTERN]}g;
     my $match;
     #$log->debug("$ctx: ref(input)=" . ref($state->[STATE_INPUT]) . ".");
@@ -1208,8 +1227,7 @@ sub terminal_match($$)
     else
     {
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: state->pos=$state->[STATE_POS],"
-                        . " input at pos ='"
+            $log->debug("$ctx: input at pos $pos ='"
                         . quotemeta(substr($state->[STATE_INPUT], $pos, 80))
                         . "'");
         }
@@ -1229,8 +1247,7 @@ sub terminal_match($$)
 	#($match)= substr($state->[STATE_INPUT], $pos) =~ m{^($pattern)}g;
         my $matcher= $t->[PROD_MATCHER];
         #($match)= &{$matcher} (substr($state->[STATE_INPUT], $pos));
-        #($match)= &{$matcher}($pos_input);
-        #pos($state->[STATE_INPUT])= $pos;
+        #set_pos($state)= $pos;
 
         if (DEBUG() && $log->is_debug()) {
             my $match_pos= pos($state->[STATE_INPUT]);
@@ -1264,7 +1281,7 @@ sub terminal_match($$)
             }
 	    if (DEBUG() && $log->is_debug()) {
                 #$log->debug(varstring('state', $state));
-                $log->debug("$ctx: state->pos=$state->[STATE_POS]");
+                $log->debug("$ctx: pos=$pos");
             }
 	    $result;
 	} else {
@@ -1312,7 +1329,7 @@ sub construction_match($$)
     }
 
     my $result_elements= [];
-    my $saved_pos= $state->[STATE_POS];
+    my $saved_pos= get_pos($state);
 
     # foreach $element in $t's elements
     map {
@@ -1338,8 +1355,7 @@ sub construction_match($$)
 	    # only place where a failure may occur after pos has been
 	    # already moved.
 
-	    $state->[STATE_POS]= $saved_pos;
-            pos($state->[STATE_INPUT])= $saved_pos;
+	    set_pos($state, $saved_pos);
             if (MEMOIZE()) {
                 $state->[STATE_POS_STASH]=
                     stash_get_pos_stash($state->[STATE_STASH], $saved_pos);
@@ -1681,11 +1697,9 @@ sub match_with_memoize($$)
 
         assert(defined($state));
         assert('' ne ref($state));
-
-        #assert(exists($state->[STATE_POS]));
     }
 
-    my $pos= $state->[STATE_POS];
+    my $pos= get_pos($state);
     if (ASSERT()) {
         assert(defined($pos));
         assert('' eq ref($pos));
@@ -1701,29 +1715,24 @@ sub match_with_memoize($$)
     my $stash= $state->[STATE_STASH];
     my $pos_stash= stash_get_pos_stash($stash, $pos);
     #my $pos_stash= $stash->{$pos};
-    # FIXME: Activate:
+    # FIXME: Activate use of STATE_POS_STASH
     #my $pos_stash= $state->[STATE_POS_STASH];
     if ( ! defined($pos_stash)) {
         if (DEBUG() && $log->is_debug()) {
             $log->debug("New position $pos, creating pos stash for it...");
         }
-        #$state->[STATE_POS_STASH]= $pos_stash= $stash->{$pos}= {};
         $state->[STATE_POS_STASH]= $pos_stash= $stash->{$pos}= [];
     }
-    #if (exists($pos_stash->{$pos_stash_key}))
     my $stashed= $pos_stash->[$pos_stash_key];
     if (defined($stashed))
     {
-        #my $stashed= $pos_stash->[$pos_stash_key];
-        #assert(defined($stashed)) if ASSERT();
         if (DEBUG() && $log->is_debug()) {
             $log->debug("Found in stash: ".format_stashed($stashed));
         }
         if (NOMATCH() ne $stashed)
         {
             assert('ARRAY' eq ref($stashed)) if ASSERT();
-            $state->[STATE_POS]= $$stashed[STASHED_END];
-            pos($state->[STATE_INPUT])= $$stashed[STASHED_END];
+            set_pos($state, $$stashed[STASHED_END]);
             return ($$stashed[STASHED_MATCH]);
         }
         else {
@@ -1735,13 +1744,15 @@ sub match_with_memoize($$)
     my $result= &$method($t, $state);
 
     if (ASSERT()) {
-        #assert(matched($result) || $state->[STATE_POS] == $pos);
-        assert((NOMATCH() ne $result) || $state->[STATE_POS] == $pos);
+        #assert(matched($result) || get_pos($state) == $pos);
+        assert((NOMATCH() ne $result) || get_pos($state) == $pos);
     }
 
-    #my $stashed= matched($result) ? [$state->[STATE_POS], $result] : NOMATCH();
     #my
-    $stashed= (NOMATCH() ne $result) ? [$state->[STATE_POS], $result] : NOMATCH();
+    $stashed=
+        #matched($result)
+        (NOMATCH() ne $result)
+        ? [get_pos($state), $result] : NOMATCH();
     if (DEBUG() && $log->is_debug()) {
         $log->debug("Storing result in stash for ${pos}->$pos_stash_key"
                     . ($pos_stash_key ne $t->[PROD_NAME] ? " ($t->[PROD_NAME])" : "")
@@ -2115,8 +2126,7 @@ sub test_minilang()
     $log->debug("Program=$minilang::Program.");
     # FIXME: Get this (two-stage parsing) to work:
     #$state= Parse::SiLLy::Grammar::Parser_new($result);
-    $state->[Parse::SiLLy::Grammar::STATE_POS()]= 0;
-    pos($state->[Parse::SiLLy::Grammar::STATE_INPUT()])= 0;
+    Parse::SiLLy::Grammar::set_pos($state, 0);
 
     # FIXME: Get this test to work
     $result= Parse::SiLLy::Grammar::match($minilang::Program, $state);
@@ -2391,8 +2401,7 @@ sub do_one_run($$) {
         #delete($state->{stash});
         $state->[Parse::SiLLy::Grammar::STATE_STASH()]= {};
     }
-    $state->[Parse::SiLLy::Grammar::STATE_POS()]= 0;
-    pos($state->[Parse::SiLLy::Grammar::STATE_INPUT()])= 0;
+    Parse::SiLLy::Grammar::set_pos($state, 0);
     no strict 'refs';
     Parse::SiLLy::Grammar::match($ {"$top"}, $state);
 }
@@ -2402,6 +2411,9 @@ sub do_runs($$$) {
     my ($n, $state, $top)= @_;
     for (my $i= 0; $i<$n; ++$i) { do_one_run($state, $top); }
 }
+
+# --------------------------------------------------------------------
+=ignore
 
 sub pos_test($)
 {
@@ -2501,6 +2513,8 @@ sub pos_test($)
 }
 }
 
+=cut
+
 # --------------------------------------------------------------------
 sub init()
 {
@@ -2519,7 +2533,7 @@ sub init()
 
     $main_log= Logger->new('main');
     assert_test($main_log);
-    pos_test($main_log);
+    #pos_test($main_log);
 
     Parse::SiLLy::Grammar::init();
 }
