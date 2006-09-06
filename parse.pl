@@ -238,20 +238,22 @@ sub assert_test($)
     my $flag= 1;
     eval('assert(0 == 0); $flag= 0;');
     my $saved_at_value= $@;
-    $log->debug(varstring('@', $saved_at_value));
+    # Check the $@ value before checking the flag,
+    # so we can see its contents before dying
+    if ("" ne $saved_at_value) {
+        $log->debug(varstring('@', $saved_at_value));
+        die("$ctx: 'assert(0==0)' failed: \$\@ is not empty,"
+            . " but should be empty: '$@'\n");
+    }
     if (1 == $flag) {
         die("$ctx: 'assert(0==0); \$flag= 0' failed: flag is now 1,"
             . " but should be 0.\n");
     }
-    if ("" ne $saved_at_value) {
-        die("$ctx: 'assert(0==0)' failed: \$\@ is not empty,"
-            . " but should be empty: '$@'\n");
-    }
 
     eval('assert(0 == 1); $flag= 1;');
     $saved_at_value= $@;
-    $log->debug(varstring('@', $saved_at_value));
     if (1 == $flag) {
+        $log->debug(varstring('@', $saved_at_value));
         die("$ctx: 'assert(0==1); \$flag= 1' failed: flag is now 1,"
             . " but should be 0.\n");
     }
@@ -951,7 +953,10 @@ use constant STATE_POS_INPUTS => 4;
 # FIXME: Packagize, objectify
 sub Parser_new($) {
     my ($input)= @_;
-    [$input, 0, {}, undef, {}]; # input, pos, stash, pos_stash, pos_inputs
+    my $state= [$input, 0, {}, undef, {}]; # input, pos, stash, pos_stash, pos_inputs
+    #$state->[STATE_INPUT]=~ m/^/go; # Sets pos(input) to zero
+    pos($state->[STATE_INPUT])= 0;
+    $state;
 }
 
 # --------------------------------------------------------------------
@@ -1120,14 +1125,39 @@ sub terminal#($$)
     # The goal here is to let Perl compile the pattern matcher only once,
     # when the terminal is defined (in other words, here, when the
     # subroutine is compiled), and not at every parse.
-    my $matcher= eval("sub { \$_[0] =~ m{^($pattern)}og; }");
+    #my $matcher= eval("sub { \$_[0] =~ m{^($pattern)}og; }");
+    #my $matcher= eval("sub { \$ \$_[0] =~ m{^($pattern)}og; }");
+    # FIXME: When pos instead of substrings is used, the ^ here will
+    # not work as needed, use \G instead:
+    #my $matcher= eval("sub { \$_[0]->[STATE_INPUT()]=~ m{^($pattern)}og; \$1; }");
+    # FIXME: perldoc perlre says that using parentheses slows down ALL matchers,
+    #  So try to get by without them.
+    #  Maybe use substr($input, $before, $pos-$before) instead.
+    #my $matcher= eval("sub { (\$_[0]->[STATE_INPUT()]=~ m{\\G($pattern)}og) && \$1; }");
+    #my $matcher= eval('sub { ($_[0]->['.STATE_INPUT().']=~ m{\G('.$pattern.')}og) && $1; }');
+    #my $matcher= eval('sub { ($_[0]->['.STATE_INPUT().']=~ m{\G('.$pattern.')}og) && $1; }');
+    my $matcher=
+        eval('sub { my $bef= pos($_[0]->['.STATE_INPUT().']);'
+             .(ASSERT()?' assert(defined($bef));':'')
+    #         .' if ($_[0]->['.STATE_INPUT().'] !~ m{\G('.$pattern.')}og)'
+            .' if ($_[0]->['.STATE_INPUT().'] !~ m{\G'.$pattern.'}og)'
+             .' { pos($_[0]->['.STATE_INPUT().'])= $bef; undef; }'
+    #         .' else { $1; }'
+             .' else'
+             .' { substr($_[0]->['.STATE_INPUT().'], $bef, pos($_[0]->['.STATE_INPUT().']) - $bef); }'
+             .'}');
+    #    eval('sub { my $s= \$_[0]->['.STATE_INPUT().'];'
+    #         .' my $bef= pos($$s); '.(ASSERT()?'assert(defined($bef)); ':'')
+    #         .' if ($$s !~ m{\G'.$pattern.'}og)'
+    #         .' { pos($$s)= $bef; undef }'
+    #         .' else { substr($$s, $bef, pos($$s) - $bef); }'
+    #         .'}');
 
     def($log, 'terminal', $name, [$pattern, $matcher], caller());
 }
 
 # --------------------------------------------------------------------
 my $terminal_match_log;
-#my $pos_inputs= {};
 
 # --------------------------------------------------------------------
 sub terminal_match($$)
@@ -1140,14 +1170,14 @@ sub terminal_match($$)
     
     my $input= $state->[STATE_INPUT];
     my $pos= $state->[STATE_POS];
-    #my ($match)= $input =~ m{^$t->[PROD_PATTERN]}g;
+    #my ($match)= $state->[STATE_INPUT]=~ m{^$t->[PROD_PATTERN]}g;
     my $match;
-    #$log->debug("$ctx: ref(input)=" . ref($input) . ".");
-    if (eoi($input, $pos)) {
+    #$log->debug("$ctx: ref(input)=" . ref($state->[STATE_INPUT]) . ".");
+    if (eoi($state->[STATE_INPUT], $pos)) {
 	if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: End Of Input reached"); }
 	return (NOMATCH());
     }
-    if ('ARRAY' eq ref($input)) {
+    if ('ARRAY' eq ref($state->[STATE_INPUT])) {
 	if (DEBUG() && $log->is_debug()) {
             $log->debug("$ctx: state->pos=$state->[STATE_POS],"
                         . " input[0]->name=", $ {@$input}[0]->[PROD_NAME]);
@@ -1176,20 +1206,29 @@ sub terminal_match($$)
 	    return (NOMATCH());
 	}
     }
-    else {
-        # FIXME: Find out whether substrings are implemented as lightweight objects
-        # (refer to the original string).
+    else
+    {
+=ignore
+
+        #if (USE_POS_INPUTS)
+        # FIXME: Q: Are substrings implemented as lightweight objects
+        # (refer to the original string)?  A: No, substr returns a copy.
         #my $pos_input= $pos_inputs->{$pos};
         my $pos_input= $state->[STATE_POS_INPUTS]->{$pos};
         if ( ! defined($pos_input)) {
             #$pos_input= $pos_inputs->{$pos}= substr($input, $pos);
             $pos_input= $state->[STATE_POS_INPUTS]->{$pos}= substr($input, $pos);
         }
+
+=cut
+
         if (DEBUG() && $log->is_debug()) {
             $log->debug("$ctx: state->pos=$state->[STATE_POS],"
-                        . " input at pos ='".quotemeta($pos_input)."'");
+                        . " input at pos ='"
+                        . quotemeta(substr($state->[STATE_INPUT], $pos, 80))
+                        . "'");
         }
-	#if (length($input)-1 < $pos) {
+	#if (length($state->[STATE_INPUT])-1 < $pos) {
 	#    if (DEBUG() && $log->is_debug()) {$log->debug("$ctx: End Of Input reached");}
 	#    return (NOMATCH());
 	#}
@@ -1202,19 +1241,37 @@ sub terminal_match($$)
         # FIXME: Can we avoid repeated construction or copying of the
         # same substring?  Looks like memoization does just that.
         # FIXME: Can we avoid substring construction or copying at all?
-	#($match)= substr($input, $pos) =~ m{^($pattern)}g;
+	#($match)= substr($state->[STATE_INPUT], $pos) =~ m{^($pattern)}g;
         my $matcher= $t->[PROD_MATCHER];
-        #($match)= &{$matcher} (substr($input, $pos));
-        ($match)= &{$matcher}($pos_input);
+        #($match)= &{$matcher} (substr($state->[STATE_INPUT], $pos));
+        #($match)= &{$matcher}($pos_input);
+        #pos($state->[STATE_INPUT])= $pos;
+
+        if (DEBUG() && $log->is_debug()) {
+            my $match_pos= pos($state->[STATE_INPUT]);
+            $log->debug("$ctx: pos=".(defined($match_pos)?$match_pos:"undef"));
+        }
+        #&{$matcher}($state->[STATE_INPUT]);
+        #&$matcher(\$state->[STATE_INPUT]);
+        $match= &$matcher($state);
+        #$state->[STATE_INPUT]=~ m{^($pattern)}g;
+        #$match= $1;
+        if (DEBUG() && $log->is_debug()) {
+            my $match_pos= pos($state->[STATE_INPUT]);
+            $log->debug("$ctx: pos=".(defined($match_pos)?$match_pos:"undef"));
+        }
 
         if (defined($match)) {
             if (DEBUG() && $log->is_debug()) {
+                $log->debug("$ctx: end pos=".pos($state->[STATE_INPUT]));
                 $log->debug("$ctx: matched text: '".quotemeta($match)."'");
             }
             #my $result= {_=>$t, text=>$match};
 	    #my $result= make_result($t, [$match]);
 	    my $result= [$t->[PROD_NAME], [$match]];
+            # FIXME: Let the matcher do this?:
 	    $state->[STATE_POS]= $pos += length($match);
+            assert($state->[STATE_POS] == pos($state->[STATE_INPUT])) if ASSERT();
             # Move this to match_with_memoize?
             if (MEMOIZE()) {
                 $state->[STATE_POS_STASH]=
@@ -1297,6 +1354,7 @@ sub construction_match($$)
 	    # already moved.
 
 	    $state->[STATE_POS]= $saved_pos;
+            pos($state->[STATE_INPUT])= $saved_pos;
             if (MEMOIZE()) {
                 $state->[STATE_POS_STASH]=
                     stash_get_pos_stash($state->[STATE_STASH], $saved_pos);
@@ -1680,6 +1738,7 @@ sub match_with_memoize($$)
         {
             assert('ARRAY' eq ref($stashed)) if ASSERT();
             $state->[STATE_POS]= $$stashed[STASHED_END];
+            pos($state->[STATE_INPUT])= $$stashed[STASHED_END];
             return ($$stashed[STASHED_MATCH]);
         }
         else {
@@ -1811,6 +1870,8 @@ use strict;
 use diagnostics;
 #use English;
 
+#use constant DEBUG => Parse::SiLLy::Grammar::DEBUG();
+
 # --------------------------------------------------------------------
 sub handle_item
 {
@@ -1819,23 +1880,6 @@ sub handle_item
 
 # --------------------------------------------------------------------
 my $main_log;
-
-# --------------------------------------------------------------------
-sub init()
-{
-    #Log::Log4perl->easy_init($INFO);
-    #Log::Log4perl->easy_init($DEBUG);
-    Log::Log4perl->easy_init(Parse::SiLLy::Grammar::DEBUG() ? $DEBUG : $INFO);
-    #$logger= get_logger();
-    #$logger->info("Running...");
-    #if (scalar(@_) > 0) { info(vdump('Args', \@_)); }
-    $Data::Dumper::Indent= 1;
-
-    $main_log= Logger->new('main');
-    assert_test($main_log);
-
-    Parse::SiLLy::Grammar::init();
-}
 
 # --------------------------------------------------------------------
 sub elements($) {
@@ -1868,7 +1912,7 @@ sub elements($) {
 sub check_result($$$) {
     my ($result, $expected_typename, $expected_text)= (@_);
     assert(defined($result));
-    #assert(Parse::SiLLy::Grammar::matched($result));
+    assert(Parse::SiLLy::Grammar::matched($result));
     assert('ARRAY' eq ref($result));
     #print(varstring('result', $result)."\n");
     #print('$result='.Parse::SiLLy::Result::toString($result)."\n");
@@ -1920,7 +1964,8 @@ sub test1($$$$$)
     if ('' ne $@) { die("eval('$call') failed: '$@'\n"); }
 
     assert(defined($result));
-    if (DEBUG() && $log->is_debug()) {
+    # FIXME: Check DEBUG calls
+    if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
         #$log->debug(varstring("$matcher $element result", $result));
         $log->debug("$matcher $element result = "
                     . Parse::SiLLy::Result::toString($result, " "));
@@ -2002,10 +2047,11 @@ sub test_minilang()
 
 
     $log->debug("--- Testing tokenization 2...");
-    #$state= Parse::SiLLy::Grammar::Parser_new('blah ("123", xyz(456 * 2)); end;');
-    $state= Parse::SiLLy::Grammar::Parser_new('blah.("123", xyz.(456.*.2)); end;');
-    #                   0         1         2         3
-    #                   0....5....0....5..8.0....5....0.2
+    #my $input= 'blah ("123", xyz(456 * 2)); end;';
+    my $input= 'blah.("123", xyz.(456.*.2)); end;';
+    #           0         1         2         3
+    #           0....5....0....5..8.0....5....0.2
+    $state= Parse::SiLLy::Grammar::Parser_new($input);
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
     if (DEBUG() && $log->is_debug()) {
@@ -2078,13 +2124,14 @@ sub test_minilang()
     }
     #@$expected;
     @$expected_tokens;
-    Sump::Validate::Compare($expected, $result);
+    assert(Sump::Validate::Compare($expected, $result));
 
     $log->debug("--- Testing Program...");
     $log->debug("Program=$minilang::Program.");
     # FIXME: Get this (two-stage parsing) to work:
     #$state= Parse::SiLLy::Grammar::Parser_new($result);
     $state->[Parse::SiLLy::Grammar::STATE_POS()]= 0;
+    pos($state->[Parse::SiLLy::Grammar::STATE_INPUT()])= 0;
 
     # FIXME: Get this test to work
     $result= Parse::SiLLy::Grammar::match($minilang::Program, $state);
@@ -2141,6 +2188,8 @@ sub test_minilang()
 
 =cut
 
+=ignore
+
     $expected=
     ['Program',
      ['Mchain',
@@ -2178,6 +2227,40 @@ sub test_minilang()
       ],
      ['Semicolon', ';'],
      ];
+
+=cut
+
+    $expected=
+    ['Program',
+     ['Mchain',
+      ['LTerm', ['Name', 'blah']],
+      ['LTerm', ['Tuple',
+        ['Lparen',    '('],
+        ['Exprlist',
+         ['Mchain',
+          ['LTerm', ['Literal', ['String', '"123"']]],
+          ],
+         ['Mchain',
+          ['LTerm', ['Name', 'xyz']],
+          ['LTerm', ['Tuple',
+            ['Lparen',    '('],
+            ['Exprlist',
+             ['Mchain',
+              ['LTerm', ['Literal', ['Number', 456]]],
+              ['LTerm', ['Name', '*']],
+              ['LTerm', ['Literal', ['Number', 2]]],
+              ]],
+            ['Rparen', ')'],
+            ]]]],
+        ['Rparen', ')'],
+        ],
+       ], # Term
+      ], # Mchain
+     ['Mchain',
+      ['LTerm', ['Name', 'end']],
+      ],
+     ];
+
     my $f;
     $f= sub {
         my ($name, @elts)= (@_);
@@ -2186,8 +2269,12 @@ sub test_minilang()
          ];
     };
     $expected= &$f(@$expected);
+    $log->debug(varstring('expected', $expected));
+    $log->debug('expected formatted as result: '
+                . Parse::SiLLy::Result::toString($expected, " ")
+                );
 
-    Sump::Validate::Compare($expected, $result);
+    assert(Sump::Validate::Compare($expected, $result));
 }
 
 # --------------------------------------------------------------------
@@ -2320,6 +2407,7 @@ sub do_one_run($$) {
         $state->[Parse::SiLLy::Grammar::STATE_STASH()]= {};
     }
     $state->[Parse::SiLLy::Grammar::STATE_POS()]= 0;
+    pos($state->[Parse::SiLLy::Grammar::STATE_INPUT()])= 0;
     no strict 'refs';
     Parse::SiLLy::Grammar::match($ {"$top"}, $state);
 }
@@ -2328,6 +2416,127 @@ sub do_one_run($$) {
 sub do_runs($$$) {
     my ($n, $state, $top)= @_;
     for (my $i= 0; $i<$n; ++$i) { do_one_run($state, $top); }
+}
+
+sub pos_test($)
+{
+    my ($log)= @_;
+
+    # Elementary test
+{
+    my $text= "012abc345";
+    my $match;
+    assert( ! defined(pos($text)));
+    # Who knows, maybe the first pos call changes some state.
+    assert( ! defined(pos($text)));
+    assert( ! defined($match));
+
+    $text=~ m/\G/go;
+    assert(defined(pos($text)));
+    assert(0==pos($text));
+    $match= $1;
+    assert( ! defined($match));
+
+    $text=~ m/\G012/go;
+    assert(defined(pos($text)));
+    assert(3==pos($text));
+    $match= $1;
+    assert( ! defined($match));
+
+    $text=~ m/\G(a.c)/go;
+    $match= $1;
+    if ( ! defined(pos($text))) {
+        print("match='".(defined($match)?$match:"undef")."'\n");
+    }
+    assert(defined(pos($text)));
+    assert(6==pos($text));
+    assert("abc" eq $match);
+
+    $text=~ m/\G(.4)/go;
+    $match= $1;
+    assert(defined(pos($text)));
+    assert(8==pos($text));
+    assert("34" eq $match);
+
+    $text=~ m/\G(5)/go;
+    $match= $1;
+    assert(defined(pos($text)));
+    assert(9==pos($text));
+    assert("5" eq $match);
+
+    $text=~ m/\G/go;
+    $match= $1;
+    assert(defined(pos($text)));
+    assert(9==pos($text));
+    assert( ! defined($match));
+
+    $text=~ m/\G./go;
+    $match= $1;
+    assert( ! defined(pos($text)));
+    assert( ! defined($match));
+}
+    
+    # Array Element Test
+{
+    my $text= "01def678";
+    my $match;
+    assert( ! defined(pos($text)));
+    assert( ! defined(pos($text)));
+    assert( ! defined($match));
+    my $a= [$text];
+    assert( ! defined(pos($a->[0])));
+    assert( ! defined(pos($a->[0])));
+
+    $a->[0]=~ m/\G01/go;
+    assert(defined(pos($a->[0])));
+    assert(2==pos($a->[0]));
+
+    $a->[0]=~ m/\G(d.f)/go;
+    $match= $1;
+    assert(defined(pos($a->[0])));
+    assert(5==pos($a->[0]));
+    assert("def" eq $match);
+
+    $a->[0]=~ m/\G(.7)/go;
+    $match= $1;
+    assert(defined(pos($a->[0])));
+    assert(7==pos($a->[0]));
+    assert("67" eq $match);
+
+    $a->[0]=~ m/\G(..)/go;
+    # CAVEAT! $1 is still the value of the previous successful match
+    #assert( ! defined($1));
+    $match= $1;
+    print("match='".(defined($match)?$match:"undef")."'\n");
+    assert( ! defined(pos($a->[0])));
+}
+
+{
+    #exit(0);
+}
+}
+
+# --------------------------------------------------------------------
+sub init()
+{
+    # Turn all warnings into errors
+    $SIG{__WARN__}= sub{ confess(@_); };
+    # Turn all warnings excepts about deep recursion into errors
+    #$SIG{__WARN__} = sub { $_[0] =~ /recursion/ and confess(@_); warn(@_) };
+
+    #Log::Log4perl->easy_init($INFO);
+    #Log::Log4perl->easy_init($DEBUG);
+    Log::Log4perl->easy_init(Parse::SiLLy::Grammar::DEBUG() ? $DEBUG : $INFO);
+    #$logger= get_logger();
+    #$logger->info("Running...");
+    #if (scalar(@_) > 0) { info(vdump('Args', \@_)); }
+    $Data::Dumper::Indent= 1;
+
+    $main_log= Logger->new('main');
+    assert_test($main_log);
+    pos_test($main_log);
+
+    Parse::SiLLy::Grammar::init();
 }
 
 # --------------------------------------------------------------------
