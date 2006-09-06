@@ -81,9 +81,6 @@ PARSE_SILLY_MEMOIZE=1 -- Turns on memoization.  This makes this a
 PARSE_SILLY_DEBUG=1 -- Enable debug messages.  This will slow the
   parser down by a factor of at least ten.
 
-PARSE_SILLY_PRODS_ARE_HASHES=0 -- Implement productions as arrays
-  instead of hashes.
-
 
 Design
 
@@ -105,6 +102,11 @@ o tuple rule attribute 'elements' is empty
 o Catch EOS in all matching functions
 
 TODO
+
+o pos: EOI: Set a flag in the state object, update the flag whenever
+  pos changes.
+o pos: EOI: Explicitly store the input length in the parser object?
+  No, using a flag seems better.
 
 o Memoization: Idea: When memoizing, do not memoize (store) the result
   for every equivalent parsing state alias item (nonterminal plus
@@ -943,19 +945,30 @@ sub show_stash($$)
 
 # --------------------------------------------------------------------
 use constant STATE_INPUT => 0;
-use constant STATE_POS => 1;
-use constant STATE_STASH => 2;
-use constant STATE_POS_STASH => 3;
-# FIXME: Benchmark 'STATE_POS_INPUTS => 4' vs. 'STATE_POS_INPUTS => STATE_POS_STASH + 1'
-use constant STATE_POS_INPUTS => 4;
+#use constant STATE_POS => 1;
+use constant STATE_POS => STATE_INPUT + 1;
+#use constant STATE_STASH => 2;
+use constant STATE_STASH => STATE_POS + 1;
+#use constant STATE_POS_STASH => 3;
+use constant STATE_POS_STASH => STATE_STASH + 1;
+## FIXME: Benchmark 'STATE_POS_INPUTS => 4' vs. 'STATE_POS_INPUTS => STATE_POS_STASH + 1'
+#use constant STATE_POS_INPUTS => 4;
+
+# --------------------------------------------------------------------
+sub set_pos($$) {
+    if ('' eq ref($_[0]->[STATE_INPUT])) {
+        pos($_[0]->[STATE_INPUT])= $_[1];
+    } else {
+        $_[0]->[STATE_POS]= $_[1];
+    }
+}
 
 # --------------------------------------------------------------------
 # FIXME: Packagize, objectify
 sub Parser_new($) {
     my ($input)= @_;
-    my $state= [$input, 0, {}, undef, {}]; # input, pos, stash, pos_stash, pos_inputs
-    #$state->[STATE_INPUT]=~ m/^/go; # Sets pos(input) to zero
-    pos($state->[STATE_INPUT])= 0;
+    my $state= [$input, 0, {}, undef]; # input, pos, stash, pos_stash
+    set_pos($state, 0);
     $state;
 }
 
@@ -963,7 +976,7 @@ sub Parser_new($) {
 sub input_show_state($$) {
     my ($log, $state)= (@_);
     if ( ! $log->is_debug()) { return; }
-    $log->debug(varstring('state->pos', $state->[STATE_POS]));
+    $log->debug(varstring('state->pos', pos($state->[STATE_INPUT])));
 }
 
 # --------------------------------------------------------------------
@@ -983,7 +996,7 @@ sub match_check_preconditions($$) {
 sub match_watch_args($$$) {
     my ($ctx, $log, $state)= (@_);
     assert(defined($ctx)) if ASSERT();
-    my $pos= $state->[STATE_POS];
+    my $pos= pos($state->[STATE_INPUT]);
     $log->debug("$ctx: state->pos=$pos");
     # FIXME: Use a faster method to access the parser state (array)
     if (MEMOIZE()) {
@@ -1169,7 +1182,7 @@ sub terminal_match($$)
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
     
     my $input= $state->[STATE_INPUT];
-    my $pos= $state->[STATE_POS];
+    my $pos= pos($state->[STATE_INPUT]);
     #my ($match)= $state->[STATE_INPUT]=~ m{^$t->[PROD_PATTERN]}g;
     my $match;
     #$log->debug("$ctx: ref(input)=" . ref($state->[STATE_INPUT]) . ".");
@@ -1179,7 +1192,7 @@ sub terminal_match($$)
     }
     if ('ARRAY' eq ref($state->[STATE_INPUT])) {
 	if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: state->pos=$state->[STATE_POS],"
+            $log->debug("$ctx: pos=$pos,"
                         . " input[0]->name=", $ {@$input}[0]->[PROD_NAME]);
         }
 	#if ($#{@$input} < $pos) {
@@ -1208,20 +1221,6 @@ sub terminal_match($$)
     }
     else
     {
-=ignore
-
-        #if (USE_POS_INPUTS)
-        # FIXME: Q: Are substrings implemented as lightweight objects
-        # (refer to the original string)?  A: No, substr returns a copy.
-        #my $pos_input= $pos_inputs->{$pos};
-        my $pos_input= $state->[STATE_POS_INPUTS]->{$pos};
-        if ( ! defined($pos_input)) {
-            #$pos_input= $pos_inputs->{$pos}= substr($input, $pos);
-            $pos_input= $state->[STATE_POS_INPUTS]->{$pos}= substr($input, $pos);
-        }
-
-=cut
-
         if (DEBUG() && $log->is_debug()) {
             $log->debug("$ctx: state->pos=$state->[STATE_POS],"
                         . " input at pos ='"
@@ -2406,7 +2405,7 @@ sub do_one_run($$) {
         #delete($state->{stash});
         $state->[Parse::SiLLy::Grammar::STATE_STASH()]= {};
     }
-    $state->[Parse::SiLLy::Grammar::STATE_POS()]= 0;
+    Parse::SiLLy::Grammar::set_pos($state, 0);
     pos($state->[Parse::SiLLy::Grammar::STATE_INPUT()])= 0;
     no strict 'refs';
     Parse::SiLLy::Grammar::match($ {"$top"}, $state);
