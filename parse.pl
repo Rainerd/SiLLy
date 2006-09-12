@@ -1143,6 +1143,10 @@ sub terminal#($$)
     # The goal here is to let Perl compile the pattern matcher only once,
     # when the terminal is defined (in other words, here, when the
     # subroutine is compiled), and not at every parse.
+
+    # FIXME: Maybe this goal is better achieved by "loading the
+    # grammar at compile-time"?  What does this mean?
+
     #my $matcher= eval("sub { \$_[0] =~ m{^($pattern)}og; }");
     #my $matcher= eval("sub { \$ \$_[0] =~ m{^($pattern)}og; }");
     # FIXME: When pos instead of substrings is used, the ^ here will
@@ -1155,14 +1159,21 @@ sub terminal#($$)
     #my $matcher= eval('sub { ($_[0]->['.STATE_INPUT().']=~ m{\G('.$pattern.')}og) && $1; }');
     #my $matcher= eval('sub { ($_[0]->['.STATE_INPUT().']=~ m{\G('.$pattern.')}og) && $1; }');
     my $matcher=
-        eval('sub { my $bef= pos($_[0]->['.STATE_INPUT().']);'
+#         eval('sub { my $bef= pos($_[0]->['.STATE_INPUT().']);'
+#              .(ASSERT()?' assert(defined($bef));':'')
+#     #         .' if ($_[0]->['.STATE_INPUT().'] !~ m{\G('.$pattern.')}og)'
+#              .' if ($_[0]->['.STATE_INPUT().'] !~ m{\G'.$pattern.'}og)'
+#              .' { pos($_[0]->['.STATE_INPUT().'])= $bef; undef; }'
+#     #         .' else { $1; }'
+#              .' else'
+#              .' { substr($_[0]->['.STATE_INPUT().'], $bef, pos($_[0]->['.STATE_INPUT().']) - $bef); }'
+#              .'}');
+        eval('sub { my $p= \$_[0]->['.STATE_INPUT().'];my $bef= pos($$p);'
              .(ASSERT()?' assert(defined($bef));':'')
-    #         .' if ($_[0]->['.STATE_INPUT().'] !~ m{\G('.$pattern.')}og)'
-             .' if ($_[0]->['.STATE_INPUT().'] !~ m{\G'.$pattern.'}og)'
-             .' { pos($_[0]->['.STATE_INPUT().'])= $bef; undef; }'
-    #         .' else { $1; }'
-             .' else'
-             .' { substr($_[0]->['.STATE_INPUT().'], $bef, pos($_[0]->['.STATE_INPUT().']) - $bef); }'
+             #.' if ($$p =~ m{\G'.$pattern.'}og)'
+             #.' { substr($$p, $bef, pos($$p) - $bef); }'
+             .' if ($$p =~ m{\G('.$pattern.')}og) { $1; }'
+             .' else { pos($$p)= $bef; undef; }'
              .'}');
     #    eval('sub { my $s= \$_[0]->['.STATE_INPUT().'];'
     #         .' my $bef= pos($$s); '.(ASSERT()?'assert(defined($bef)); ':'')
@@ -1272,8 +1283,8 @@ sub terminal_match($$)
 	    #my $result= make_result($t, [$match]);
 	    my $result= [$t->[PROD_NAME], [$match]];
             # FIXME: Let the matcher do this?:
-	    $state->[STATE_POS]= $pos += length($match);
-            assert($state->[STATE_POS] == pos($state->[STATE_INPUT])) if ASSERT();
+	    #$state->[STATE_POS]= $pos += length($match);
+            #assert($state->[STATE_POS] == pos($state->[STATE_INPUT])) if ASSERT();
             # Move this to match_with_memoize?
             if (MEMOIZE()) {
                 $state->[STATE_POS_STASH]=
