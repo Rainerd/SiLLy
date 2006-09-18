@@ -103,6 +103,7 @@ o Catch EOS in all matching functions
 
 TODO
 
+o Provide  a test for 'lookingat'.
 o pos: EOI: Set a flag in the state object, update the flag whenever
   pos changes.
 o pos: EOI: Explicitly store the input length in the parser object?
@@ -129,7 +130,7 @@ o Allow dashes in XML comments
 o Add more regression tests
 o Packagize (Parse::, Parse::LL:: or Parse::SiLLy?, Grammar, Utils, Test, Result, Stash)
 o Packagize (Parse::SiLLy::Test::Minilang)
-o Packagize (Terminal, Construction, Alternation, Optional, NEList, PEList)
+o Packagize productions (Terminal, Construction, etc.)
 o Document how to configure logging (search for $DEBUG)
 o Result scanner
 o Allow using multiple parsers concurrently
@@ -579,10 +580,7 @@ sub toString($$)
     if ($category eq "terminal") {
         "[$typename '".quotemeta($$match[0])."']";
     }
-    elsif ($category eq "alternation") {
-        "[$typename ".toString($$match[0], "$indent ")."]";
-    }
-    elsif ($category eq "optional") {
+    elsif (grep($category, qw(alternation optional lookingat notlookingat))) {
         "[$typename ".toString($$match[0], "$indent ")."]";
     }
     else {
@@ -634,6 +632,12 @@ sub scan($$) {
     elsif ($category= $Parse::SiLLy::Grammar::optional) {
         $handler->optional($self, $typename, $type, $category);
     }
+    elsif ($category= $Parse::SiLLy::Grammar::lookingat) {
+        $handler->lookingat($self, $typename, $type, $category);
+    }
+    elsif ($category= $Parse::SiLLy::Grammar::notlookingat) {
+        $handler->notlookingat($self, $typename, $type, $category);
+    }
     else {
         my $elements= $self->[PROD_ELEMENTS];
         $handler->print("[$typename '@$elements']");
@@ -679,7 +683,7 @@ use constant DEBUG =>
 require Exporter;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 @ISA= qw(Exporter); # Package's ISA
-%EXPORT_TAGS= ('all' => [qw(def terminal construction alternation optional nelist pelist)]);
+%EXPORT_TAGS= ('all' => [qw(def terminal construction alternation optional lookingat notlookingat nelist pelist)]);
 @EXPORT_OK= ( @{ $EXPORT_TAGS{'all'} } );
 @EXPORT= qw();
 
@@ -1034,6 +1038,8 @@ use constant terminal_mtch     => \&terminal_match;
 use constant alternation_mtch  => \&alternation_match;
 use constant construction_mtch => \&construction_match;
 use constant optional_mtch     => \&optional_match;
+use constant lookingat_mtch    => \&lookingat_match;
+use constant notlookingat_mtch => \&notlookingat_match;
 use constant nelist_mtch       => \&nelist_match;
 use constant pelist_mtch       => \&pelist_match;
 
@@ -1317,10 +1323,23 @@ sub construction_match($$)
                             . " (giving up on '$ctx')\]\]");
             }
 
-	    # Q: Why is this currently the only place where
-	    # backtracking must be performed? A: Because this is the
-	    # only place where a failure may occur after pos has been
-	    # already moved.
+=ignore
+
+  Q: Where do we have to actually perform backtracking?
+
+  A: Whenever pos has already been moved (something was matched),
+  but the context demands that the match not be used.
+  This happens when:
+
+  o A part of a construction was matched, but the next part could not
+    be matched.  More generally speaking, where a failure may occur
+    after pos has been already moved (but constructions currently are
+    the only productions where this is possible).
+
+  o A positive lookahead ('looking at' alias 'and') was matched.  The
+    match will be returned, but the input position reset.
+
+=cut
 
 	    set_pos($state, $saved_pos);
             if (MEMOIZE()) {
@@ -1476,8 +1495,128 @@ sub optional_match($$)
     if (DEBUG() && $log->is_debug()) {
         #$log->debug("$ctx: not matched: '$ctx' (resulting in empty string)");
     }
-    if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: not matched: '$ctx'"); }
+    if (DEBUG() && $log->is_debug()) {
+        $log->debug("$ctx: not matched: $element_name");
+    }
     #'';
+    [$t->[PROD_NAME], [$match]];
+}
+
+# --------------------------------------------------------------------
+my $lookingat_log;
+# --------------------------------------------------------------------
+sub lookingat#($)
+{
+    my $log= $lookingat_log;
+    my $name= shift();
+    log_cargs($log, $name, \@ARG);
+    my ($caller_package, $file, $line)= caller();
+    my $val= def($log, 'lookingat', $name,
+                 [grammar_object($caller_package, $ARG[0])],
+                 $caller_package);
+    #$log->debug(varstring('element',$val->{element}));
+    $val;
+}
+
+# --------------------------------------------------------------------
+my $lookingat_match_log;
+# --------------------------------------------------------------------
+sub lookingat_match($$)
+{
+    my $log= $lookingat_match_log;
+    my ($t, $state)= @ARG;
+    match_check_preconditions($log, $t) if ASSERT();
+    my $ctx= $t->[PROD_NAME];
+    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
+
+    my $element= $t->[PROD_ELEMENT];
+    my $element_name= $element->[PROD_NAME];
+    if (DEBUG() && $log->is_debug()) {
+        #$log->debug(varstring('element', $element));
+        $log->debug("$ctx: element=$element_name");
+    }
+    my $saved_pos= get_pos($state);
+
+    my ($match)= match($element, $state);
+    #if (matched($match))
+    if (NOMATCH() ne $match)
+    {
+        if (DEBUG() && $log->is_debug()) {
+            #$log->debug("$ctx: matched element: " . varstring($i,$element));
+            #$log->debug("$ctx: matched " . varstring('value', $match));
+            $log->debug("$ctx: matched "
+                        . Parse::SiLLy::Result::toString($match, " "));
+        }
+
+        set_pos($state, $saved_pos);
+        if (MEMOIZE()) {
+            $state->[STATE_POS_STASH]=
+                stash_get_pos_stash($state->[STATE_STASH], $saved_pos);
+        }
+	#return (make_result($t, [$match]));
+	return [$t->[PROD_NAME], [$match]];
+    }
+    if (DEBUG() && $log->is_debug()) {
+        $log->debug("$ctx: not matched: $element_name");
+    }
+    NOMATCH();
+}
+
+# --------------------------------------------------------------------
+my $notlookingat_log;
+# --------------------------------------------------------------------
+sub notlookingat#($)
+{
+    my $log= $notlookingat_log;
+    my $name= shift();
+    log_cargs($log, $name, \@ARG);
+    my ($caller_package, $file, $line)= caller();
+    my $val= def($log, 'notlookingat', $name,
+                 [grammar_object($caller_package, $ARG[0])],
+                 $caller_package);
+    #$log->debug(varstring('element',$val->{element}));
+    $val;
+}
+
+# --------------------------------------------------------------------
+my $notlookingat_match_log;
+# --------------------------------------------------------------------
+sub notlookingat_match($$)
+{
+    my $log= $notlookingat_match_log;
+    my ($t, $state)= @ARG;
+    match_check_preconditions($log, $t) if ASSERT();
+    my $ctx= $t->[PROD_NAME];
+    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
+
+    my $element= $t->[PROD_ELEMENT];
+    my $element_name= $element->[PROD_NAME];
+    if (DEBUG() && $log->is_debug()) {
+        #$log->debug(varstring('element', $element));
+        $log->debug("$ctx: element=$element_name");
+    }
+    my $saved_pos= get_pos($state);
+
+    my ($match)= match($element, $state);
+    #if (matched($match))
+    if (NOMATCH() ne $match)
+    {
+        if (DEBUG() && $log->is_debug()) {
+            $log->debug("$ctx: matched "
+                        . Parse::SiLLy::Result::toString($match, " ")
+                        . " (resulting in NOMATCH).");
+        }
+
+        set_pos($state, $saved_pos);
+        if (MEMOIZE()) {
+            $state->[STATE_POS_STASH]=
+                stash_get_pos_stash($state->[STATE_STASH], $saved_pos);
+        }
+	return NOMATCH();
+    }
+    if (DEBUG() && $log->is_debug()) {
+        $log->debug("$ctx: not matched: $element_name (resulting in a match)");
+    }
     [$t->[PROD_NAME], [$match]];
 }
 
@@ -1802,6 +1941,12 @@ sub init()
     $optional_log= Logger->new('optional');
     $optional_match_log= Logger->new('optional_match');
 
+    $lookingat_log= Logger->new('lookingat');
+    $lookingat_match_log= Logger->new('lookingat_match');
+
+    $notlookingat_log= Logger->new('notlookingat');
+    $notlookingat_match_log= Logger->new('notlookingat_match');
+
     $nelist_log= Logger->new('nelist');
     $nelist_match_log= Logger->new('nelist_match');
 
@@ -1816,6 +1961,8 @@ sub init()
          'alternation'  => \&alternation_match,
          'construction' => \&construction_match,
          'optional'     => \&optional_match,
+         'lookingat'    => \&lookingat_match,
+         'notlookingat' => \&notlookingat_match,
          'nelist'       => \&nelist_match,
          'pelist'       => \&pelist_match);
     #$match_log->info(varstring('methods', \%methods));
@@ -2586,7 +2733,7 @@ sub main
         Parse::SiLLy::Grammar::show_stash(
             $log, $state->[Parse::SiLLy::Grammar::STATE_STASH()] );
     }
-    #print(Parse::SiLLy::Result::toString($result, " ")."\n");
+    print(Parse::SiLLy::Result::toString($result, " ")."\n");
     }
     #warn('!!!');
     #sleep(5);
