@@ -17,6 +17,8 @@ use diagnostics;
 
 sub terminal;
 sub optional;
+sub lookingat;
+sub notlookingat;
 sub construction;
 sub alternation;
 sub nelist;
@@ -108,14 +110,33 @@ construction ProcessingInstruction,
     Oattrs, Owhite,
     QuestionMark, Rangle;
 
+# FIXME: Handle -- in the middle of comments
+# FIXME: Use perl's negative lookahead
 # FIXME: Does not handle '--' in the middle of a comment
 #terminal     CommentContent, '(?:[^-]*-)*[^-]+';
 # FIXME: Does not handle '-' in the middle of a comment
-terminal     CommentContent, '[^-]*';
+#terminal     CommentContent, '[^-]*';
+construction CommentEndAfterDash, Dash, Rangle;
+construction CommentEnd, Dash, CommentEndAfterDash;
+notlookingat NotCommentEndAfterDash, CommentEndAfterDash;
+construction DashInsideComment, Dash, NotCommentEndAfterDash;
+terminal     NonDash, '[^-]';
+alternation  CommentChar, DashInsideComment, NonDash;
+terminal     Epsilon, '';
+pelist       CommentContent, CommentChar, Epsilon;
+
+# Almost uselessly complicated CommentStart definition, just to test lookingat:
+#construction CommentStart Langle, ExclamationMark, Dash, Dash,
+lookingat    LaWhitespace, Whitespace;
+construction CommentStartSpaced, Langle, ExclamationMark, Dash, Dash, LaWhitespace;
+construction CommentStartSimple, Langle, ExclamationMark, Dash, Dash;
+alternation  CommentStart, CommentStartSpaced, CommentStartSimple;
+
 construction Comment,
-    Langle, ExclamationMark, Dash, Dash,
+    #Langle, ExclamationMark, Dash, Dash,
+    CommentStart,
     CommentContent,
-    Dash, Dash, Rangle;
+    CommentEnd;
 
 # --------------------------------------------------------------------
 # Nested Composites
