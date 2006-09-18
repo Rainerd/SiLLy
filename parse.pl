@@ -494,50 +494,6 @@ sub vardescr($$)
 }
 
 # --------------------------------------------------------------------
-#package Parse::SiLLy::Result::PrintHandler;
-package Parse::SiLLy::Result::PrintHandler::Unused;
-
-use strict;
-use diagnostics;
-#use English;
-
-sub new($$) {
-    my ($class, $log)= (@_);
-    my $self= { log=>$log };
-    $self;
-}
-sub terminal($$$$$) {
-    my ($self, $result, $typename, $type, $category)= (@_);
-    $self->{log}->info("[$typename '$result->{text}']");
-}
-sub alternation_begin($$$$$) {
-    my ($self, $result, $typename, $type, $category)= (@_);
-    # FIXME: Do not print newline at the end
-    $self->{log}->info("[$typename");
-}
-sub alternation_end($$$$$) {
-    my ($self, $result, $typename, $type, $category)= (@_);
-    $self->{log}->info("]");
-}
-sub construction_begin($$$$$) {
-    my ($self, $result, $typename, $type, $category)= (@_);
-    $self->{log}->info("[$typename");
-}
-sub construction_end($$$$$) {
-    my ($self, $result, $typename, $type, $category)= (@_);
-    $self->{log}->info("]");
-}
-# FIXME: make this an alias of construction_begin
-sub pelist_begin($$$$$) {
-    my ($self, $result, $typename, $type, $category)= (@_);
-    $self->{log}->info("[$typename");
-}
-sub pelist_end($$$$$) {
-    my ($self, $result, $typename, $type, $category)= (@_);
-    $self->{log}->info("]");
-}
-
-# --------------------------------------------------------------------
 package Parse::SiLLy::Result;
 
 use strict;
