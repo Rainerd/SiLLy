@@ -387,6 +387,15 @@ sub name_explicit($) {
 sub is_debug($) { $_[0][LOGGER_DEBUG]; }
 
 # --------------------------------------------------------------------
+sub set_debug($) {
+    my $self= $_[0];
+    assert(defined($self)) if ASSERT();
+    assert('' ne ref($self)) if ASSERT();
+    $self->[1]= 1;
+    $self->get_logger()->level($Log::Log4perl::DEBUG);
+}
+
+# --------------------------------------------------------------------
 # FIXME: What is the performance impact of the assertions?
 # FIXME: What is the performance impact of the binding to $self?
 
@@ -1393,6 +1402,7 @@ my $alternation_match_log;
 sub alternation_match($$)
 {
     my $log= $alternation_match_log;
+    #$log->set_debug();
     my ($t, $state)= @ARG;
     # Q: Move argument logging to 'match'?
     # A: No, then we can not control logging locally.
@@ -1408,6 +1418,10 @@ sub alternation_match($$)
     # here?
 
     my $elements= $t->[PROD_ELEMENTS];
+    #$log->debug(varstring('elements', $elements));
+    #my $n_elements= $#$elements;
+    #$log->debug("n_#=", $n_elements);
+
     # foreach $element in $elements
     map {
 	my $i= $_;
@@ -2065,6 +2079,7 @@ $::foo= $::foo;
 sub test1($$$$$)
 {
     my ($log, $matcher, $element, $state, $expected)= @_;
+    #$log->set_debug();
     my $call= "Parse::SiLLy::Grammar::$matcher(\$$element, \$state)";
     $log->debug("eval('$call')...");
     my $result= eval($call);
@@ -2091,6 +2106,8 @@ sub test1($$$$$)
 sub test_minilang()
 {
     my $log= $main_log;
+    # FIXME: As far as possible, use `Log4perl.conf` instead.
+    #$log->set_debug();
     my $state;
     my $result;
 
