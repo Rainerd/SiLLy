@@ -337,6 +337,8 @@ sub new
     $$self[LOGGER_LOGGER]= Log::Log4perl::get_logger($name)
 	|| die("$name: Could not get logger.\n");
     #print("$name: Got logger: " . join(', ', keys(%{$self->{logger}})) . "\n");
+    #print("$name: Got logger: " . join(', ', keys(%{$self->[2]})) . "\n");
+    #print("$name: Got logger: " . $self->get_logger()->{category} . "\n");
 
     #$self->{debugging}= $self->{logger}->is_debug();
     #$$self[LOGGER_DEBUG]= $ {@$self}[LOGGER_LOGGER]->is_debug();
