@@ -357,7 +357,7 @@ sub new
 
 # --------------------------------------------------------------------
 sub name($) {
-    $ { @{ $_[0]}}[LOGGER_NAME];
+    $_[0][LOGGER_NAME];
 }
 
 sub name_explicit($) {
@@ -384,15 +384,14 @@ sub name_explicit($) {
 #    assert('' ne ref($self)) if ASSERT();
 #    $$self[LOGGER_DEBUG];
 #}
-
-sub is_debug($) { $ {@ {$_[0]}}[LOGGER_DEBUG]; }
+sub is_debug($) { $_[0][LOGGER_DEBUG]; }
 
 # --------------------------------------------------------------------
 # FIXME: What is the performance impact of the assertions?
 # FIXME: What is the performance impact of the binding to $self?
 
 sub get_logger($) {
-    #return $ {@ {$_[0]}}[LOGGER_LOGGER];
+    #return $_[0][LOGGER_LOGGER];
 
     my ($self)= (@_);
     #::assert(exists($self->{logger})) if ASSERT();
@@ -418,7 +417,7 @@ sub info($) {
 # --------------------------------------------------------------------
 sub debug($) {
     # If ! $self->{debugging} return:
-    if ( ! $ {@{$_[0]}}[LOGGER_DEBUG]) { return; }
+    if ( ! $_[0][LOGGER_DEBUG]) { return; }
 
     my ($self)= shift;
     #if ( ! $self->is_debug()) { return; }
@@ -1305,10 +1304,11 @@ sub construction_match($$)
     my $saved_pos= get_pos($state);
 
     # foreach $element in $t's elements
+    my $elements= $t->[PROD_ELEMENTS];
     map {
 	my $i= $_;
 	#if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: i=$i"); }
-	my $element= $ {@{$t->[PROD_ELEMENTS]}}[$i];
+	my $element= $elements->[$i];
         my $element_name= $element->[PROD_NAME];
         if (DEBUG() && $log->is_debug()) {
             #$log->debug(varstring('element', $element));
@@ -1354,7 +1354,8 @@ sub construction_match($$)
             #$log->debug("$ctx: element value: " . varstring('match', $match));
         }
 	push(@$result_elements, $match);
-    } (0 .. $#{@{$t->[PROD_ELEMENTS]}});
+    }
+    (0 .. $#$elements);
 
     if (DEBUG() && $log->is_debug()) {
         $log->debug("$ctx: matched: '$ctx']");
@@ -1411,9 +1412,7 @@ sub alternation_match($$)
     map {
 	my $i= $_;
 	#if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: i=$i"); }
-        # FIXME: shouldn't this be '$elements[$i]'?:
-	#my $element= $$elements[$i];
-	my $element= $ {@$elements}[$i];
+	my $element= $elements->[$i];
         my $element_name= $element->[PROD_NAME];
         if (DEBUG() && $log->is_debug()) {
             #$log->debug(varstring('element', $element));
@@ -1437,7 +1436,8 @@ sub alternation_match($$)
         if (DEBUG() && $log->is_debug()) {
             $log->debug("$ctx: element[$i] not matched: '$element_name']");
         }
-    } (0 .. $#{@$elements});
+    }
+    (0 .. $#$elements);
 
     if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: not matched: '$ctx'"); }
     NOMATCH();
