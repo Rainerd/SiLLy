@@ -2253,8 +2253,8 @@ sub test_minilang()
     @$expected_tokens;
     assert(Sump::Validate::Compare($expected, $result));
 
-    $log->debug("--- Testing Program...");
-    $log->debug("Program=$minilang::Program.");
+    $log->debug("--- Testing minilang::Program...");
+    $log->debug("minilang::Program=$minilang::Program.");
     # FIXME: Get this (two-stage parsing) to work:
     #$state= Parse::SiLLy::Grammar::Parser_new($result);
     Parse::SiLLy::Grammar::set_pos($state, 0);

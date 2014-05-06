@@ -122,8 +122,8 @@ construction WSemicolon, Owhite, Semicolon, Owhite;
 #nelist Program,     Expr, WSemicolon;
 nelist Program,      Mchain, WSemicolon;
 
-print("grammar.pl: ");
-print("Program='$minilang::Program'\n");
+print("minilang-grammar.pl: ");
+print("minilang::Program='$minilang::Program'\n");
 #print("Program='$Program'\n");
 
 # Establish recursion:

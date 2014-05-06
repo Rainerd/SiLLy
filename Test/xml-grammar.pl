@@ -173,7 +173,7 @@ assert(-1 != $i_elem); print("Found Elem at $i_elem\n");
 $ {elements($Parse::SiLLy::Test::XML::Contentelem)}[$i_elem]= $Parse::SiLLy::Test::XML::Elem;
 
 print("xml-grammar.pl:");
-print("Elem='$Parse::SiLLy::Test::XML::Elem'\n");
+print("Test::XML::Elem='$Parse::SiLLy::Test::XML::Elem'\n");
 
 # --------------------------------------------------------------------
 # EOF
