@@ -2473,24 +2473,24 @@ sub test_xml()
     no strict 'subs';
     my $expected=
   [Contentelem, [Complexelem,
-    [Ltag, [Langle, '<'], [Owhite, NOMATCH], [Tagname, 'tr'], [Oattrs, NOMATCH], [Owhite, NOMATCH], [Rangle, '>']],
+    [Ltag, [Langle,'<'], [Owhite,NOMATCH],[Tagname,'tr'],[Oattrs,NOMATCH],[Owhite,NOMATCH],[Rangle,'>']],
     [Contentlist,
-     [Contentelem, [Cdata, '
+     [Contentelem, [Cdata,'
  ']],
      [Contentelem, [Complexelem,
-       [Ltag, [Langle, '<'], [Owhite, NOMATCH], [Tagname, 'td'], [Oattrs, NOMATCH], [Owhite, NOMATCH], [Rangle, '>']],
-       [Contentlist, [Contentelem, [Cdata, 'Contents']]],
-       [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, NOMATCH], [Tagname, 'td'], [Owhite, NOMATCH], [Rangle, '>']] ]],
+       [Ltag, [Langle,'<'],[Owhite,NOMATCH],[Tagname,'td'],[Oattrs,NOMATCH],[Owhite,NOMATCH],[Rangle,'>']],
+       [Contentlist, [Contentelem, [Cdata,'Contents']]],
+       [Rtag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,'td'],[Owhite,NOMATCH],[Rangle,'>']] ]],
      [Contentelem, [Complexelem,
-       [Ltag, [Langle, '<'], [Owhite, NOMATCH], [Tagname, 'td'], [Oattrs, NOMATCH], [Owhite, NOMATCH], [Rangle, '>']],
-       [Contentlist, [Contentelem, [Cdata, 'Foo Bar']]],
-       [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, NOMATCH], [Tagname, 'td'], [Owhite, NOMATCH], [Rangle, '>']] ]],
+       [Ltag, [Langle,'<'],[Owhite,NOMATCH],[Tagname,'td'],[Oattrs,NOMATCH],[Owhite,NOMATCH],[Rangle,'>']],
+       [Contentlist, [Contentelem, [Cdata,'Foo Bar']]],
+       [Rtag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,'td'],[Owhite,NOMATCH],[Rangle,'>']] ]],
      [Contentelem, [Complexelem,
-       [Ltag, [Langle, '<'], [Owhite, NOMATCH], [Tagname, 'td'], [Oattrs, NOMATCH], [Owhite, NOMATCH], [Rangle, '>']],
+       [Ltag, [Langle,'<'],[Owhite,NOMATCH],[Tagname,'td'],[Oattrs,NOMATCH],[Owhite,NOMATCH],[Rangle,'>']],
        [Contentlist,  ],
-       [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, NOMATCH], [Tagname, 'td'], [Owhite, NOMATCH], [Rangle, '>']] ]]
+       [Rtag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,'td'],[Owhite,NOMATCH],[Rangle,'>']] ]]
      ],
-    [Rtag, [Langle, '<'], [Slash, '/'], [Owhite, NOMATCH], [Tagname, 'tr'], [Owhite, NOMATCH], [Rangle, '>']]
+    [Rtag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,'tr'],[Owhite,NOMATCH],[Rangle,'>']]
     ]];
     use strict 'subs';
 
