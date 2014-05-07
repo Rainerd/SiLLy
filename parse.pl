@@ -124,7 +124,13 @@ o Memoization: FIXME: Using memoization is currently slower than not doing it
 o Memoization: Benchmark without memoization versus with memoization
 o Memoization: Find examples for which memoization is faster.
 o Memoization: Make it easy to switch off memoization (per parser)
+
 o Factor out common parts of parsing functions.
+o Generate parsing error messages with explanations.
+o For purposes of generating explanations, for non-matches,
+  store the reason why a rule did not match.
+
+o Benchmark make_result versus inline result construction.
 o Do a serious benchmark
 o Allow dashes in XML comments
 o Add more regression tests
@@ -536,6 +542,7 @@ use constant RESULT_PROD => 0;
 use constant RESULT_MATCH => 1;
 
 # --------------------------------------------------------------------
+# FIXME: This is currently unused
 sub make_result($$) {
     #return [$_[0] - > {name}, $_[1]];
     my ($t, $match)= (@_);
