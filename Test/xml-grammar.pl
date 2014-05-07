@@ -60,15 +60,15 @@ terminal     Whitespace,      '[ \t\n\r]+';
 # Allow escaped double quotes in string contents
 # FIXME: Does XML allow them?
 #terminal    DStringContent,   '[^"]*(?:\"[^"]*)*';
-terminal     DStringContent,   '[^"]*';
-terminal     SStringContent,   "[^']*";
+terminal     DStringContent,  '[^"]*';
+terminal     SStringContent,  "[^']*";
 
 #terminal    DStringLiteral,   '"[^"]*"';
 #terminal    DStringLiteral,   "\"[^\"]*?:\\\"[^\"]*)*\"";
 #terminal    DStringLiteral,   '"[^"]*(?:\"[^"]*)*"';
-construction DStringLiteral,   DQuote, DStringContent, DQuote;
-construction SStringLiteral,   SQuote, SStringContent, SQuote;
-alternation  StringLiteral,    DStringLiteral, SStringLiteral;
+construction DStringLiteral,  DQuote, DStringContent, DQuote;
+construction SStringLiteral,  SQuote, SStringContent, SQuote;
+alternation  StringLiteral,   DStringLiteral, SStringLiteral;
 
 terminal     Attrname,        '[\w]+';
 #terminal     Attrname,        '[\w:]+';
