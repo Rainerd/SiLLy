@@ -969,6 +969,9 @@ sub match_check_preconditions($$) {
     my ($log, $t)= (@_);
     assert(defined($log)) if ASSERT();
     assert(defined($t)) if ASSERT();
+    if ('' eq ref($t)) {
+        $log->get_logger()->error("t is not a hash: ".$t);
+    }
     assert('' ne ref($t)) if ASSERT();
     #assert("HASH" eq ref($t)) if ASSERT();
     #assert(exists($t->{name})) if ASSERT();
@@ -1075,21 +1078,26 @@ sub def($$$$$@)
     assert('' ne ref($val));
     #$log->debug(varstring('val', $val));
 
-    # Set this production's category
+    # Store production type (category) in $val
     assert(defined($category));
     assert('' eq ref($category));
+    # Lookup the match method at definition time:
     my $method= $methods{$category};
     assert(defined($method));
     assert('' ne ref($method));
-
+    # FIXME: Move this before previous comment:
+    # In front of the type-specific elements make room for
+    # the shared elements:
     unshift(@$val, (undef, undef, undef, undef));
     $val->[PROD_CATEGORY]= $category;
+    # Store result of symbolic lookup
     $val->[PROD_METHOD] = $method;
+
     ++$production_id;
     $val->[PROD_ID] = $production_id;
     $productions_by_id->[$production_id]= $val;
 
-    # Determine full variable name
+    # Determine and store full variable name
     assert(defined($name));
     assert('' eq ref($name));
     #my $fullname= "::$name";
