@@ -398,6 +398,15 @@ sub set_debug($) {
 }
 
 # --------------------------------------------------------------------
+sub set_nodebug($) {
+    my $self= $_[0];
+    assert(defined($self)) if ASSERT();
+    assert('' ne ref($self)) if ASSERT();
+    $self->[1]= 0;
+    $self->get_logger()->level($Log::Log4perl::INFO);
+}
+
+# --------------------------------------------------------------------
 # FIXME: What is the performance impact of the assertions?
 # FIXME: What is the performance impact of the binding to $self?
 
