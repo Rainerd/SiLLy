@@ -2496,26 +2496,26 @@ sub test_xml()
     };
     no strict 'subs';
     my $expected=
-  [MixedContent, [SEElem,
+  [MixedContent, [Elem, [SEElem,
     [STag, [Langle,'<'],            [Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'tr']],[Oattrs,NOMATCH],[Owhite,NOMATCH],[Rangle,'>']],
     [Contentlist,
      [MixedContent, [Cdata,'
  ']],
-     [MixedContent, [SEElem,
+     [MixedContent, [Elem, [SEElem,
        [STag, [Langle,'<'],            [Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],[Oattrs,NOMATCH],[Owhite,NOMATCH],[Rangle,'>']],
        [Contentlist, [MixedContent, [Cdata,'Contents']]],
-       [ETag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],                 [Owhite,NOMATCH],[Rangle,'>']] ]],
-     [MixedContent, [SEElem,
+       [ETag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],                 [Owhite,NOMATCH],[Rangle,'>']] ]]],
+     [MixedContent, [Elem, [SEElem,
        [STag, [Langle,'<'],            [Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],[Oattrs,NOMATCH],[Owhite,NOMATCH],[Rangle,'>']],
        [Contentlist, [MixedContent, [Cdata,'Foo Bar']]],
-       [ETag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],                 [Owhite,NOMATCH],[Rangle,'>']] ]],
-     [MixedContent, [SEElem,
+       [ETag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],                 [Owhite,NOMATCH],[Rangle,'>']] ]]],
+     [MixedContent, [Elem, [SEElem,
        [STag, [Langle,'<'],            [Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],[Oattrs,NOMATCH],[Owhite,NOMATCH],[Rangle,'>']],
        [Contentlist,  ],
-       [ETag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],                 [Owhite,NOMATCH],[Rangle,'>']] ]]
+       [ETag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],                 [Owhite,NOMATCH],[Rangle,'>']] ]]]
      ],
     [ETag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'tr']],                 [Owhite,NOMATCH],[Rangle,'>']]
-    ]];
+    ]]];
     use strict 'subs';
 
     #$log->info(varstring('expected before decorating', $expected));

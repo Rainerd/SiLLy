@@ -158,8 +158,7 @@ pelist       Contentlist, MixedContent, Owhite;
 
 construction SEElem, STag, Contentlist, ETag;
 
-# FIXME: Allow EmptyTags
-#alternation  Elem, EmptyTag, SEElem;
+alternation  Elem, EmptyTag, SEElem;
 
 # FIXME: Inline this, as it is called only once.
 sub elements( $ ) {
@@ -170,8 +169,6 @@ sub elements( $ ) {
 }
 
 {
-    $Parse::SiLLy::Test::XML::Elem= $Parse::SiLLy::Test::XML::SEElem;
-
     # FIXME: Document this:
     # FIXME: Simplify this:
     my $elements= elements($Parse::SiLLy::Test::XML::MixedContent);
