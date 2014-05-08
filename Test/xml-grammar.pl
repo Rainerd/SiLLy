@@ -171,16 +171,17 @@ sub elements( $ ) {
 # FIXME: Document this:
 # FIXME: Simplify this:
 my $elements= elements($Parse::SiLLy::Test::XML::MixedContent);
+my $Elem    = $Parse::SiLLy::Test::XML::Elem;
 #assert("Elem" eq $elements->[0]);
 #$elements->[0]= $Elem;
 my ($i, $i_elem)= (-1, -1);
 grep { ++$i; if (m/Elem/) { $i_elem= $i; } } @$elements;
 #map { ++$i; if ( ! defined($_)) { $i_elem= $i; } } @$elements;
 assert(-1 != $i_elem); print("Found Elem at $i_elem\n");
-$elements->[$i_elem]= $Parse::SiLLy::Test::XML::Elem;
+$elements->[$i_elem]= $Elem;
 
 print("xml-grammar.pl:");
-print("Test::XML::Elem='$Parse::SiLLy::Test::XML::Elem'\n");
+print("Test::XML::Elem='$Elem'\n");
 
 # --------------------------------------------------------------------
 # EOF
