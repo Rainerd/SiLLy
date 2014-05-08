@@ -160,8 +160,8 @@ construction SEElem, STag, Contentlist, ETag;
 
 # FIXME: Allow EmptyTags
 #alternation  Elem, EmptyTag, SEElem;
-$Parse::SiLLy::Test::XML::Elem= $Parse::SiLLy::Test::XML::SEElem;
 
+# FIXME: Inline this, as it is called only once.
 sub elements( $ ) {
     my ($production)= @_;
     #Parse::SiLLy::Grammar::PRODS_ARE_HASHES()
@@ -169,19 +169,23 @@ sub elements( $ ) {
     $production->[Parse::SiLLy::Grammar::PROD_ELEMENTS];
 }
 
-# FIXME: Document this:
-# FIXME: Simplify this:
-my $elements= elements($Parse::SiLLy::Test::XML::MixedContent);
-my $Elem    = $Parse::SiLLy::Test::XML::Elem;
-#assert("Elem" eq $elements->[0]);
-#$elements->[0]= $Elem;
-my ($i, $i_elem)= (-1, -1);
-grep { ++$i; if (m/Elem/) { $i_elem= $i; } } @$elements;
-#map { ++$i; if ( ! defined($_)) { $i_elem= $i; } } @$elements;
-assert(-1 != $i_elem); print("$ctx: Found Elem at $i_elem\n");
-$elements->[$i_elem]= $Elem;
+{
+    $Parse::SiLLy::Test::XML::Elem= $Parse::SiLLy::Test::XML::SEElem;
 
-print("$ctx: Test::XML::Elem='$Elem'\n");
+    # FIXME: Document this:
+    # FIXME: Simplify this:
+    my $elements= elements($Parse::SiLLy::Test::XML::MixedContent);
+    my $Elem    = $Parse::SiLLy::Test::XML::Elem;
+    #assert("Elem" eq $elements->[0]);
+    #$elements->[0]= $Elem;
+    my ($i, $i_elem)= (-1, -1);
+    grep { ++$i; if (m/Elem/) { $i_elem= $i; } } @$elements;
+    #map { ++$i; if ( ! defined($_)) { $i_elem= $i; } } @$elements;
+    assert(-1 != $i_elem); print("$ctx: Found Elem at $i_elem\n");
+    $elements->[$i_elem]= $Elem;
+
+    print("$ctx: Test::XML::Elem='$Elem'\n");
+}
 
 # --------------------------------------------------------------------
 # EOF
