@@ -2759,7 +2759,6 @@ sub main
     #$result= do_one_run($state, $top);
     #$result= do_runs(100, $state, $top);
 
-    #sleep(1);
     use Benchmark;
     #timethis(1, sub { $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state); } );
     #timethis(1, sub { $result= do_one_run($state, $top); } );
