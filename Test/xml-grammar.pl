@@ -100,14 +100,14 @@ construction Attrs,  Whitespace, Attrsi;
 optional     Oattrs, Attrs;
 
 # More elaborate
-construction Ltag,     Langle,        Owhite, Tagname, Oattrs, Owhite, Rangle;
+construction STag,     Langle,        Owhite, Tagname, Oattrs, Owhite, Rangle;
 construction EmptyTag, Langle,        Owhite, Tagname, Oattrs, Owhite, Slash, Owhite, Rangle;
-construction Rtag,     Langle, Slash, Owhite, Tagname,                        Owhite, Rangle;
+construction ETag,     Langle, Slash, Owhite, Tagname,                        Owhite, Rangle;
 
 # Simplified
-#construction Ltag,     Langle,        Tagname, Rangle;
+#construction STag,     Langle,        Tagname, Rangle;
 #construction EmptyTag, Langle,        Tagname, Slash, Rangle;
-#construction Rtag,     Langle, Slash, Tagname,        Rangle;
+#construction ETag,     Langle, Slash, Tagname,        Rangle;
 
 # Processing Instructions
 # Example: <?xml version="1.0" encoding="ISO-8859-1"?>
@@ -155,7 +155,7 @@ alternation  Contentelem, ProcessingInstruction, Comment, 'Elem', Cdata;
 pelist       Contentlist, Contentelem, Owhite;
 #pelist       Contentlist, Contentelem, Cdata;
 
-construction Complexelem, Ltag, Contentlist, Rtag;
+construction Complexelem, STag, Contentlist, ETag;
 
 # FIXME: Allow EmptyTags
 #alternation  Elem, EmptyTag, Complexelem;
