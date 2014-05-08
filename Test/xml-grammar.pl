@@ -149,11 +149,11 @@ construction Comment,
 # Nested Composites
 
 # FIXME: Fix handling of "Elem" here:
-#alternation  Contentelem, ProcessingInstruction, 'Elem', Cdata;
-alternation  Contentelem, ProcessingInstruction, Comment, 'Elem', Cdata;
+#alternation  MixedContent, ProcessingInstruction, 'Elem', Cdata;
+alternation  MixedContent, ProcessingInstruction, Comment, 'Elem', Cdata;
 
-pelist       Contentlist, Contentelem, Owhite;
-#pelist       Contentlist, Contentelem, Cdata;
+pelist       Contentlist, MixedContent, Owhite;
+#pelist       Contentlist, MixedContent, Cdata;
 
 construction Complexelem, STag, Contentlist, ETag;
 
@@ -170,15 +170,15 @@ sub elements( $ ) {
 
 # FIXME: Document this:
 # FIXME: Simplify this:
-#assert("Elem" eq $ {elements($Parse::SiLLy::Test::XML::Contentelem)}[0]);
-#$ {elements($Parse::SiLLy::Test::XML::Contentelem)}[0]= $Elem;
+#assert("Elem" eq $ {elements($Parse::SiLLy::Test::XML::MixedContent)}[0]);
+#$ {elements($Parse::SiLLy::Test::XML::MixedContent)}[0]= $Elem;
 my ($i, $i_elem)= (-1, -1);
 grep { ++$i; if (m/Elem/) { $i_elem= $i; } }
-    @{elements($Parse::SiLLy::Test::XML::Contentelem)};
+    @{elements($Parse::SiLLy::Test::XML::MixedContent)};
 #map { ++$i; if ( ! defined($_)) { $i_elem= $i; } }
-#    @{elements($Parse::SiLLy::Test::XML::Contentelem)};
+#    @{elements($Parse::SiLLy::Test::XML::MixedContent)};
 assert(-1 != $i_elem); print("Found Elem at $i_elem\n");
-$ {elements($Parse::SiLLy::Test::XML::Contentelem)}[$i_elem]= $Parse::SiLLy::Test::XML::Elem;
+$ {elements($Parse::SiLLy::Test::XML::MixedContent)}[$i_elem]= $Parse::SiLLy::Test::XML::Elem;
 
 print("xml-grammar.pl:");
 print("Test::XML::Elem='$Parse::SiLLy::Test::XML::Elem'\n");

@@ -2496,20 +2496,20 @@ sub test_xml()
     };
     no strict 'subs';
     my $expected=
-  [Contentelem, [Complexelem,
+  [MixedContent, [Complexelem,
     [STag, [Langle,'<'],            [Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'tr']],[Oattrs,NOMATCH],[Owhite,NOMATCH],[Rangle,'>']],
     [Contentlist,
-     [Contentelem, [Cdata,'
+     [MixedContent, [Cdata,'
  ']],
-     [Contentelem, [Complexelem,
+     [MixedContent, [Complexelem,
        [STag, [Langle,'<'],            [Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],[Oattrs,NOMATCH],[Owhite,NOMATCH],[Rangle,'>']],
-       [Contentlist, [Contentelem, [Cdata,'Contents']]],
+       [Contentlist, [MixedContent, [Cdata,'Contents']]],
        [ETag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],                 [Owhite,NOMATCH],[Rangle,'>']] ]],
-     [Contentelem, [Complexelem,
+     [MixedContent, [Complexelem,
        [STag, [Langle,'<'],            [Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],[Oattrs,NOMATCH],[Owhite,NOMATCH],[Rangle,'>']],
-       [Contentlist, [Contentelem, [Cdata,'Foo Bar']]],
+       [Contentlist, [MixedContent, [Cdata,'Foo Bar']]],
        [ETag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],                 [Owhite,NOMATCH],[Rangle,'>']] ]],
-     [Contentelem, [Complexelem,
+     [MixedContent, [Complexelem,
        [STag, [Langle,'<'],            [Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],[Oattrs,NOMATCH],[Owhite,NOMATCH],[Rangle,'>']],
        [Contentlist,  ],
        [ETag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],                 [Owhite,NOMATCH],[Rangle,'>']] ]]
