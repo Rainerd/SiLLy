@@ -45,6 +45,7 @@ terminal     QuestionMark,    '\?';
 terminal     ExclamationMark, '\!';
 terminal     Dash,            '-';
 terminal     Equals,          '=';
+terminal     Colon,           ':';
 terminal     DQuote,          '"';
 terminal     SQuote,          "'";
 
@@ -70,10 +71,9 @@ construction DStringLiteral,  DQuote, DStringContent, DQuote;
 construction SStringLiteral,  SQuote, SStringContent, SQuote;
 alternation  StringLiteral,   DStringLiteral, SStringLiteral;
 
-terminal     Attrname,        '[\w]+';
-#terminal     Attrname,        '[\w:]+';
-terminal     Tagname,         '[\w]+';
-#terminal     Tagname,         '[\w:]+';
+terminal     PrefixName,      '\w+';
+terminal     PlainAttrName,   '\w+';
+terminal     PlainTagName,    '\w+';
 
 # FIXME: Use a negative definition, "everything but ...".
 #terminal    Cdata,           '[<]+';
@@ -86,6 +86,12 @@ terminal     Cdata,           '[-.,\d()\[\]\{\}\w^!$%&/?+*#\':;|@\s]+';
 
 optional    Owhite, Whitespace;
 #pelist       Owhite, OneWhitespace, '';
+
+construction Prefix,          PrefixName, Colon;
+optional     OPrefix,         Prefix;
+
+construction Attrname,        OPrefix, PlainAttrName;
+construction Tagname,         OPrefix, PlainTagName;
 
 construction Attr,   Attrname, Equals, StringLiteral;
 #pelist       Attrsi, Attr, Whitespace;
