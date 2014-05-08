@@ -155,11 +155,11 @@ alternation  MixedContent, ProcessingInstruction, Comment, 'Elem', Cdata;
 pelist       Contentlist, MixedContent, Owhite;
 #pelist       Contentlist, MixedContent, Cdata;
 
-construction Complexelem, STag, Contentlist, ETag;
+construction SEElem, STag, Contentlist, ETag;
 
 # FIXME: Allow EmptyTags
-#alternation  Elem, EmptyTag, Complexelem;
-$Parse::SiLLy::Test::XML::Elem= $Parse::SiLLy::Test::XML::Complexelem;
+#alternation  Elem, EmptyTag, SEElem;
+$Parse::SiLLy::Test::XML::Elem= $Parse::SiLLy::Test::XML::SEElem;
 
 sub elements( $ ) {
     my ($production)= @_;
