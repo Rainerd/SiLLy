@@ -100,14 +100,14 @@ construction Attrs,  Whitespace, Attrsi;
 optional     Oattrs, Attrs;
 
 # More elaborate
-construction Ltag, Langle,        Owhite, Tagname, Oattrs, Owhite, Rangle;
-construction Etag, Langle,        Owhite, Tagname, Oattrs, Owhite, Slash, Owhite, Rangle;
-construction Rtag, Langle, Slash, Owhite, Tagname,                        Owhite, Rangle;
+construction Ltag,     Langle,        Owhite, Tagname, Oattrs, Owhite, Rangle;
+construction EmptyTag, Langle,        Owhite, Tagname, Oattrs, Owhite, Slash, Owhite, Rangle;
+construction Rtag,     Langle, Slash, Owhite, Tagname,                        Owhite, Rangle;
 
 # Simplified
-#construction Ltag, Langle,        Tagname, Rangle;
-#construction Etag, Langle,        Tagname, Slash, Rangle;
-#construction Rtag, Langle, Slash, Tagname,        Rangle;
+#construction Ltag,     Langle,        Tagname, Rangle;
+#construction EmptyTag, Langle,        Tagname, Slash, Rangle;
+#construction Rtag,     Langle, Slash, Tagname,        Rangle;
 
 # Processing Instructions
 # Example: <?xml version="1.0" encoding="ISO-8859-1"?>
@@ -157,8 +157,8 @@ pelist       Contentlist, Contentelem, Owhite;
 
 construction Complexelem, Ltag, Contentlist, Rtag;
 
-# FIXME: Allow Etags
-#alternation  Elem, Etag, Complexelem;
+# FIXME: Allow EmptyTags
+#alternation  Elem, EmptyTag, Complexelem;
 $Parse::SiLLy::Test::XML::Elem= $Parse::SiLLy::Test::XML::Complexelem;
 
 sub elements( $ ) {
