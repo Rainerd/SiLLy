@@ -75,6 +75,7 @@ terminal     Attrname,        '[\w]+';
 terminal     Tagname,         '[\w]+';
 #terminal     Tagname,         '[\w:]+';
 
+# FIXME: Use a negative definition, "everything but ...".
 #terminal    Cdata,           '[<]+';
 #terminal    Cdata,           '[-.,\d()\[\]\{\}\w^!$%&/?+*#\':;|@\s]*';
 # Use + as a quick fix to ensure progress
@@ -150,6 +151,7 @@ pelist       Contentlist, Contentelem, Owhite;
 
 construction Complexelem, Ltag, Contentlist, Rtag;
 
+# FIXME: Allow Etags
 #alternation  Elem, Etag, Complexelem;
 $Parse::SiLLy::Test::XML::Elem= $Parse::SiLLy::Test::XML::Complexelem;
 
