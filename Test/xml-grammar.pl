@@ -170,15 +170,14 @@ sub elements( $ ) {
 
 # FIXME: Document this:
 # FIXME: Simplify this:
-#assert("Elem" eq $ {elements($Parse::SiLLy::Test::XML::MixedContent)}[0]);
-#$ {elements($Parse::SiLLy::Test::XML::MixedContent)}[0]= $Elem;
+my $elements= elements($Parse::SiLLy::Test::XML::MixedContent);
+#assert("Elem" eq $elements->[0]);
+#$elements->[0]= $Elem;
 my ($i, $i_elem)= (-1, -1);
-grep { ++$i; if (m/Elem/) { $i_elem= $i; } }
-    @{elements($Parse::SiLLy::Test::XML::MixedContent)};
-#map { ++$i; if ( ! defined($_)) { $i_elem= $i; } }
-#    @{elements($Parse::SiLLy::Test::XML::MixedContent)};
+grep { ++$i; if (m/Elem/) { $i_elem= $i; } } @$elements;
+#map { ++$i; if ( ! defined($_)) { $i_elem= $i; } } @$elements;
 assert(-1 != $i_elem); print("Found Elem at $i_elem\n");
-$ {elements($Parse::SiLLy::Test::XML::MixedContent)}[$i_elem]= $Parse::SiLLy::Test::XML::Elem;
+$elements->[$i_elem]= $Parse::SiLLy::Test::XML::Elem;
 
 print("xml-grammar.pl:");
 print("Test::XML::Elem='$Parse::SiLLy::Test::XML::Elem'\n");
