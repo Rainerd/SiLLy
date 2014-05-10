@@ -68,59 +68,59 @@ Parse::SiLLy::Grammar::import();
 # Allow their use without qualifying their names.
 #my ($Program, $Exprlist, $Mchain);
 
-#def Whitespace, terminal('\s+');
+#def          Whitespace, terminal('\s+');
 
-terminal Whitespace, '\s+';
-optional Owhite,     Whitespace;
+terminal     Whitespace, '\s+';
+optional     Owhite,     Whitespace;
 
-terminal Period,     '\.';
-terminal Comma,      ',';
-terminal Semicolon,  ';';
+terminal     Period,     '\.';
+terminal     Comma,      ',';
+terminal     Semicolon,  ';';
 
-terminal Lparen,     '\(';
-terminal Rparen,     '\)';
-terminal Lbrack,     '\[';
-terminal Rbrack,     '\]';
-terminal Lbrace,     '\{';
-terminal Rbrace,     '\}';
+terminal     Lparen,     '\(';
+terminal     Rparen,     '\)';
+terminal     Lbrack,     '\[';
+terminal     Rbrack,     '\]';
+terminal     Lbrace,     '\{';
+terminal     Rbrace,     '\}';
 
-terminal String,     '"[^"]*"';
-terminal Number,     '[\d]+(?:.[\d]+)?';
-terminal Name,       '[-\w^!$%&/=?+*#\':<>|@]+';
+terminal     String,     '"[^"]*"';
+terminal     Number,     '[\d]+(?:.[\d]+)?';
+terminal     Name,       '[-\w^!$%&/=?+*#\':<>|@]+';
 
-alternation Token,   String, Lparen, Number, Comma, Period, Name, Rparen, Semicolon;
+alternation  Token,      String, Lparen, Number, Comma, Period, Name, Rparen, Semicolon;
 
-pelist Tokenlist,    Token, Owhite;
+pelist       Tokenlist,  Token, Owhite;
 
 # --------------------------------------------------------------------
-alternation Literal, String, Number;
-#alternation Simple_term, Literal, Name;
+alternation  Literal,    String, Number;
+#alternation  Simple_term, Literal, Name;
 
 # Possibly empty list (set): list ::* e
 
 # Note that Chain has not been defined yet, that is further below.
 #my $Chain;
-construction WComma, Owhite, Comma, Owhite;
-#pelist Exprlist,    Expr, WComma;
-pelist Exprlist,     Chain, WComma;
-#pelist Exprlist,    'Chain', WComma;
-#pelist Exprlist,    undef, WComma;
+construction WComma,     Owhite, Comma, Owhite;
+#pelist       Exprlist,   Expr, WComma;
+pelist       Exprlist,   Chain, WComma;
+#pelist       Exprlist,   'Chain', WComma;
+#pelist       Exprlist,   undef, WComma;
 
-construction Tuple,  Lparen, Exprlist, Rparen;
+construction Tuple,      Lparen, Exprlist, Rparen;
 
 # In Perl, 'Term' is effectively a reserved name (package 'Term').
-alternation LTerm,   Literal, Name, Tuple;
+alternation  LTerm,      Literal, Name, Tuple;
 
 # Message Chain
-#nelist, Mchain,     LTerm, Whitespace;
-nelist Mchain,       LTerm, Period;
+#nelist,     Mchain,     LTerm, Whitespace;
+nelist       Mchain,     LTerm, Period;
 
 #construction Expr,  Mchain;
 
 construction WSemicolon, Owhite, Semicolon, Owhite;
 # Non-empty list: Program ::+ Expr
-#nelist Program,     Expr, WSemicolon;
-nelist Program,      Mchain, WSemicolon;
+#nelist       Program,    Expr, Semicolon;
+nelist       Program,    Mchain, Semicolon;
 
 print("minilang-grammar.pl: ");
 print("minilang::Program='$minilang::Program'\n");
