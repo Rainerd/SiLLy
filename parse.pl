@@ -101,6 +101,24 @@ FIXME:
 o tuple rule attribute 'elements' is empty
 o Catch EOS in all matching functions
 
+==== Todo: Error Messages
+
+* Generate parsing error messages with explanations.
+* For purposes of generating explanations, for non-matches,
+  store the reason why a rule did not match.
+* Search term: parser error recovery
+* Avoid error handling as long as no errors are encountered.
+* Detect near matches ("almost matched")
+* Annotate grammar with hints
+* In case of error, determine what might have helped.
+* Suggest remedies.
+* Specially handle errors on the first and last elements of composites.
+  For example, if only the last element of a composite did not match,
+  see if it is easy to see what might be missing, of if there is an
+  annotation or hint that suggests a reaction.
+* Stop trying if it takes too long.
+* Stop trying if no progress is made.
+
 TODO
 
 o Provide  a test for 'lookingat'.
@@ -114,6 +132,17 @@ o Memoization: Idea: When memoizing, do not memoize (store) the result
   position) separately.  Instead, define item sets as for LR or Earley
   parsers and memoize results for item sets.
 o Memoization: Memoize input substrings, too?
+
+o Error messages (see separate section).
+
+* Encoding:
+  - Explicitly deal with encoding.
+  - Default to UTF-8 encoding.
+  - Support grammar annotations (processing instructions)
+    that indicate places where the parser can find encoding
+    information. For example, use this to interpret Byte Order Marks.
+    As another example, use this to interpret the encoding declaration
+    in XML declarations ("<?xml encoding='UTF-8'?>").
 
 o FIXME: Provide automated regression tests for the test tools (assert
   etc., the validation functions).
