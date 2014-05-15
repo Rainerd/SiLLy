@@ -85,8 +85,8 @@ terminal     Cdata,           '[-.,\d()\[\]\{\}\w^!$%&/?+*#\':;|@\s]+';
 # --------------------------------------------------------------------
 # Simple Composites
 
-optional    Owhite, Whitespace;
-#pelist       Owhite, OneWhitespace, '';
+optional     Owhite,          Whitespace;
+#pelist       Owhite,          OneWhitespace, '';
 
 construction Prefix,          PrefixName, Colon;
 optional     OPrefix,         Prefix;
@@ -94,11 +94,11 @@ optional     OPrefix,         Prefix;
 construction Attrname,        OPrefix, PlainAttrName;
 construction Tagname,         OPrefix, PlainTagName;
 
-construction Attr,   Attrname, Equals, StringLiteral;
-#pelist       Attrsi, Attr, Whitespace;
-nelist       Attrsi, Attr, Whitespace;
-construction Attrs,  Whitespace, Attrsi;
-optional     Oattrs, Attrs;
+construction Attr,            Attrname, Equals, StringLiteral;
+#pelist       Attrsi,          Attr, Whitespace;
+nelist       Attrsi,          Attr, Whitespace;
+construction Attrs,           Whitespace, Attrsi;
+optional     Oattrs,          Attrs;
 
 # More elaborate
 construction STag,     Langle,        Owhite, Tagname, Oattrs, Owhite, Rangle;
