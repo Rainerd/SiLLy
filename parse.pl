@@ -222,8 +222,6 @@ BEGIN { $INC_BASE= "../.."; }
 
 #push(@INC, "$INC_BASE/Log-Log4perl-0.49/blib/lib");
 use lib "${INC_BASE}/Log-Log4perl/blib/lib";
-use lib "${INC_BASE}";
-use lib "${INC_BASE}/SVStream/lib";
 
 use Log::Log4perl qw(:easy);
 use Data::Dumper;
@@ -2051,6 +2049,8 @@ use diagnostics;
 
 #use constant DEBUG => Parse::SiLLy::Grammar::DEBUG();
 
+use Parse::SiLLy::Compare qw(compare);
+
 # --------------------------------------------------------------------
 sub handle_item
 {
@@ -2118,7 +2118,7 @@ sub check_result($$$) {
 
     $main_log->debug(varstring("expected_text", $expected_text));
     $main_log->debug(varstring("actual_text", $actual_text));
-    assert(Sump::Validate::Compare($actual_text,     $expected_text));
+    assert(compare($actual_text, $expected_text));
 
     $main_log->debug("Okayed: $actual_typename, '$actual_text'");
 }
@@ -2216,11 +2216,7 @@ sub test_minilang()
                    ] ];
     #use FreezeThaw;
     #assert(0 == strCmp($result, $expected));
-    use lib "../SVStream/lib"; # SVStream::Utils
-    use lib ".."; # Sump::Validate
-    use Sump::Validate;
-    assert(Sump::Validate::Compare($result, $expected));
-    #Sump::Validate($result, $expected);
+    assert(compare($result, $expected));
 
     my $result_elements= elements($result);
     #check_result($$result_elements[0], 'Name', 'blah');
@@ -2306,7 +2302,7 @@ sub test_minilang()
     }
     #@$expected;
     @$expected_tokens;
-    assert(Sump::Validate::Compare($expected, $result));
+    assert(compare($expected, $result));
 
     $log->debug("--- Testing minilang::Program...");
     $log->debug("minilang::Program=$minilang::Program.");
@@ -2454,7 +2450,7 @@ sub test_minilang()
                 . Parse::SiLLy::Result::toString($expected, " ")
                 );
 
-    assert(Sump::Validate::Compare($expected, $result));
+    assert(compare($expected, $result));
 }
 
 # --------------------------------------------------------------------

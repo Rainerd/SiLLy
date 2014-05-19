@@ -1,8 +1,7 @@
 default:
 default: test
 
-INC=${HOME}/comp/lang/perl
-parse=perl -I"${INC}" -I"${INC}/SVStream/lib" parse.pl
+parse=perl -Ilib parse.pl
 
 #test: xml-namespace-test
 test: xml-test
