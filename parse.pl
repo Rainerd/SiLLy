@@ -1219,7 +1219,7 @@ sub terminal_match($$)
     match_check_preconditions($log, $t) if ASSERT();
     my $ctx= $t->[PROD_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
-    
+
     my $input= $state->[STATE_INPUT];
     my $pos= get_pos($state);
     #my ($match)= $state->[STATE_INPUT]=~ m{^$t->[PROD_PATTERN]}g;
@@ -2674,7 +2674,7 @@ sub pos_test($)
     assert( ! defined(pos($text)));
     assert( ! defined($match));
 }
-    
+
     # Array Element Test
 {
     my $text= "01def678";
@@ -2751,7 +2751,7 @@ sub main
     # If Perl is started with -DL (which needs a Perl built with
     # -DDEBUGGING), this prints memory usage statistics:
     #warn('!');
-    
+
     # Test 'def'
     #Parse::SiLLy::Grammar::def 'foo', {elt=>'bar'};
     Parse::SiLLy::Grammar::def($log, 'terminal', 'foo', ['bar'], 'main');
@@ -2792,7 +2792,7 @@ sub main
     close(INPUT);
 
     $log->debug("input:\n$input_data");
-    
+
     {
     my $state= Parse::SiLLy::Grammar::Parser_new($input_data);
     my $top= "Parse::SiLLy::Test::XML::Contentlist";
