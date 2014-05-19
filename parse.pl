@@ -2098,6 +2098,11 @@ sub check_result2( $$$ )
     if ( ! compareR($actual, $expected, $reason)) {
         $log->get_logger()->error(
             "Actual value did not match expected value,".
+            " because $reason->[0]:");
+        $log->info(varstring('expected', $expected));
+        $log->info(varstring('actual', $actual));
+        $log->get_logger()->error(
+            "Actual value did not match expected value,".
             " because $reason->[0].");
         confess("Assertion failed");
     }
