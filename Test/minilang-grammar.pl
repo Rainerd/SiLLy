@@ -120,7 +120,7 @@ nelist       Mchain,     LTerm, Period;
 construction WSemicolon, Owhite, Semicolon, Owhite;
 # Non-empty list: Program ::+ Expr
 #nelist       Program,    Expr, Semicolon;
-nelist       Program,    Mchain, Semicolon;
+nelist       Program,    Mchain, WSemicolon;
 
 print("minilang-grammar.pl: ");
 print("minilang::Program='$minilang::Program'\n");

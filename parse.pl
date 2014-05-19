@@ -2314,7 +2314,6 @@ sub test_minilang()
     #$state= Parse::SiLLy::Grammar::Parser_new($result);
     Parse::SiLLy::Grammar::set_pos($state, 0);
 
-    # FIXME: Get this test to work
     $result= Parse::SiLLy::Grammar::match($minilang::Program, $state);
     if (DEBUG() && $log->is_debug()) {
         #$log->debug(varstring('match minilang::Program result', $result));
