@@ -2049,7 +2049,7 @@ use diagnostics;
 
 #use constant DEBUG => Parse::SiLLy::Grammar::DEBUG();
 
-use Parse::SiLLy::Compare qw(compare);
+use Parse::SiLLy::Compare qw(compareR);
 
 # --------------------------------------------------------------------
 sub handle_item
@@ -2088,6 +2088,22 @@ sub elements($) {
 }
 
 # --------------------------------------------------------------------
+# FIXME: Use this to replace check_result
+
+# Assert that the given actual value matches the given expected value.
+sub check_result2( $$$ )
+{
+    my ($log, $actual, $expected)= (@_);
+    my $reason= [''];
+    if ( ! compareR($actual, $expected, $reason)) {
+        $log->get_logger()->error(
+            "Actual value did not match expected value,".
+            " because $reason->[0].");
+        confess("Assertion failed");
+    }
+}
+
+# --------------------------------------------------------------------
 sub check_result($$$) {
     my ($result, $expected_typename, $expected_text)= (@_);
     assert(defined($result));
@@ -2118,7 +2134,7 @@ sub check_result($$$) {
 
     $main_log->debug(varstring("expected_text", $expected_text));
     $main_log->debug(varstring("actual_text", $actual_text));
-    assert(compare($actual_text, $expected_text));
+    check_result2($main_log, $actual_text, $expected_text);
 
     $main_log->debug("Okayed: $actual_typename, '$actual_text'");
 }
@@ -2216,7 +2232,7 @@ sub test_minilang()
                    ] ];
     #use FreezeThaw;
     #assert(0 == strCmp($result, $expected));
-    assert(compare($result, $expected));
+    check_result2($log, $result, $expected);
 
     my $result_elements= elements($result);
     #check_result($$result_elements[0], 'Name', 'blah');
@@ -2302,7 +2318,7 @@ sub test_minilang()
     }
     #@$expected;
     @$expected_tokens;
-    assert(compare($expected, $result));
+    check_result2($log, $result, $expected);
 
     $log->debug("--- Testing minilang::Program...");
     $log->debug("minilang::Program=$minilang::Program.");
@@ -2450,7 +2466,7 @@ sub test_minilang()
                 . Parse::SiLLy::Result::toString($expected, " ")
                 );
 
-    assert(compare($expected, $result));
+    check_result2($log, $result, $expected);
 }
 
 # --------------------------------------------------------------------
