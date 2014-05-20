@@ -291,7 +291,7 @@ Internal Features Done
 #package Parse::SiLLy;
 
 use strict;
-#use warnings;
+use warnings;
 use diagnostics;
 use English;
 

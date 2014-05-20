@@ -3,7 +3,7 @@
 package minilang;
 
 use strict;
-#use warnings;
+use warnings;
 use diagnostics;
 #use English;
 

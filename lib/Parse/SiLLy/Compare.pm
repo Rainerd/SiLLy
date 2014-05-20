@@ -1,5 +1,6 @@
 package Parse::SiLLy::Compare;
 use strict;
+use warnings;
 
 # --------------------------------------------------------------------
 use Exporter;

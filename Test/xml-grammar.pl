@@ -2,7 +2,7 @@
 package Parse::SiLLy::Test::XML;
 
 use strict;
-#use warnings;
+use warnings;
 use diagnostics;
 #use English;
 my $ctx= "xml-grammar.pl";
