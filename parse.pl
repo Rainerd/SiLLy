@@ -16,7 +16,7 @@ Note that the -w option may cost a percent or two of performance.
 Does not work with my Perl: PERL_DEBUG_MSTATS=2
 
 --------------------------------------------------------------------
-Copyright (c) 2004-2006 by Rainer Blome
+Copyright (c) 2004-2014 by Rainer Blome
 
 Copying and usage conditions for this document are specified by
 Rainer's Open License, Version 1, in file LICENSE.txt.
