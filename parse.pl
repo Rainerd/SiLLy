@@ -5,10 +5,15 @@
 Usage: perl PROGRAM GRAMMAR INPUT > OUTPUT
 
 Example: perl -w parse.pl Test/xml-grammar.pl Test/XML/example.xml
+
 Debug:   PARSE_SILLY_DEBUG=1 perl -w parse.pl Test/xml-grammar.pl Test/XML/example.xml
+
 Profile: PARSE_SILLY_ASSERT=0 perl -w -d:DProf parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
+
 Profile: PARSE_SILLY_ASSERT=0 perl -w -I../.. -MDevel::Profiler parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
+
 Lint:    perl -w -MO=Lint parse.pl Test/xml-grammar.pl Test/XML/example.xml
+
 Fastest so far: PARSE_SILLY_ASSERT=0 perl parse.pl Test/xml-grammar.pl Test/XML/example.xml
 
 Note that the -w option may cost a percent or two of performance.
@@ -22,14 +27,19 @@ Copying and usage conditions for this document are specified by
 Rainer's Open License, Version 1, in file LICENSE.txt.
 
 In short, you may use or copy this document as long as you:
+
 o Keep this copyright and permission notice.
+
 o Use it ,,as is``, at your own risk -- there is NO WARRANTY WHATSOEVER.
+
 o Do not use my name in advertising.
+
 o Allow free copying of derivatives.
 
 
 --------------------------------------------------------------------
 --------------------------------------------------------------------
+
 Purpose
 
 Parses, according to the given grammar, the given input. Produces an
@@ -98,46 +108,67 @@ hold it.
 
 
 FIXME:
+
 o tuple rule attribute 'elements' is empty
+
 o Catch EOS in all matching functions
+
 
 Todo: Error Messages
 
 * Generate parsing error messages with explanations.
+
 * For purposes of generating explanations, for non-matches,
   store the reason why a rule did not match.
+
 * Search term: parser error recovery
+
 * Avoid error handling as long as no errors are encountered.
+
 * Detect near matches ("almost matched")
+
 * Annotate grammar with hints
+
 * In case of error, determine what might have helped.
+
 * Suggest remedies.
+
 * Specially handle errors on the first and last elements of composites.
   For example, if only the last element of a composite did not match,
   see if it is easy to see what might be missing, of if there is an
   annotation or hint that suggests a reaction.
+
 * Stop trying if it takes too long.
+
 * Stop trying if no progress is made.
+
 
 TODO
 
 o Provide  a test for 'lookingat'.
+
 o pos: EOI: Set a flag in the state object, update the flag whenever
   pos changes.
+
 o pos: EOI: Explicitly store the input length in the parser object?
   No, using a flag seems better.
+
 
 o Memoization: Idea: When memoizing, do not memoize (store) the result
   for every equivalent parsing state alias item (nonterminal plus
   position) separately.  Instead, define item sets as for LR or Earley
   parsers and memoize results for item sets.
+
 o Memoization: Memoize input substrings, too?
 
 o Error messages (see separate section).
 
 * Encoding:
+
   - Explicitly deal with encoding.
+
   - Default to UTF-8 encoding.
+
   - Support grammar annotations (processing instructions)
     that indicate places where the parser can find encoding
     information. For example, use this to interpret Byte Order Marks.
@@ -146,61 +177,112 @@ o Error messages (see separate section).
 
 o FIXME: Provide automated regression tests for the test tools (assert
   etc., the validation functions).
+
 o Clean up
+
   - def3
+
   - scan
+
 o Memoization: FIXME: Using memoization is currently slower than not doing it
+
 o Memoization: Benchmark without memoization versus with memoization
+
 o Memoization: Find examples for which memoization is faster.
+
 o Memoization: Make it easy to switch off memoization (per parser)
 
+
 o Factor out common parts of parsing functions.
+
 o Generate parsing error messages with explanations.
+
 o For purposes of generating explanations, for non-matches,
   store the reason why a rule did not match.
 
+
 o Benchmark make_result versus inline result construction.
+
 o Do a serious benchmark
+
 o Allow dashes in XML comments
+
 o Add more regression tests
+
 o Packagize (Parse::, Parse::LL:: or Parse::SiLLy?, Grammar, Utils, Test, Result, Stash)
+
 o Packagize (Parse::SiLLy::Test::Minilang)
+
 o Packagize productions (Terminal, Construction, etc.)
+
 o Document how to configure logging (search for $DEBUG)
+
 o Result scanner
+
 o Allow using multiple parsers concurrently
+
 o Parameterize result construction (compile-time option):
+
   - Inline result construction
+
   - array interpolation versus array reference
 
+
 Features Done
+
 o Automated minilang regression tests
+
 o Separate 'minilang' test from XML test.
+
 o Result print function with compact output format
+
 o Memoize parse results and make use of them (Packrat parsing)
+
 o Actually parse the XML input file's content
+
 o Make it possible to switch off memoization
+
 o Avoid calling debugging code (logging functions, data formatting) when debugging is off.
+
 o Avoid checking contracts (assertions etc.) when ASSERT is off.
+
 o Automated XML parsing regression test.
+
 o Compile-time omission of debugging code (default is true).
+
 o Command-line controls for Compile-time options:
+
   o ASSERT (default is on),
+
   o DEBUG (default is off),
+
   o MEMOIZE (default is off).
 
+
 Internal Features Done
+
 o Parse the hard-coded example string.
+
 o Replace undef by 'not matched' constant
+
 o Avoid array interpolation during result construction.
+
 o Loggers are implemented as arrays.
+
 o Inline result construction
+
 o Compile-time option for MEMOIZATION.
+
 o Uppercase NOMATCH (formerly nomatch) to get rid of inappropriate warnings.
+
 o Unified implementation of nelist_match and pelist_match.
+
 o Shared implementation of nelist_match and pelist_match. 
+
 o Productions are implemented as arrays.
+
 o Parsers (state) are implemented as arrays.
+
 o Automated regression tests for the assert function.
 
 =cut
