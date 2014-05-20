@@ -28,13 +28,13 @@ Rainer's Open License, Version 1, in file LICENSE.txt.
 
 In short, you may use or copy this document as long as you:
 
-o Keep this copyright and permission notice.
+* Keep this copyright and permission notice.
 
-o Use it ,,as is``, at your own risk -- there is NO WARRANTY WHATSOEVER.
+* Use it ,,as is``, at your own risk -- there is NO WARRANTY WHATSOEVER.
 
-o Do not use my name in advertising.
+* Do not use my name in advertising.
 
-o Allow free copying of derivatives.
+* Allow free copying of derivatives.
 
 
 --------------------------------------------------------------------
@@ -109,9 +109,9 @@ hold it.
 
 FIXME:
 
-o tuple rule attribute 'elements' is empty
+* tuple rule attribute 'elements' is empty
 
-o Catch EOS in all matching functions
+* Catch EOS in all matching functions
 
 
 Todo: Error Messages
@@ -145,23 +145,23 @@ Todo: Error Messages
 
 TODO
 
-o Provide  a test for 'lookingat'.
+* Provide  a test for 'lookingat'.
 
-o pos: EOI: Set a flag in the state object, update the flag whenever
+* pos: EOI: Set a flag in the state object, update the flag whenever
   pos changes.
 
-o pos: EOI: Explicitly store the input length in the parser object?
+* pos: EOI: Explicitly store the input length in the parser object?
   No, using a flag seems better.
 
 
-o Memoization: Idea: When memoizing, do not memoize (store) the result
+* Memoization: Idea: When memoizing, do not memoize (store) the result
   for every equivalent parsing state alias item (nonterminal plus
   position) separately.  Instead, define item sets as for LR or Earley
   parsers and memoize results for item sets.
 
-o Memoization: Memoize input substrings, too?
+* Memoization: Memoize input substrings, too?
 
-o Error messages (see separate section).
+* Error messages (see separate section).
 
 * Encoding:
 
@@ -175,53 +175,53 @@ o Error messages (see separate section).
     As another example, use this to interpret the encoding declaration
     in XML declarations ("\<?xml encoding='UTF-8'?\>").
 
-o FIXME: Provide automated regression tests for the test tools (assert
+* FIXME: Provide automated regression tests for the test tools (assert
   etc., the validation functions).
 
-o Clean up
+* Clean up
 
   - def3
 
   - scan
 
-o Memoization: FIXME: Using memoization is currently slower than not doing it
+* Memoization: FIXME: Using memoization is currently slower than not doing it
 
-o Memoization: Benchmark without memoization versus with memoization
+* Memoization: Benchmark without memoization versus with memoization
 
-o Memoization: Find examples for which memoization is faster.
+* Memoization: Find examples for which memoization is faster.
 
-o Memoization: Make it easy to switch off memoization (per parser)
+* Memoization: Make it easy to switch off memoization (per parser)
 
 
-o Factor out common parts of parsing functions.
+* Factor out common parts of parsing functions.
 
-o Generate parsing error messages with explanations.
+* Generate parsing error messages with explanations.
 
-o For purposes of generating explanations, for non-matches,
+* For purposes of generating explanations, for non-matches,
   store the reason why a rule did not match.
 
 
-o Benchmark make_result versus inline result construction.
+* Benchmark make_result versus inline result construction.
 
-o Do a serious benchmark
+* Do a serious benchmark
 
-o Allow dashes in XML comments
+* Allow dashes in XML comments
 
-o Add more regression tests
+* Add more regression tests
 
-o Packagize (Parse::, Parse::LL:: or Parse::SiLLy?, Grammar, Utils, Test, Result, Stash)
+* Packagize (Parse::, Parse::LL:: or Parse::SiLLy?, Grammar, Utils, Test, Result, Stash)
 
-o Packagize (Parse::SiLLy::Test::Minilang)
+* Packagize (Parse::SiLLy::Test::Minilang)
 
-o Packagize productions (Terminal, Construction, etc.)
+* Packagize productions (Terminal, Construction, etc.)
 
-o Document how to configure logging (search for $DEBUG)
+* Document how to configure logging (search for $DEBUG)
 
-o Result scanner
+* Result scanner
 
-o Allow using multiple parsers concurrently
+* Allow using multiple parsers concurrently
 
-o Parameterize result construction (compile-time option):
+* Parameterize result construction (compile-time option):
 
   - Inline result construction
 
@@ -230,60 +230,60 @@ o Parameterize result construction (compile-time option):
 
 Features Done
 
-o Automated minilang regression tests
+* Automated minilang regression tests
 
-o Separate 'minilang' test from XML test.
+* Separate 'minilang' test from XML test.
 
-o Result print function with compact output format
+* Result print function with compact output format
 
-o Memoize parse results and make use of them (Packrat parsing)
+* Memoize parse results and make use of them (Packrat parsing)
 
-o Actually parse the XML input file's content
+* Actually parse the XML input file's content
 
-o Make it possible to switch off memoization
+* Make it possible to switch off memoization
 
-o Avoid calling debugging code (logging functions, data formatting) when debugging is off.
+* Avoid calling debugging code (logging functions, data formatting) when debugging is off.
 
-o Avoid checking contracts (assertions etc.) when ASSERT is off.
+* Avoid checking contracts (assertions etc.) when ASSERT is off.
 
-o Automated XML parsing regression test.
+* Automated XML parsing regression test.
 
-o Compile-time omission of debugging code (default is true).
+* Compile-time omission of debugging code (default is true).
 
-o Command-line controls for Compile-time options:
+* Command-line controls for Compile-time options:
 
-  o ASSERT (default is on),
+  - ASSERT (default is on),
 
-  o DEBUG (default is off),
+  - DEBUG (default is off),
 
-  o MEMOIZE (default is off).
+  - MEMOIZE (default is off).
 
 
 Internal Features Done
 
-o Parse the hard-coded example string.
+* Parse the hard-coded example string.
 
-o Replace undef by 'not matched' constant
+* Replace undef by 'not matched' constant
 
-o Avoid array interpolation during result construction.
+* Avoid array interpolation during result construction.
 
-o Loggers are implemented as arrays.
+* Loggers are implemented as arrays.
 
-o Inline result construction
+* Inline result construction
 
-o Compile-time option for MEMOIZATION.
+* Compile-time option for MEMOIZATION.
 
-o Uppercase NOMATCH (formerly nomatch) to get rid of inappropriate warnings.
+* Uppercase NOMATCH (formerly nomatch) to get rid of inappropriate warnings.
 
-o Unified implementation of nelist_match and pelist_match.
+* Unified implementation of nelist_match and pelist_match.
 
-o Shared implementation of nelist_match and pelist_match. 
+* Shared implementation of nelist_match and pelist_match.
 
-o Productions are implemented as arrays.
+* Productions are implemented as arrays.
 
-o Parsers (state) are implemented as arrays.
+* Parsers (state) are implemented as arrays.
 
-o Automated regression tests for the assert function.
+* Automated regression tests for the assert function.
 
 =cut
 
@@ -1475,12 +1475,12 @@ sub construction_match($$)
   but the context demands that the match not be used.
   This happens when:
 
-  o A part of a construction was matched, but the next part could not
+  * A part of a construction was matched, but the next part could not
     be matched.  More generally speaking, where a failure may occur
     after pos has been already moved (but constructions currently are
     the only productions where this is possible).
 
-  o A positive lookahead ('looking at' alias 'and') was matched.  The
+  * A positive lookahead ('looking at' alias 'and') was matched.  The
     match will be returned, but the input position reset.
 
 =end comment
