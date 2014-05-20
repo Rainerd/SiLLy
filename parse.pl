@@ -101,7 +101,7 @@ FIXME:
 o tuple rule attribute 'elements' is empty
 o Catch EOS in all matching functions
 
-==== Todo: Error Messages
+Todo: Error Messages
 
 * Generate parsing error messages with explanations.
 * For purposes of generating explanations, for non-matches,
@@ -142,7 +142,7 @@ o Error messages (see separate section).
     that indicate places where the parser can find encoding
     information. For example, use this to interpret Byte Order Marks.
     As another example, use this to interpret the encoding declaration
-    in XML declarations ("<?xml encoding='UTF-8'?>").
+    in XML declarations ("\<?xml encoding='UTF-8'?\>").
 
 o FIXME: Provide automated regression tests for the test tools (assert
   etc., the validation functions).
