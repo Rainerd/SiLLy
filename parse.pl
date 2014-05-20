@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 # --------------------------------------------------------------------
-=ignore
+=pod
 
 Usage: perl PROGRAM GRAMMAR INPUT > OUTPUT
 
@@ -1385,7 +1385,7 @@ sub construction_match($$)
                             . " (giving up on '$ctx')\]\]");
             }
 
-=ignore
+=begin comment
 
   Q: Where do we have to actually perform backtracking?
 
@@ -1400,6 +1400,8 @@ sub construction_match($$)
 
   o A positive lookahead ('looking at' alias 'and') was matched.  The
     match will be returned, but the input position reset.
+
+=end comment
 
 =cut
 
@@ -2338,7 +2340,8 @@ sub test_minilang()
                     . Parse::SiLLy::Result::toString($result, " ") . "'");
     }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
-=ignore
+
+=begin comment
 
     $expected=
     ['minilang::Program',
@@ -2383,9 +2386,11 @@ sub test_minilang()
      ['minilang::Semicolon', ';'],
      ];
 
+=end comment
+
 =cut
 
-=ignore
+=begin comment
 
     $expected=
     ['Program',
@@ -2424,6 +2429,8 @@ sub test_minilang()
       ],
      ['Semicolon', ';'],
      ];
+
+=end comment
 
 =cut
 
@@ -2615,7 +2622,8 @@ sub do_runs($$$) {
 }
 
 # --------------------------------------------------------------------
-=ignore
+
+=begin comment
 
 sub pos_test($)
 {
@@ -2715,6 +2723,8 @@ sub pos_test($)
 }
 }
 
+=end comment
+
 =cut
 
 # --------------------------------------------------------------------
@@ -2766,7 +2776,8 @@ sub main
 
     $log->debug("---Reading and Evaluating grammar...");
     my $grammar_filename= shift(@_);
-=ignore
+
+=begin comment
 
     open(GRAMMAR, "< $grammar_filename")
         or die("Can't open grammar file \`$grammar_filename'.");
@@ -2775,6 +2786,8 @@ sub main
     $INPUT_RECORD_SEPARATOR= "";
     close(GRAMMAR);
     #$log->debug("grammar='$grammar'");
+
+=end comment
 
 =cut
 
