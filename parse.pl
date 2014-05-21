@@ -149,6 +149,12 @@ Todo: Error Messages
 
 TODO
 
+* Replace the automated commit messages by real ones.
+
+* Group commits of parse.pl with the associated grammar commits.
+
+* Rebase "backup-before-rebase" onto the "old" commit where it fits.
+
 * Make the test so easy to understand that it is crystal-clear whether
   the tests yielded the expected results. Currently, one of the XML
   parsing tests apparently prints a result that is too short (ends
