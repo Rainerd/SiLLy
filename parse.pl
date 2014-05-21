@@ -149,6 +149,13 @@ Todo: Error Messages
 
 TODO
 
+* Make the test so easy to understand that it is crystal-clear whether
+  the tests yielded the expected results. Currently, one of the XML
+  parsing tests apparently prints a result that is too short (ends
+  after a left angle bracket).
+
+* Clean up (remove) most of the disabled code.
+
 * Provide  a test for 'lookingat'.
 
 * pos: EOI: Set a flag in the state object, update the flag whenever
@@ -195,6 +202,14 @@ TODO
 * Memoization: Find examples for which memoization is faster.
 
 * Memoization: Make it easy to switch off memoization (per parser)
+
+* Memoization: For inputs known to be small, consider stashing in an
+  array indexed by position.
+
+* Memoization: Document how it currently works, in particular how the
+  stash is keyed.
+
+* Memoization: Consider using arrays indexed by production id.
 
 
 * Factor out common parts of parsing functions.
