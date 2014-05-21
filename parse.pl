@@ -1049,9 +1049,16 @@ use constant STATE_STASH => STATE_POS + 1;
 use constant STATE_POS_STASH => STATE_STASH + 1;
 
 # --------------------------------------------------------------------
+# @return the input character index of the given parser state. In
+# other words, the value of `pos(input)` (see `perldoc -f pos`), where
+# input is the parser input of the given parser state.
 sub get_pos($) { pos($_[0]->[STATE_INPUT]); }
 
 # --------------------------------------------------------------------
+# Sets the input position of the given parser state to the given
+# value. In other words, sets the value of `pos(input)` (see `perldoc
+# -f pos`), where input is the parser input of the given parser state,
+# to the given value.
 sub set_pos($$) {
     pos($_[0]->[STATE_INPUT])= $_[1];
 
