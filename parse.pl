@@ -426,7 +426,7 @@ use diagnostics;
 #use English;
 
 ::import_from('main', 'assert');
-::import_from('main', 'ASSERT');
+use constant ASSERT => ::ASSERT;
 
 # Logger objects are implemented as arrays.  Use these constants as
 # indices to access their fields (array elements):
@@ -636,7 +636,7 @@ use diagnostics;
 #use English;
 
 ::import_from('main', 'assert');
-::import_from('main', 'ASSERT');
+use constant ASSERT => ::ASSERT;
 
 # --------------------------------------------------------------------
 # FIXME: Define these only once:
@@ -803,7 +803,7 @@ use English;
 #main::import(qw(assert));
 #*assert= \&::assert;
 ::import_from('main', 'assert');
-::import_from('main', 'ASSERT');
+use constant ASSERT => ::ASSERT;
 ::import_from('main', 'vardescr');
 ::import_from('main', 'varstring');
 
