@@ -87,6 +87,10 @@ PARSE_SILLY_ASSERT=0 -- Do not check assertions, do not even compute
 PARSE_SILLY_MEMOIZE=1 -- Turns on memoization.  This makes this a
   packrat parser.  Currently, with the grammars and examples that I
   used for testing, this option slows the parser down by about 30%.
+  Since I guess that the potential advantage of memoization is zero
+  for the examples used, this is probably simply the overhead
+  introduced by the memoization operations, plus possibly a cache
+  penalty.
 
 PARSE_SILLY_DEBUG=1 -- Enable debug messages.  This will slow the
   parser down by a factor of at least ten.
