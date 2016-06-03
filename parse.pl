@@ -23,8 +23,8 @@ Does not work with my Perl: PERL_DEBUG_MSTATS=2
 --------------------------------------------------------------------
 Copyright (c) 2004-2014 by Rainer Blome
 
-Copying and usage conditions for this document are specified by
-Rainer's Open License, Version 1, in file LICENSE.txt.
+Copying and usage conditions for this document are specified in file
+LICENSE.txt.
 
 In short, you may use or copy this document as long as you:
 
@@ -34,7 +34,7 @@ In short, you may use or copy this document as long as you:
 
 * Do not use my name in advertising.
 
-* Allow free copying of derivatives.
+* Allow free distribution of derivatives.
 
 
 --------------------------------------------------------------------
