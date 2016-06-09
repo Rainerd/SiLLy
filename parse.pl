@@ -317,7 +317,7 @@ Internal Features Done
 
 use strict;
 use warnings;
-use diagnostics;
+#use diagnostics;
 use English;
 
 # --------------------------------------------------------------------
@@ -447,7 +447,7 @@ sub hash_get($$) {
 package Logger;
 
 use strict;
-use diagnostics;
+#use diagnostics;
 #use English;
 
 ::import_from('main', 'assert');
@@ -595,7 +595,7 @@ sub debug($) {
 package main;
 
 use strict;
-use diagnostics;
+#use diagnostics;
 use English;
 use File::Basename;
 
@@ -657,7 +657,7 @@ sub vardescr($$)
 package Parse::SiLLy::Result;
 
 use strict;
-use diagnostics;
+#use diagnostics;
 #use English;
 
 ::import_from('main', 'assert');
@@ -806,7 +806,8 @@ sub scan($$) {
 
 # ====================================================================
 package Parse::SiLLy::Terminal;
-use strict; use diagnostics;
+use strict;
+#use diagnostics;
 
 sub new($) {
     my $proto= shift;
@@ -821,7 +822,7 @@ sub new($) {
 package Parse::SiLLy::Grammar;
 
 use strict;
-use diagnostics;
+#use diagnostics;
 use English;
 
 #use main;
@@ -2160,7 +2161,7 @@ sub init()
 package main;
 
 use strict;
-use diagnostics;
+#use diagnostics;
 #use English;
 
 #use constant DEBUG => Parse::SiLLy::Grammar::DEBUG();

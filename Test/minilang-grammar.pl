@@ -4,7 +4,7 @@ package minilang;
 
 use strict;
 use warnings;
-use diagnostics;
+#use diagnostics;
 #use English;
 
 # --------------------------------------------------------------------
