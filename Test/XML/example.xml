@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<table>
+ <tr>
+  <td>Inhalt</td>
+  <td>Mehr Inhalt</td>
+  <td><!-- Hier ist nichts, nur ein Kommentar --></td>
+  <td></td>
+ </tr>
+ <tr attribute1="value1">
+  <td attribute2="value2" attribute3="value3"><!-- Diesmal ist hier nichts --></td>
+  <td>Noch Mehr Inhalt</td>
+  <td></td>
+  <td></td>
+ </tr>
+</table<
+<trailing><node/></trailing>
+Trailing Garbage...

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="us-ascii"?>
+
+<examples>
+
+    <section xmlns='http://www.example.com/booksigning'>
+	<title>Book-Signing Event</title>
+	<signing>
+	    <author title="Mr." name="Wilhelm Busch"/>
+	    <book title="Struwwelpeter" price="$23" />
+	</signing>
+    </section>
+
+    <reservation xmlns:html="http://www.w3.org/TR/REC-html40">
+	<name html:class="largeSansSerif">Guck-in-die-Luft, Hans</name>
+	<seat class="Y" html:class="largeMonotype">12A</seat>
+	<html:a href='/servlets/ReservationStatus'>Confirmed</html:a>
+	<departure>1970-01-02T03:04:05+6</departure>
+    </reservation>
+
+</examples>
