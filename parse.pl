@@ -761,6 +761,7 @@ sub toString($$)
 # Iterates over all elements (matches) in the given parse result
 # object, calling the given handler on each one.
 
+sub scan($$);
 sub scan($$) {
     my ($self, $handler)= (@_);
     assert(defined($self)) if ASSERT();
