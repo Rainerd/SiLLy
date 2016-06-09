@@ -328,9 +328,9 @@ use File::Basename;
 BEGIN { $INC_BASE= "../.."; }
 
 #push(@INC, "$INC_BASE/Log-Log4perl-0.49/blib/lib");
-use lib "${INC_BASE}/Log-Log4perl/blib/lib";
+#use lib "${INC_BASE}/Log-Log4perl/blib/lib";
 
-use Log::Log4perl qw(:easy);
+#use Log::Log4perl qw(:easy);
 use Data::Dumper;
 
 # --------------------------------------------------------------------
@@ -474,8 +474,8 @@ sub new
     $$self[LOGGER_NAME]= $name;
 
     #$self->{logger}= Log::Log4perl::get_logger($name)
-    $$self[LOGGER_LOGGER]= Log::Log4perl::get_logger($name)
-	|| die("$name: Could not get logger.\n");
+    #$$self[LOGGER_LOGGER]= Log::Log4perl::get_logger($name)
+    #    || die("$name: Could not get logger.\n");
     #print("$name: Got logger: " . join(', ', keys(%{$self->{logger}})) . "\n");
     #print("$name: Got logger: " . join(', ', keys(%{$self->[2]})) . "\n");
     #print("$name: Got logger: " . $self->get_logger()->{category} . "\n");
@@ -483,7 +483,8 @@ sub new
     #$self->{debugging}= $self->{logger}->is_debug();
     #$$self[LOGGER_DEBUG]= $ {@$self}[LOGGER_LOGGER]->is_debug();
     #$$self[LOGGER_DEBUG]=   ($$self[LOGGER_LOGGER])->is_debug();
-    $$self[LOGGER_DEBUG]= $self->get_logger()->is_debug();
+    #$$self[LOGGER_DEBUG]= $self->get_logger()->is_debug();
+    $$self[LOGGER_DEBUG]= Parse::SiLLy::Grammar::DEBUG();
     #print("is_debug()=".$self->is_debug()."\n");
     $self->debug("is_debug()=".$self->is_debug()."\n");
 
@@ -534,7 +535,7 @@ sub set_debug($) {
     assert(defined($self)) if ASSERT();
     assert('' ne ref($self)) if ASSERT();
     $self->[LOGGER_DEBUG]= 1;
-    $self->get_logger()->level($Log::Log4perl::DEBUG);
+    #$self->get_logger()->level($Log::Log4perl::DEBUG);
 }
 
 # --------------------------------------------------------------------
@@ -543,7 +544,7 @@ sub set_nodebug($) {
     assert(defined($self)) if ASSERT();
     assert('' ne ref($self)) if ASSERT();
     $self->[LOGGER_DEBUG]= 0;
-    $self->get_logger()->level($Log::Log4perl::INFO);
+    #$self->get_logger()->level($Log::Log4perl::INFO);
 }
 
 # --------------------------------------------------------------------
@@ -560,7 +561,7 @@ sub get_logger($) {
     my $log= $$self[LOGGER_LOGGER];
     ::assert(defined($log)) if ASSERT();
     #print(STDERR "ref(log)=".ref($log)."\n");
-    ::assert("Log::Log4perl::Logger" eq ref($log)) if ASSERT();
+    #::assert("Log::Log4perl::Logger" eq ref($log)) if ASSERT();
     $log;
 }
 
@@ -571,7 +572,8 @@ sub info($) {
     #print("$ctx: @_\n");
     #$self->{logger}->info("$ctx: @_");
     #($$self[LOGGER_LOGGER])->info("$ctx: @_");
-    get_logger($self)->info("$ctx: @_");
+    #get_logger($self)->info("$ctx: @_");
+    print(STDERR "$ctx: @_");
 }
 
 # --------------------------------------------------------------------
@@ -593,7 +595,8 @@ sub debug($) {
     #$self->{logger}->debug("$ctx: @_");
     #($$self[LOGGER_LOGGER])->debug("$ctx: @_");
     #get_logger($self)->debug("$ctx: @_");
-    $self->get_logger()->debug("$ctx: @_");
+    #$self->get_logger()->debug("$ctx: @_");
+    print(STDERR "$ctx: @_");
 }
 
 # ====================================================================
@@ -2858,7 +2861,7 @@ sub init()
 
     #Log::Log4perl->easy_init($INFO);
     #Log::Log4perl->easy_init($DEBUG);
-    Log::Log4perl->easy_init(Parse::SiLLy::Grammar::DEBUG() ? $DEBUG : $INFO);
+    #Log::Log4perl->easy_init(Parse::SiLLy::Grammar::DEBUG() ? $DEBUG : $INFO);
     #$logger= get_logger();
     #$logger->info("Running...");
     #if (scalar(@_) > 0) { info(vdump('Args', \@_)); }
