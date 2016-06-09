@@ -575,6 +575,11 @@ sub info($) {
 }
 
 # --------------------------------------------------------------------
+sub error($) {
+    $_[0]->info("*** ERROR ***: ", @_);
+}
+
+# --------------------------------------------------------------------
 sub debug($) {
     # If ! $self->{debugging} return:
     if ( ! $_[0][LOGGER_DEBUG]) { return; }
@@ -1119,7 +1124,7 @@ sub match_check_preconditions($$) {
     assert(defined($log)) if ASSERT();
     assert(defined($t)) if ASSERT();
     if ('' eq ref($t)) {
-        $log->get_logger()->error("t is not a hash: ".$t);
+        $log->error("t is not a hash: ".$t);
     }
     assert('' ne ref($t)) if ASSERT();
     #assert("HASH" eq ref($t)) if ASSERT();
@@ -2213,12 +2218,12 @@ sub check_result2( $$$ )
     my ($log, $actual, $expected)= (@_);
     my $reason= [''];
     if ( ! compareR($actual, $expected, $reason)) {
-        $log->get_logger()->error(
+        $log->error(
             "Actual value did not match expected value,".
             " because $reason->[0]:");
         $log->info(varstring('expected', $expected));
         $log->info(varstring('actual', $actual));
-        $log->get_logger()->error(
+        $log->error(
             "Actual value did not match expected value,".
             " because $reason->[0].");
         confess("Assertion failed");
