@@ -2330,7 +2330,7 @@ sub test_minilang()
     $state= Parse::SiLLy::Grammar::Parser_new('blah "123"  456');
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
-    if (DEBUG() && $log->is_debug()) {
+    if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
         #$log->debug(varstring('match minilang::Tokenlist result 1', $result));
         $log->debug("match minilang::Tokenlist result 1='"
                     . Parse::SiLLy::Result::toString($result, " ")
@@ -2370,7 +2370,7 @@ sub test_minilang()
     $state= Parse::SiLLy::Grammar::Parser_new($input);
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
-    if (DEBUG() && $log->is_debug()) {
+    if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
         #$log->debug(varstring('match minilang::Tokenlist result 2', $result));
         $log->debug("match minilang::Tokenlist result 2='"
                     . Parse::SiLLy::Result::toString($result, " ") . "'");
@@ -2379,7 +2379,7 @@ sub test_minilang()
 
     assert(1 < scalar(@$result));
     $result_elements= elements($result);
-    if (DEBUG() && $log->is_debug()) {
+    if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
         $log->debug(varstring('result_elements', $result_elements));
     }
 
@@ -2418,7 +2418,7 @@ sub test_minilang()
     } @token_contents;
     my $expected_tokens= \@expected_tokens;
     $expected= ['minilang::Tokenlist', $expected_tokens];
-    if (DEBUG() && $log->is_debug()) {
+    if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
         $log->debug('expected_tokens formatted as result: '
                     #. Parse::SiLLy::Result::toString($expected_tokens, " ")
                     . Parse::SiLLy::Result::toString($expected, " ")
@@ -2427,7 +2427,7 @@ sub test_minilang()
     }
     map {
         my ($expected_result)= $_;
-        if (DEBUG() && $log->is_debug()) {
+        if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
             #$log->debug(varstring('expected_result', $expected_result));
             $log->debug("Checking \$expected_result='"
                         . Parse::SiLLy::Result::toString($expected_result, " ")."'...");
@@ -2449,7 +2449,7 @@ sub test_minilang()
     Parse::SiLLy::Grammar::set_pos($state, 0);
 
     $result= Parse::SiLLy::Grammar::match($minilang::Program, $state);
-    if (DEBUG() && $log->is_debug()) {
+    if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
         #$log->debug(varstring('match minilang::Program result', $result));
         $log->debug("match minilang::Program result='"
                     . Parse::SiLLy::Result::toString($result, " ") . "'");
@@ -2621,7 +2621,7 @@ sub test_xml()
 
     #$result= Parse::SiLLy::Grammar::match($Parse::SiLLy::Test::XML::Elem,
     #                                      $state);
-    #if (DEBUG() && $log->is_debug()) {
+    #if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
     #    $log->debug(varstring('match XML::Elem result', $result));
     #}
     #Parse::SiLLy::Grammar::input_show_state($log, $state);
@@ -2639,7 +2639,7 @@ sub test_xml()
     my $top= $Parse::SiLLy::Test::XML::Contentlist
            = $Parse::SiLLy::Test::XML::Contentlist;
     $result= Parse::SiLLy::Grammar::match($top, $state);
-    if (DEBUG() && $log->is_debug()) {
+    if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
         #$log->debug(varstring('match $top result', $result));
         $log->debug("match $top result='"
                     . Parse::SiLLy::Result::toString($result, " ") . "'");
@@ -2939,7 +2939,7 @@ sub main
     # First arg -N means repeat for at least N seconds.
     timethis(-2, sub { $result= do_one_run($state, $top); } );
 
-    if (DEBUG() && $log->is_debug()) {
+    if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
         $log->debug(varstring('match $top result', $result));
         #$log->debug(varstring('state', $state));
     }
