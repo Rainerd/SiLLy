@@ -748,16 +748,16 @@ sub toString($$)
     my $match= $$self[1];
     $typename= substr($typename, length("Parse::SiLLy::"));
     if ($category eq "terminal") {
-        "[$typename '".quotemeta($$match[0])."']";
+        "[ter $typename '".quotemeta($$match[0])."']";
     }
     # Even though an alternation production has multiple alternatives,
     # after it matched there is only one concrete result.
     elsif (grep($category, qw(alternation optional lookingat notlookingat))) {
-        "[$typename ".toString($$match[0], "$indent ")."]";
+        "[".substr($category, 0, 3)." ".$typename.toString($$match[0], "$indent ")."]";
     }
     else {
         # $category is construction, pelist or nelist
-        "[$typename\n$indent "
+        "[".substr($category, 0, 3)." ".$typename."\n".$indent." "
             #. join(",\n$indent ", map { toString($_, "$indent "); } @$self[1..$#$self])
             . join(",\n$indent ", map { toString($_, "$indent "); } @$match)
             #. "$indent]";
