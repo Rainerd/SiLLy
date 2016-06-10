@@ -2962,7 +2962,7 @@ sub main
         Parse::SiLLy::Grammar::show_stash(
             $log, $state->[Parse::SiLLy::Grammar::STATE_STASH()] );
     }
-    print(Parse::SiLLy::Result::toString($result, " ")."\n");
+    $log->info(Parse::SiLLy::Result::toString($result, " "));
     }
     #warn('!!!');
     #sleep(5);
