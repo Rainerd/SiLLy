@@ -750,10 +750,13 @@ sub toString($$)
     if ($category eq "terminal") {
         "[$typename '".quotemeta($$match[0])."']";
     }
+    # Even though an alternation production has multiple alternatives,
+    # after it matched there is only one concrete result.
     elsif (grep($category, qw(alternation optional lookingat notlookingat))) {
         "[$typename ".toString($$match[0], "$indent ")."]";
     }
     else {
+        # $category is construction, pelist or nelist
         "[$typename\n$indent "
             #. join(",\n$indent ", map { toString($_, "$indent "); } @$self[1..$#$self])
             . join(",\n$indent ", map { toString($_, "$indent "); } @$match)
