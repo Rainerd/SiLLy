@@ -573,7 +573,7 @@ sub info($) {
     #$self->{logger}->info("$ctx: @_");
     #($$self[LOGGER_LOGGER])->info("$ctx: @_");
     #get_logger($self)->info("$ctx: @_");
-    print(STDERR "$ctx: @_");
+    print(STDERR $ctx,": ",@_,"\n");
 }
 
 # --------------------------------------------------------------------
@@ -596,7 +596,7 @@ sub debug($) {
     #($$self[LOGGER_LOGGER])->debug("$ctx: @_");
     #get_logger($self)->debug("$ctx: @_");
     #$self->get_logger()->debug("$ctx: @_");
-    print(STDERR "$ctx: @_");
+    print(STDERR $ctx,": ",@_,"\n");
 }
 
 # ====================================================================
