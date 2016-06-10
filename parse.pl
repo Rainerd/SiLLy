@@ -566,8 +566,8 @@ sub get_logger($) {
 }
 
 # --------------------------------------------------------------------
-sub info($) {
-    my ($self)= (@_);
+sub info {
+    my $self= shift(@_);
     my $ctx= $self->name();
     #print("$ctx: @_\n");
     #$self->{logger}->info("$ctx: @_");
@@ -577,16 +577,17 @@ sub info($) {
 }
 
 # --------------------------------------------------------------------
-sub error($) {
-    $_[0]->info("*** ERROR ***: ", @_);
+sub error {
+    my $self= shift(@_);
+    $self->info("*** ERROR ***: ", @_);
 }
 
 # --------------------------------------------------------------------
-sub debug($) {
+sub debug {
     # If ! $self->{debugging} return:
     if ( ! $_[0][LOGGER_DEBUG]) { return; }
 
-    my ($self)= shift;
+    my $self= shift;
     #if ( ! $self->is_debug()) { return; }
     #if ( ! $self->get_logger()->is_debug()) { return; }
     #my $ctx= $$self[LOGGER_NAME];
