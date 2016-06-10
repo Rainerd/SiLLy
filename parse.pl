@@ -746,6 +746,7 @@ sub toString($$)
     #print("categ=$category\n");
 
     my $match= $$self[1];
+    $typename= substr($typename, length("Parse::SiLLy::"));
     if ($category eq "terminal") {
         "[$typename '".quotemeta($$match[0])."']";
     }
