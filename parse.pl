@@ -724,7 +724,7 @@ sub toString($$)
     #return "DUMMY";
     my ($self, $indent)= @_;
     assert(defined($self));
-    if ( ! matched($self)) { return $indent.'nomatch'; }
+    if ( ! matched($self)) { return 'nomatch'; }
     #'ARRAY' eq ref($self) ||
         #print(::varstring("self", $self)
               #.", ref(\$self)=".ref($self)
