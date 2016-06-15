@@ -321,6 +321,9 @@ use warnings;
 use English;
 
 # --------------------------------------------------------------------
+my $main_log;
+
+# --------------------------------------------------------------------
 my $INC_BASE;
 use File::Basename;
 #BEGIN { $INC_BASE= dirname($0); }
@@ -723,6 +726,7 @@ sub toString($$)
 {
     #return "DUMMY";
     my ($self, $indent)= @_;
+    my $log= $main_log;
     assert(defined($self));
     if ( ! matched($self)) { return 'nomatch'; }
     #'ARRAY' eq ref($self) ||
@@ -743,20 +747,34 @@ sub toString($$)
     assert($typename eq $type->[PROD_NAME]);
 
     my $category= $type->[PROD_CATEGORY];
-    #print("categ=$category\n");
+    #if ($log->is_debug()) {
+    #    $log->debug("toString: Category is '",$category,"'.");
+    #}
 
     my $match= $$self[RESULT_MATCH];
+    #if ($log->is_debug()) {
+    #    $log->debug(::vardescr("toString all: match", $match));
+    #}
+
     $typename= substr($typename, length("Parse::SiLLy::"));
+    if ($log->is_debug()) {
+        $log->debug("toString: Type '",$typename,"' has category '",$category,"'.");
+    }
     if ($category eq "terminal") {
         "[ter ".$typename." '".quotemeta($$match[0])."']";
     }
     # Even though an alternation production has multiple alternatives,
     # after it matched there is only one concrete result.
     elsif (grep(/$category/, qw(alternation optional lookingat notlookingat))) {
+        if ($log->is_debug()) {
+            $log->debug("toString: Category '", $category, "' has only one element.");
+        }
         "[".substr($category, 0, 3)." ".$typename." ".toString($$match[0], "$indent ")."]";
     }
     else {
-        # $category is construction, pelist or nelist
+        if ($log->is_debug()) {
+            $log->debug("toString: Category '", $category, "' has multiple elements.");
+        }
         "[".substr($category, 0, 3)." ".$typename."\n".$indent." "
             #. join(",\n$indent ", map { toString($_, "$indent "); } @$self[1..$#$self])
             . join(",\n$indent ", map { toString($_, "$indent "); } @$match)
@@ -2189,9 +2207,6 @@ sub handle_item
 }
 
 # --------------------------------------------------------------------
-my $main_log;
-
-# --------------------------------------------------------------------
 sub elements($) {
     #return $ {@{$_[0]}}[1];
     my $result= $_[0];
@@ -2968,7 +2983,10 @@ sub main
         Parse::SiLLy::Grammar::show_stash(
             $log, $state->[Parse::SiLLy::Grammar::STATE_STASH()] );
     }
+    #$log->info(vardescr("result", $result));
+    #$log->set_debug();
     $log->info(Parse::SiLLy::Result::toString($result, " "));
+    #$log->set_nodebug();
     }
     #warn('!!!');
     #sleep(5);
