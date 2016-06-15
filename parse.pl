@@ -792,6 +792,7 @@ sub toString($$)
             " ".toString($$match[0], "$indent ")."]";
     }
     else {
+        # $category is construction, pelist or nelist.
         if ($log->is_debug()) {
             $log->debug("toString: Category '", $category, "' has multiple elements.");
         }
