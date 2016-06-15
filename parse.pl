@@ -770,7 +770,7 @@ sub toString($$)
     #    $log->debug(::vardescr("toString all: match", $match));
     #}
 
-    $typename= substr($typename, length("Parse::SiLLy::"));
+    $typename=~ s/.*:://o;
     if ($log->is_debug()) {
         $log->debug("toString: Type '",$typename,"' has category '",$category,"'.");
     }
