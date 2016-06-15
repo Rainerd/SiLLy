@@ -2985,7 +2985,10 @@ sub main
     my $result;
     #$result= Parse::SiLLy::Grammar::match($::Elem, $state);
     no strict 'refs';
+    # FIXME: Make set_debug calls work without DEBUG() being true.
+    #$pelist_match_log->set_debug();
     $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state);
+    #$pelist_match_log->set_nodebug();
     #$log->info(vardescr("result", $result));
     #$log->set_debug();
     $log->info("first run result:\n ",
