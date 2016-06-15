@@ -2986,6 +2986,11 @@ sub main
     #$result= Parse::SiLLy::Grammar::match($::Elem, $state);
     no strict 'refs';
     $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state);
+    #$log->info(vardescr("result", $result));
+    #$log->set_debug();
+    $log->info("first run result:\n ",
+               Parse::SiLLy::Result::toString($result, " ") );
+    #$log->set_nodebug();
     #$result= do_one_run($state, $top);
     #$result= do_runs(100, $state, $top);
 
@@ -3005,10 +3010,6 @@ sub main
         Parse::SiLLy::Grammar::show_stash(
             $log, $state->[Parse::SiLLy::Grammar::STATE_STASH()] );
     }
-    #$log->info(vardescr("result", $result));
-    #$log->set_debug();
-    $log->info(Parse::SiLLy::Result::toString($result, " "));
-    #$log->set_nodebug();
     }
     #warn('!!!');
     #sleep(5);
