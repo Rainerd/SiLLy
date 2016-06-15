@@ -719,6 +719,20 @@ sub matched_test() {
 }
 
 # --------------------------------------------------------------------
+# Maps production categories to single symbols, for compact output.
+
+my $cats= {
+    alternation  => '|',
+    construction => '&',
+    lookingat    => ':',
+    nelist       => '+',
+    notlookingat => '!',
+    optional     => '?',
+    pelist       => '*',
+    terminal     => '=',
+};
+
+# --------------------------------------------------------------------
 # Formats the given result object as a string
 
 sub toString($$);
@@ -760,8 +774,13 @@ sub toString($$)
     if ($log->is_debug()) {
         $log->debug("toString: Type '",$typename,"' has category '",$category,"'.");
     }
+
+    my $cat= $cats->{$category};
+
     if ($category eq "terminal") {
-        "[ter ".$typename." '".quotemeta($$match[0])."']";
+        "[".$typename.$cat." '".
+            quotemeta($$match[0]).
+            "']";
     }
     # Even though an alternation production has multiple alternatives,
     # after it matched there is only one concrete result.
@@ -769,13 +788,15 @@ sub toString($$)
         if ($log->is_debug()) {
             $log->debug("toString: Category '", $category, "' has only one element.");
         }
-        "[".substr($category, 0, 3)." ".$typename." ".toString($$match[0], "$indent ")."]";
+        "[".$typename.$cat.
+            " ".toString($$match[0], "$indent ")."]";
     }
     else {
         if ($log->is_debug()) {
             $log->debug("toString: Category '", $category, "' has multiple elements.");
         }
-        "[".substr($category, 0, 3)." ".$typename."\n".$indent." "
+        "[".$typename.$cat."\n".
+            $indent." "
             #. join(",\n$indent ", map { toString($_, "$indent "); } @$self[1..$#$self])
             . join(",\n$indent ", map { toString($_, "$indent "); } @$match)
             #. "$indent]";
