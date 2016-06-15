@@ -753,7 +753,7 @@ sub toString($$)
     # Even though an alternation production has multiple alternatives,
     # after it matched there is only one concrete result.
     elsif (grep(/$category/, qw(alternation optional lookingat notlookingat))) {
-        "[".substr($category, 0, 3)." ".$typename.toString($$match[0], "$indent ")."]";
+        "[".substr($category, 0, 3)." ".$typename." ".toString($$match[0], "$indent ")."]";
     }
     else {
         # $category is construction, pelist or nelist
