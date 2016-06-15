@@ -2603,9 +2603,11 @@ sub test_minilang()
     };
     $expected= &$f(@$expected);
     $log->debug(varstring('expected', $expected));
-    $log->debug('expected formatted as result: '
-                . Parse::SiLLy::Result::toString($expected, " ")
-                );
+    if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
+        $log->debug('expected formatted as result: '
+                    . Parse::SiLLy::Result::toString($expected, " ")
+            );
+    }
 
     check_result2($log, $result, $expected);
 }
@@ -2703,7 +2705,11 @@ sub test_xml()
     $expected= &$f(@$expected);
     $log->debug(varstring('expected', $expected));
     #$log->info(varstring('expected', $expected));
-    $log->debug('expected formatted as result: '.Parse::SiLLy::Result::toString($expected, " "));
+
+    if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
+        $log->debug('expected formatted as result: '.
+                    Parse::SiLLy::Result::toString($expected, " "));
+    }
     check_result($result, $top_name, $expected);
     }
 }
