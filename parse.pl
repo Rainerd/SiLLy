@@ -748,7 +748,7 @@ sub toString($$)
     my $match= $$self[RESULT_MATCH];
     $typename= substr($typename, length("Parse::SiLLy::"));
     if ($category eq "terminal") {
-        "[ter $typename '".quotemeta($$match[0])."']";
+        "[ter ".$typename." '".quotemeta($$match[0])."']";
     }
     # Even though an alternation production has multiple alternatives,
     # after it matched there is only one concrete result.
