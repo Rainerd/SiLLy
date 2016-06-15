@@ -2977,7 +2977,7 @@ sub main
     my $input_data= read_INPUT_IRS();
     close(INPUT);
 
-    $log->debug("input:\n$input_data");
+    $log->info("input:\n$input_data");
 
     {
     my $state= Parse::SiLLy::Grammar::Parser_new($input_data);
