@@ -731,7 +731,7 @@ sub toString($$)
               #."\n");
     assert('ARRAY' eq ref($self));
 
-    my $typename= $$self[0];
+    my $typename= $$self[RESULT_PROD];
     assert(defined($typename));
     assert('' eq ref($typename));
 
@@ -745,7 +745,7 @@ sub toString($$)
     my $category= $type->[PROD_CATEGORY];
     #print("categ=$category\n");
 
-    my $match= $$self[1];
+    my $match= $$self[RESULT_MATCH];
     $typename= substr($typename, length("Parse::SiLLy::"));
     if ($category eq "terminal") {
         "[ter $typename '".quotemeta($$match[0])."']";
