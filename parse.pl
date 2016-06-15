@@ -778,8 +778,9 @@ sub toString($$)
     my $cat= $cats->{$category};
 
     if ($category eq "terminal") {
+        my $val= "$$match[0]"; $val=~ s/'/\\'/o;
         "[".$typename.$cat." '".
-            quotemeta($$match[0]).
+            $val.
             "']";
     }
     # Even though an alternation production has multiple alternatives,
