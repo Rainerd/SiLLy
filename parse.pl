@@ -2984,7 +2984,6 @@ sub main
     my $result;
     #$result= Parse::SiLLy::Grammar::match($::Elem, $state);
     no strict 'refs';
-    # FIXME: Why does the first run fail?
     $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state);
     #$result= do_one_run($state, $top);
     #$result= do_runs(100, $state, $top);
