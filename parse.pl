@@ -2225,12 +2225,6 @@ use strict;
 use Parse::SiLLy::Compare qw(compareR);
 
 # --------------------------------------------------------------------
-sub handle_item
-{
-    printf("$ARG");
-}
-
-# --------------------------------------------------------------------
 sub elements($) {
     #return $ {@{$_[0]}}[1];
     my $result= $_[0];
@@ -2767,17 +2761,6 @@ sub read_INPUT_IRS() {
 }
 
 # --------------------------------------------------------------------
-sub read_data_old {
-    $INPUT_RECORD_SEPARATOR= "---";
-    while (<INPUT>)
-    {
-        #if (DEBUG() && $log->is_debug()) { $log->debug("item=\"$ARG\";"); }
-        handle_item($ARG);
-    }
-    $INPUT_RECORD_SEPARATOR= "";
-}
-
-# --------------------------------------------------------------------
 sub do_one_run($$) {
     my ($state, $top)= @_;
     if (Parse::SiLLy::Grammar::MEMOIZE()) {
@@ -2974,7 +2957,6 @@ sub main
     $log->debug("---Reading input file...");
     my $input= shift(@_);
     open(INPUT, "< $input") or die("Can't open \`$input'.");
-    #read_data_old();
     my $input_data= read_INPUT_IRS();
     close(INPUT);
 
