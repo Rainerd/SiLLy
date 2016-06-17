@@ -179,10 +179,10 @@ sub elements( $ ) {
     my ($i, $i_elem)= (-1, -1);
     grep { ++$i; if (m/Elem/) { $i_elem= $i; } } @$elements;
     #map { ++$i; if ( ! defined($_)) { $i_elem= $i; } } @$elements;
-    assert(-1 != $i_elem); print("$ctx: Found Elem at $i_elem\n");
+    assert(-1 != $i_elem); print(STDERR "$ctx: Found Elem at $i_elem\n");
     $elements->[$i_elem]= $Elem;
 
-    print("$ctx: Test::XML::Elem='$Elem'\n");
+    print(STDERR "$ctx: Test::XML::Elem='$Elem'\n");
 }
 
 # --------------------------------------------------------------------

@@ -480,20 +480,20 @@ sub new
     #$self->{logger}= Log::Log4perl::get_logger($name)
     #$$self[LOGGER_LOGGER]= Log::Log4perl::get_logger($name)
     #    || die("$name: Could not get logger.\n");
-    #print("$name: Got logger: " . join(', ', keys(%{$self->{logger}})) . "\n");
-    #print("$name: Got logger: " . join(', ', keys(%{$self->[2]})) . "\n");
-    #print("$name: Got logger: " . $self->get_logger()->{category} . "\n");
+    #print(STDERR "$name: Got logger: " . join(', ', keys(%{$self->{logger}})) . "\n");
+    #print(STDERR "$name: Got logger: " . join(', ', keys(%{$self->[2]})) . "\n");
+    #print(STDERR "$name: Got logger: " . $self->get_logger()->{category} . "\n");
 
     #$self->{debugging}= $self->{logger}->is_debug();
     #$$self[LOGGER_DEBUG]= $ {@$self}[LOGGER_LOGGER]->is_debug();
     #$$self[LOGGER_DEBUG]=   ($$self[LOGGER_LOGGER])->is_debug();
     #$$self[LOGGER_DEBUG]= $self->get_logger()->is_debug();
     $$self[LOGGER_DEBUG]= Parse::SiLLy::Grammar::DEBUG();
-    #print("is_debug()=".$self->is_debug()."\n");
+    #print(STDERR "is_debug()=".$self->is_debug()."\n");
     $self->debug("is_debug()=".$self->is_debug()."\n");
 
-    #print("get_logger()->is_debug()=".$self->get_logger()->is_debug()."\n");
-    #print("get_logger()->level()=".$self->get_logger()->level()."\n");
+    #print(STDERR "get_logger()->is_debug()=".$self->get_logger()->is_debug()."\n");
+    #print(STDERR "get_logger()->level()=".$self->get_logger()->level()."\n");
 
     #$self->{logger}->debug("Logger constructed: $name.");
     #($$self[LOGGER_LOGGER])->debug("Logger constructed: $name.");
@@ -573,7 +573,7 @@ sub get_logger($) {
 sub info {
     my $self= shift(@_);
     my $ctx= $self->name();
-    #print("$ctx: @_\n");
+    #print(STDERR "$ctx: @_\n");
     #$self->{logger}->info("$ctx: @_");
     #($$self[LOGGER_LOGGER])->info("$ctx: @_");
     #get_logger($self)->info("$ctx: @_");
@@ -745,7 +745,7 @@ sub toString($$)
     assert(defined($self));
     if ( ! matched($self)) { return 'nomatch'; }
     #'ARRAY' eq ref($self) ||
-        #print(::varstring("self", $self)
+        #print(STDERR ::varstring("self", $self)
               #.", ref(\$self)=".ref($self)
               #."\n");
     assert('ARRAY' eq ref($self));
@@ -755,7 +755,7 @@ sub toString($$)
     assert('' eq ref($typename));
 
     my $type= do { no strict 'refs'; $ {$typename}; };
-    #print("tn=$typename\n");
+    #print(STDERR "tn=$typename\n");
     # FIXME: Introduce predicate 'is_production'
     assert(defined($type));
     assert('' ne ref($type));
@@ -958,7 +958,7 @@ sub log_args($$$)
     my $i= 0;
     my @description= map {
         ++$i;
-        #print("item: $ARG\n");
+        #print(STDERR "item: $ARG\n");
         vardescr("ARG[$i]", $ARG);
     } @$argl;
     $log->debug("$context: @description");
@@ -2810,7 +2810,7 @@ sub pos_test($)
     $text=~ m/\G(a.c)/go;
     $match= $1;
     if ( ! defined(pos($text))) {
-        print("match='".(defined($match)?$match:"undef")."'\n");
+        print(STDERR "match='".(defined($match)?$match:"undef")."'\n");
     }
     assert(defined(pos($text)));
     assert(6==pos($text));
@@ -2871,7 +2871,7 @@ sub pos_test($)
     # CAVEAT! $1 is still the value of the previous successful match
     #assert( ! defined($1));
     $match= $1;
-    print("match='".(defined($match)?$match:"undef")."'\n");
+    print(STDERR "match='".(defined($match)?$match:"undef")."'\n");
     assert( ! defined(pos($a->[0])));
 }
 
@@ -2974,13 +2974,14 @@ sub main
     #$pelist_match_log->set_nodebug();
     #$log->info(vardescr("result", $result));
     #$log->set_debug();
-    $log->info("first run result:\n ",
-               Parse::SiLLy::Result::toString($result, " ") );
+    $log->info("first run result:");
+    print(STDOUT " ", Parse::SiLLy::Result::toString($result, " "), "\n");
     #$log->set_nodebug();
     #$result= do_one_run($state, $top);
     #$result= do_runs(100, $state, $top);
 
     use Benchmark;
+    # FIXME: Make timethis print to STDERR instead of to STDOUT.
     #timethis(1, sub { $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state); } );
     #timethis(1, sub { $result= do_one_run($state, $top); } );
     timethis(1, sub { $result= do_one_run($state, $top); } );

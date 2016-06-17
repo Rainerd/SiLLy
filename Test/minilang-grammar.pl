@@ -122,9 +122,9 @@ construction WSemicolon, Owhite, Semicolon, Owhite;
 #nelist       Program,    Expr, Semicolon;
 nelist       Program,    Mchain, WSemicolon;
 
-print("minilang-grammar.pl: ");
-print("minilang::Program='$minilang::Program'\n");
-#print("Program='$Program'\n");
+print(STDERR "minilang-grammar.pl: ");
+print(STDERR "minilang::Program='$minilang::Program'\n");
+#print(STDERR "Program='$Program'\n");
 
 # Establish recursion:
 $minilang::Exprlist->[Parse::SiLLy::Grammar::PROD_ELEMENT()]= $minilang::Mchain;
