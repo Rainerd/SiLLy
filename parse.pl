@@ -330,6 +330,7 @@ use File::Basename;
 #BEGIN { $INC_BASE= dirname(dirname(dirname($0))); }
 BEGIN { $INC_BASE= "../.."; }
 
+use lib dirname($0)."/lib";
 #push(@INC, "$INC_BASE/Log-Log4perl-0.49/blib/lib");
 #use lib "${INC_BASE}/Log-Log4perl/blib/lib";
 

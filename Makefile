@@ -8,7 +8,7 @@ MODULES+=lib/Parse/SiLLy/Compare
 
 default: test
 
-parse=perl -Ilib parse.pl
+parse=perl parse.pl
 
 #test: xml-namespace-test
 test: xml-test
