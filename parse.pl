@@ -2265,8 +2265,8 @@ sub check_result2( $$$ )
         $log->error(
             "Actual value did not match expected value,".
             " because $reason->[0]:");
-        $log->info(varstring('expected', $expected));
         $log->info(varstring('actual', $actual));
+        $log->info(varstring('expected', $expected));
         $log->error(
             "Actual value did not match expected value,".
             " because $reason->[0].");
