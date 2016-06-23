@@ -1389,7 +1389,7 @@ sub terminal_match($$)
     my ($t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
     my $ctx= $t->[PROD_NAME];
-    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
+    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
 
     my $input= $state->[STATE_INPUT];
     my $pos= get_pos($state);
@@ -1527,7 +1527,7 @@ sub construction_match($$)
     my ($t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
     my $ctx= $t->[PROD_NAME];
-    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
+    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
     if (DEBUG() && $log->is_debug()) {
         $log->debug("$ctx: [ Trying to match...");
         #$log->debug(varstring('result_elements', $result_elements));
@@ -1634,7 +1634,7 @@ sub alternation_match($$)
     # A: No, then we can not control logging locally.
     match_check_preconditions($log, $t) if ASSERT();
     my $ctx= $t->[PROD_NAME];
-    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
+    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
 
     # The only matching function that potentially consumes 'input' is
     # terminal_match.  Therefore terminal_match is the only place
@@ -1710,7 +1710,7 @@ sub optional_match($$)
     my ($t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
     my $ctx= $t->[PROD_NAME];
-    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
+    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
 
     my $element= $t->[PROD_ELEMENT];
     my $element_name= $element->[PROD_NAME];
@@ -1767,7 +1767,7 @@ sub lookingat_match($$)
     my ($t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
     my $ctx= $t->[PROD_NAME];
-    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
+    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
 
     my $element= $t->[PROD_ELEMENT];
     my $element_name= $element->[PROD_NAME];
@@ -1827,7 +1827,7 @@ sub notlookingat_match($$)
     my ($t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
     my $ctx= $t->[PROD_NAME];
-    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
+    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
 
     my $element= $t->[PROD_ELEMENT];
     my $element_name= $element->[PROD_NAME];
@@ -1881,7 +1881,7 @@ sub list_match($$$$)
     my ($log, $n_min, $t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
     my $ctx= $t->[PROD_NAME];
-    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());;
+    match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
     my $element=   $t->[PROD_ELEMENT];
     my $separator= $t->[PROD_SEPARATOR];
     my $element_name=   $element->[PROD_NAME];
