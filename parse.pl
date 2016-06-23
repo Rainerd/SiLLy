@@ -2084,7 +2084,7 @@ sub match_with_memoize($$)
             return ($$stashed[STASHED_MATCH]);
         }
         else {
-            return (NOMATCH());
+            return $stashed;
         }
     }
 
@@ -2100,7 +2100,8 @@ sub match_with_memoize($$)
     $stashed=
         #matched($result)
         (NOMATCH() ne $result)
-        ? [get_pos($state), $result] : NOMATCH();
+        ? [get_pos($state), $result]
+        : $result;
     if (DEBUG() && $log->is_debug()) {
         $log->debug("Storing result in stash for ${pos}->$pos_stash_key"
                     . ($pos_stash_key ne $t->[PROD_NAME] ? " ($t->[PROD_NAME])" : "")
