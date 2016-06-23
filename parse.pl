@@ -1456,7 +1456,8 @@ sub terminal_match($$)
 
         if (DEBUG() && $log->is_debug()) {
             my $match_pos= pos($state->[STATE_INPUT]);
-            $log->debug("$ctx: pos=".(defined($match_pos)?$match_pos:"undef"));
+            $log->debug("$ctx: before attempt: pos=".
+                        (defined($match_pos)?$match_pos:"undef"));
         }
         #&{$matcher}($state->[STATE_INPUT]);
         #&$matcher(\$state->[STATE_INPUT]);
@@ -1465,7 +1466,8 @@ sub terminal_match($$)
         #$match= $1;
         if (DEBUG() && $log->is_debug()) {
             my $match_pos= pos($state->[STATE_INPUT]);
-            $log->debug("$ctx: pos=".(defined($match_pos)?$match_pos:"undef"));
+            $log->debug("$ctx: after attempt: pos=".
+                        (defined($match_pos)?$match_pos:"undef"));
         }
 
         if (defined($match)) {
