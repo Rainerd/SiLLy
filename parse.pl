@@ -1397,37 +1397,37 @@ sub terminal_match($$)
     my $match;
     #$log->debug("$ctx: ref(input)=" . ref($state->[STATE_INPUT]) . ".");
     if (eoi($state->[STATE_INPUT], $pos)) {
-	if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: End Of Input reached"); }
-	return (NOMATCH());
+        if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: End Of Input reached"); }
+        return (NOMATCH());
     }
     if ('ARRAY' eq ref($state->[STATE_INPUT])) {
-	if (DEBUG() && $log->is_debug()) {
+        if (DEBUG() && $log->is_debug()) {
             $log->debug("$ctx: state->pos=$state->[STATE_POS],"
                         . " input[0]->name=", $ {@$input}[0]->[PROD_NAME]);
         }
-	#if ($#{@$input} < $pos) {
-	#    if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: End of input reached");}
-	#    return (NOMATCH());
-	#}
-	$match= $ {@$input}[$pos];
-	if ($t == $match->[PROD_CATEGORY]) {
+        #if ($#{@$input} < $pos) {
+        #    if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: End of input reached");}
+        #    return (NOMATCH());
+        #}
+        $match= $ {@$input}[$pos];
+        if ($t == $match->[PROD_CATEGORY]) {
             if (DEBUG() && $log->is_debug()) {
                 #$log->debug("$ctx: matched token: " . varstring('match', $match));
                 $log->debug("$ctx: matched token: $ctx, text: '$match->[RESULT_MATCH()]'");
             }
-	    my $result= $match;
-	    $state->[STATE_POS]= $pos + 1;
+            my $result= $match;
+            $state->[STATE_POS]= $pos + 1;
             if (DEBUG() && $log->is_debug()) {
                 #$log->debug(varstring('state', $state));
                 $log->debug("$ctx: state->pos=$state->[STATE_POS]");
             }
-	    return ($result);
-	} else {
+            return ($result);
+        } else {
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: token not matched: '$ctx'");
             }
-	    return (NOMATCH());
-	}
+            return (NOMATCH());
+        }
     }
     else
     {
@@ -1436,10 +1436,10 @@ sub terminal_match($$)
                         . quotemeta(substr($state->[STATE_INPUT], $pos, 80))
                         . "'");
         }
-	#if (length($state->[STATE_INPUT])-1 < $pos) {
-	#    if (DEBUG() && $log->is_debug()) {$log->debug("$ctx: End Of Input reached");}
-	#    return (NOMATCH());
-	#}
+        #if (length($state->[STATE_INPUT])-1 < $pos) {
+        #    if (DEBUG() && $log->is_debug()) {$log->debug("$ctx: End Of Input reached");}
+        #    return (NOMATCH());
+        #}
         my $pattern= $t->[PROD_PATTERN];
         if (ASSERT()) {
             assert(defined($pattern));
@@ -1449,7 +1449,7 @@ sub terminal_match($$)
         # FIXME: Can we avoid repeated construction or copying of the
         # same substring?  Looks like memoization does just that.
         # FIXME: Can we avoid substring construction or copying at all?
-	#($match)= substr($state->[STATE_INPUT], $pos) =~ m{^($pattern)}g;
+        #($match)= substr($state->[STATE_INPUT], $pos) =~ m{^($pattern)}g;
         my $matcher= $t->[PROD_MATCHER];
         #($match)= &{$matcher} (substr($state->[STATE_INPUT], $pos));
         #set_pos($state)= $pos;
@@ -1476,28 +1476,28 @@ sub terminal_match($$)
                 $log->debug("$ctx: matched text: '".quotemeta($match)."'");
             }
             #my $result= {_=>$t, text=>$match};
-	    #my $result= make_result($t, [$match]);
-	    my $result= [$t->[PROD_NAME], [$match]];
+            #my $result= make_result($t, [$match]);
+            my $result= [$t->[PROD_NAME], [$match]];
             # FIXME: Let the matcher do this?:
-	    #$state->[STATE_POS]= $pos += length($match);
+            #$state->[STATE_POS]= $pos += length($match);
             #assert($state->[STATE_POS] == pos($state->[STATE_INPUT])) if ASSERT();
             # Move this to match_with_memoize?
             if (MEMOIZE()) {
                 $state->[STATE_POS_STASH]=
                     stash_get_pos_stash($state->[STATE_STASH()], $pos);
             }
-	    if (DEBUG() && $log->is_debug()) {
+            if (DEBUG() && $log->is_debug()) {
                 #$log->debug(varstring('state', $state));
                 $log->debug("$ctx: pos=$pos");
             }
-	    $result;
-	} else {
-	    if (DEBUG() && $log->is_debug()) {
+            $result;
+        } else {
+            if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: pattern not matched: '"
                             . quotemeta($t->[PROD_PATTERN])."'");
             }
-	    NOMATCH();
-	}
+            NOMATCH();
+        }
     }
 }
 
@@ -1541,16 +1541,16 @@ sub construction_match($$)
     # foreach $element in $t's elements
     my $elements= $t->[PROD_ELEMENTS];
     map {
-	my $i= $_;
-	#if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: i=$i"); }
-	my $element= $elements->[$i];
+        my $i= $_;
+        #if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: i=$i"); }
+        my $element= $elements->[$i];
         my $element_name= $element->[PROD_NAME];
         if (DEBUG() && $log->is_debug()) {
             #$log->debug(varstring('element', $element));
             $log->debug("$ctx: [ Trying to match element[$i]: $element_name");
         }
-	my ($match)= match($element, $state);
-	if ( ! matched($match))
+        my ($match)= match($element, $state);
+        if ( ! matched($match))
         {
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: element[$i] not matched: $element_name"
@@ -1577,19 +1577,19 @@ sub construction_match($$)
 
 =cut
 
-	    set_pos($state, $saved_pos);
+            set_pos($state, $saved_pos);
             if (MEMOIZE()) {
                 $state->[STATE_POS_STASH]=
                     stash_get_pos_stash($state->[STATE_STASH], $saved_pos);
             }
-	    return (NOMATCH());
-	}
+            return (NOMATCH());
+        }
         if (DEBUG() && $log->is_debug()) {
             #$log->debug("$ctx: Matched element: " . varstring($i,$element)."\]");
             $log->debug("$ctx: Matched element[$i]: $element_name ]");
             #$log->debug("$ctx: element value: " . varstring('match', $match));
         }
-	push(@$result_elements, $match);
+        push(@$result_elements, $match);
     }
     (0 .. $#$elements);
 
@@ -1651,16 +1651,16 @@ sub alternation_match($$)
 
     # foreach $element in $elements
     map {
-	my $i= $_;
-	#if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: i=$i"); }
-	my $element= $elements->[$i];
+        my $i= $_;
+        #if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: i=$i"); }
+        my $element= $elements->[$i];
         my $element_name= $element->[PROD_NAME];
         if (DEBUG() && $log->is_debug()) {
             #$log->debug(varstring('element', $element));
             $log->debug("$ctx: [ Trying to match element[$i]: $element_name");
         }
-	my ($match)= match($element, $state);
-	if (matched($match))
+        my ($match)= match($element, $state);
+        if (matched($match))
         {
             if (DEBUG() && $log->is_debug()) {
                 #$log->debug("$ctx: matched element: " . varstring($i, $element)."\]");
@@ -1669,10 +1669,10 @@ sub alternation_match($$)
                 $log->debug("$ctx: match result: "
                             . Parse::SiLLy::Result::toString($match, " "));
             }
-	    #return ($match);
-	    #return (make_result($t, [$match]));
-	    return [$t->[PROD_NAME], [$match]];
-	}
+            #return ($match);
+            #return (make_result($t, [$match]));
+            return [$t->[PROD_NAME], [$match]];
+        }
         if (DEBUG() && $log->is_debug()) {
             $log->debug("$ctx: element[$i] not matched: '$element_name']");
         }
@@ -1728,8 +1728,8 @@ sub optional_match($$)
             $log->debug("$ctx: matched "
                         . Parse::SiLLy::Result::toString($match, " "));
         }
-	#return (make_result($t, [$match]));
-	return [$t->[PROD_NAME], [$match]];
+        #return (make_result($t, [$match]));
+        return [$t->[PROD_NAME], [$match]];
     }
     if (DEBUG() && $log->is_debug()) {
         #$log->debug("$ctx: not matched: '$ctx' (resulting in empty string)");
@@ -1791,8 +1791,8 @@ sub lookingat_match($$)
             $state->[STATE_POS_STASH]=
                 stash_get_pos_stash($state->[STATE_STASH], $saved_pos);
         }
-	#return (make_result($t, [$match]));
-	return [$t->[PROD_NAME], [$match]];
+        #return (make_result($t, [$match]));
+        return [$t->[PROD_NAME], [$match]];
     }
     if (DEBUG() && $log->is_debug()) {
         $log->debug("$ctx: not matched: $element_name");
@@ -1849,7 +1849,7 @@ sub notlookingat_match($$)
             $state->[STATE_POS_STASH]=
                 stash_get_pos_stash($state->[STATE_STASH], $saved_pos);
         }
-	return NOMATCH();
+        return NOMATCH();
     }
     if (DEBUG() && $log->is_debug()) {
         $log->debug("$ctx: not matched: $element_name (resulting in a match)");
@@ -1896,13 +1896,13 @@ sub list_match($$$$)
         if (DEBUG() && $log->is_debug()) {
             $log->debug("$ctx: [ Trying to match element '$element_name'");
         }
-	my ($match)= match($element, $state);
-	if ( ! matched($match))
+        my ($match)= match($element, $state);
+        if ( ! matched($match))
         {
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: Element not matched: '$element_name'\]");
             }
-	    if ($n_min > scalar(@$result_elements)) {
+            if ($n_min > scalar(@$result_elements)) {
                 if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: ...not matched.\]");}
                 return (NOMATCH());
             }
@@ -1917,16 +1917,16 @@ sub list_match($$$$)
         if (DEBUG() && $log->is_debug()) {
             $log->debug("$ctx: Matched element '$element_name']");
         }
-	#push(@$result, $match);
-	push(@$result_elements, $match);
+        #push(@$result, $match);
+        push(@$result_elements, $match);
 
         if ('' eq $separator) { next; }
 
         if (DEBUG() && $log->is_debug()) {
             $log->debug("$ctx: [ Trying to match separator '$separator_name'");
         }
-	($match)= match($separator, $state);
-	if ( ! matched($match))
+        ($match)= match($separator, $state);
+        if ( ! matched($match))
         {
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: Separator not matched: '$separator_name'\]");
