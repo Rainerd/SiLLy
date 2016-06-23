@@ -1550,8 +1550,7 @@ sub construction_match($$)
             $log->debug("$ctx: [ Trying to match element[$i]: $element_name");
         }
 	my ($match)= match($element, $state);
-	#if ( ! matched($match))
-	if (NOMATCH() eq $match)
+	if ( ! matched($match))
         {
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: element[$i] not matched: $element_name"
@@ -1661,8 +1660,7 @@ sub alternation_match($$)
             $log->debug("$ctx: [ Trying to match element[$i]: $element_name");
         }
 	my ($match)= match($element, $state);
-	#if (matched($match))
-	if (NOMATCH() ne $match)
+	if (matched($match))
         {
             if (DEBUG() && $log->is_debug()) {
                 #$log->debug("$ctx: matched element: " . varstring($i, $element)."\]");
@@ -1722,8 +1720,7 @@ sub optional_match($$)
     }
 
     my ($match)= match($element, $state);
-    #if (matched($match))
-    if (NOMATCH() ne $match)
+    if (matched($match))
     {
         if (DEBUG() && $log->is_debug()) {
             #$log->debug("$ctx: matched element: " . varstring($i,$element));
@@ -1780,8 +1777,7 @@ sub lookingat_match($$)
     my $saved_pos= get_pos($state);
 
     my ($match)= match($element, $state);
-    #if (matched($match))
-    if (NOMATCH() ne $match)
+    if (matched($match))
     {
         if (DEBUG() && $log->is_debug()) {
             #$log->debug("$ctx: matched element: " . varstring($i,$element));
@@ -1840,8 +1836,7 @@ sub notlookingat_match($$)
     my $saved_pos= get_pos($state);
 
     my ($match)= match($element, $state);
-    #if (matched($match))
-    if (NOMATCH() ne $match)
+    if (matched($match))
     {
         if (DEBUG() && $log->is_debug()) {
             $log->debug("$ctx: matched "
@@ -1902,8 +1897,7 @@ sub list_match($$$$)
             $log->debug("$ctx: [ Trying to match element '$element_name'");
         }
 	my ($match)= match($element, $state);
-	#if ( ! matched($match))
-	if (NOMATCH() eq $match)
+	if ( ! matched($match))
         {
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: Element not matched: '$element_name'\]");
@@ -1932,8 +1926,7 @@ sub list_match($$$$)
             $log->debug("$ctx: [ Trying to match separator '$separator_name'");
         }
 	($match)= match($separator, $state);
-	#if ( ! matched($match))
-	if (NOMATCH() eq $match)
+	if ( ! matched($match))
         {
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: Separator not matched: '$separator_name'\]");
@@ -2077,7 +2070,7 @@ sub match_with_memoize($$)
         if (DEBUG() && $log->is_debug()) {
             $log->debug("Found in stash: ".format_stashed($stashed));
         }
-        if (NOMATCH() ne $stashed)
+        if (matched($stashed))
         {
             assert('ARRAY' eq ref($stashed)) if ASSERT();
             set_pos($state, $$stashed[STASHED_END]);
@@ -2092,14 +2085,12 @@ sub match_with_memoize($$)
     my $result= &$method($t, $state);
 
     if (ASSERT()) {
-        #assert(matched($result) || get_pos($state) == $pos);
-        assert((NOMATCH() ne $result) || get_pos($state) == $pos);
+        assert(matched($result) || get_pos($state) == $pos);
     }
 
     #my
     $stashed=
-        #matched($result)
-        (NOMATCH() ne $result)
+        matched($result)
         ? [get_pos($state), $result]
         : $result;
     if (DEBUG() && $log->is_debug()) {
