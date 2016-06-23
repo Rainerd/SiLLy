@@ -57,7 +57,9 @@ sub compareR( $$$ )
     # From here on, one at least is not a scalar
 
     if ($refx ne $refy) {       # not the same type
-        $reason_holder->[0] = "LHS (a $refx) and RHS (a $refy) not of the same type.";
+        my $xtype= $refx ? "reference to a $refx" : "scalar";
+        my $ytype= $refy ? "reference to a $refy" : "scalar";
+        $reason_holder->[0] = "LHS (a $xtype) and RHS (a $ytype) are not of the same type.";
         return 0;
     }
     if ($x == $y) {             # exactly the same reference
