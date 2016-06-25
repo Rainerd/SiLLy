@@ -2358,46 +2358,46 @@ sub test_minilang()
     $log->debug("--- Testing alternation_match...");
     $state= Parse::SiLLy::Grammar::Parser_new('blah 123');
     test1($log, "alternation_match", "minilang::Token",
-          $state, ['minilang::Name', ['blah']]);
+          $state, ["minilang::Name", ["blah"]]);
     test1($log, "match",             "minilang::Whitespace",
           $state, " ");
     test1($log, "match",             "minilang::Token",
-          $state, ['minilang::Number', [123]]);
+          $state, ["minilang::Number", [123]]);
 
     $log->debug("--- Testing tokenization 1...");
     $state= Parse::SiLLy::Grammar::Parser_new('blah "123"  456');
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
     if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
-        #$log->debug(varstring('match minilang::Tokenlist result 1', $result));
+        #$log->debug(varstring("match minilang::Tokenlist result 1", $result));
         $log->debug("match minilang::Tokenlist result 1='"
                     . Parse::SiLLy::Result::toString($result, " ")
                     . "'");
     }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
-    #my $expected= ['Tokenlist',
-    #               ['Token', ['Name', 'blah']],
-    #               ['Token', ['String', '"123"']],
-    #               ['Token', ['Number', '456']],
+    #my $expected= ["Tokenlist",
+    #               ["Token", ["Name", "blah"]],
+    #               ["Token", ["String", '"123"']],
+    #               ["Token", ["Number", "456"]],
     #               ];
-    #my $expected= ['minilang::Tokenlist',
-    #               ['minilang::Token', ['minilang::Name', 'blah']],
-    #               ['minilang::Token', ['minilang::String', '"123"']],
-    #               ['minilang::Token', ['minilang::Number', '456']],
+    #my $expected= ["minilang::Tokenlist",
+    #               ["minilang::Token", ["minilang::Name", "blah"]],
+    #               ["minilang::Token", ["minilang::String", '"123"']],
+    #               ["minilang::Token", ["minilang::Number", "456"]],
     #               ];
-    my $expected= ['minilang::Tokenlist', [
-                   ['minilang::Token', [ ['minilang::Name',   ['blah' ]] ]],
-                   ['minilang::Token', [ ['minilang::String', ['"123"']] ]],
-                   ['minilang::Token', [ ['minilang::Number', ['456'  ]] ]],
+    my $expected= ["minilang::Tokenlist", [
+                   ["minilang::Token", [ ["minilang::Name",   ["blah" ]] ]],
+                   ["minilang::Token", [ ["minilang::String", ['"123"']] ]],
+                   ["minilang::Token", [ ["minilang::Number", ["456"  ]] ]],
                    ] ];
     #use FreezeThaw;
     #assert(0 == strCmp($result, $expected));
     check_result2($log, $result, $expected);
 
     my $result_elements= elements($result);
-    #check_result($$result_elements[0], 'Name', 'blah');
-    #check_result($$result_elements[1], 'String', '"123"');
-    #check_result($$result_elements[2], 'Number', '456');
+    #check_result($$result_elements[0], "Name", "blah");
+    #check_result($$result_elements[1], "String", '"123"');
+    #check_result($$result_elements[2], "Number", "456");
 
 
     $log->debug("--- Testing tokenization 2...");
@@ -2409,7 +2409,7 @@ sub test_minilang()
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
     if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
-        #$log->debug(varstring('match minilang::Tokenlist result 2', $result));
+        #$log->debug(varstring("match minilang::Tokenlist result 2", $result));
         $log->debug("match minilang::Tokenlist result 2='"
                     . Parse::SiLLy::Result::toString($result, " ") . "'");
     }
@@ -2424,8 +2424,8 @@ sub test_minilang()
     # FIXME: When we always pass an expected result object,
     # check_result needs only two args.
 
-    check_result($$result_elements[0], 'minilang::Token',
-                 ['minilang::Name', ['blah']]
+    check_result($$result_elements[0], "minilang::Token",
+                 ["minilang::Name", ["blah"]]
                  );
     #check_result($$result_elements[1], 'Period', '.');
     my $i= 0;
@@ -2455,7 +2455,7 @@ sub test_minilang()
         ["minilang::Token", [ ["minilang::$$_[0]", [ $$_[1] ]] ]];
     } @token_contents;
     my $expected_tokens= \@expected_tokens;
-    $expected= ['minilang::Tokenlist', $expected_tokens];
+    $expected= ["minilang::Tokenlist", $expected_tokens];
     if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
         $log->debug('expected_tokens formatted as result: '
                     #. Parse::SiLLy::Result::toString($expected_tokens, " ")
@@ -2488,7 +2488,7 @@ sub test_minilang()
 
     $result= Parse::SiLLy::Grammar::match($minilang::Program, $state);
     if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
-        #$log->debug(varstring('match minilang::Program result', $result));
+        #$log->debug(varstring("match minilang::Program result", $result));
         $log->debug("match minilang::Program result='"
                     . Parse::SiLLy::Result::toString($result, " ") . "'");
     }
@@ -2497,46 +2497,46 @@ sub test_minilang()
 =begin comment
 
     $expected=
-    ['minilang::Program',
-     ['minilang::Mchain',
-      ['minilang::LTerm', ['minilang::Name', 'blah']],
-      ['minilang::Period',    '.'],
-      ['minilang::LTerm',
-       ['minilang::Tuple',
-        ['minilang::Lparen',    '('],
-        ['minilang::Exprlist',
-         ['minilang::Mchain',
-          ['minilang::LTerm',
-           ['minilang::Literal', ['minilang::String', '"123"']]],
+    ["minilang::Program",
+     ["minilang::Mchain",
+      ["minilang::LTerm", ["minilang::Name", "blah"]],
+      ["minilang::Period",    "."],
+      ["minilang::LTerm",
+       ["minilang::Tuple",
+        ["minilang::Lparen",    "("],
+        ["minilang::Exprlist",
+         ["minilang::Mchain",
+          ["minilang::LTerm",
+           ["minilang::Literal", ["minilang::String", '"123"']]],
           ],
-         ['minilang::Comma',     ','],
-         ['minilang::Mchain',
-          ['minilang::LTerm', ['minilang::Name', 'xyz']],
-          ['minilang::Period',    '.'],
-          ['minilang::LTerm',
-           ['minilang::Tuple',
-            ['minilang::Lparen',    '('],
-            ['minilang::Exprlist',
-             ['minilang::Mchain',
-              ['minilang::LTerm',
-               ['minilang::Literal', ['minilang::Number', 456]]],
-              ['minilang::Period',    '.'],
-              ['minilang::LTerm', ['minilang::Name', '*']],
-              ['minilang::Period',    '.'],
-              ['minilang::LTerm',
-               ['minilang::Literal', ['minilang::Number', 2]]],
+         ["minilang::Comma",     ","],
+         ["minilang::Mchain",
+          ["minilang::LTerm", ["minilang::Name", "xyz"]],
+          ["minilang::Period",    "."],
+          ["minilang::LTerm",
+           ["minilang::Tuple",
+            ["minilang::Lparen",    "("],
+            ["minilang::Exprlist",
+             ["minilang::Mchain",
+              ["minilang::LTerm",
+               ["minilang::Literal", ["minilang::Number", 456]]],
+              ["minilang::Period",    "."],
+              ["minilang::LTerm", ["minilang::Name", "*"]],
+              ["minilang::Period",    "."],
+              ["minilang::LTerm",
+               ["minilang::Literal", ["minilang::Number", 2]]],
               ]],
-            ['minilang::Rparen', ')'],
+            ["minilang::Rparen", ")"],
             ]]]],
-        ['minilang::Rparen', ')'],
+        ["minilang::Rparen", ")"],
         ],
        ], # Term
       ], # Mchain
-     ['minilang::Semicolon', ';'],
-     ['minilang::Mchain',
-      ['minilang::LTerm', ['minilang::Name', 'end']],
+     ["minilang::Semicolon", ";"],
+     ["minilang::Mchain",
+      ["minilang::LTerm", ["minilang::Name", "end"]],
       ],
-     ['minilang::Semicolon', ';'],
+     ["minilang::Semicolon", ";"],
      ];
 
 =end comment
@@ -2662,10 +2662,10 @@ sub test_xml()
     #$result= Parse::SiLLy::Grammar::match($Parse::SiLLy::Test::XML::Elem,
     #                                      $state);
     #if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
-    #    $log->debug(varstring('match XML::Elem result', $result));
+    #    $log->debug(varstring("match XML::Elem result", $result));
     #}
     #Parse::SiLLy::Grammar::input_show_state($log, $state);
-    #check_result($result, 'Elem', $state->[STATE_INPUT]);
+    #check_result($result, "Elem", $state->[STATE_INPUT]);
 
     {
     #my $top= "Parse::SiLLy::Test::XML::Elem";
