@@ -2260,6 +2260,22 @@ sub elements($) {
 }
 
 # --------------------------------------------------------------------
+# Decorates (qualifies) with the given prefix, for example
+# "mygrammar::", the names in the given 'expected' spec (given as name
+# and list of elements).
+
+sub decorate( $$ );
+sub decorate( $$ ) {
+    my ($prefix, $expected)= (@_);
+    my $name= $expected->[Parse::SiLLy::Result::RESULT_PROD];
+    my @elts= @{$expected}[1..$#{$expected}];
+    [$prefix.$name,
+     'ARRAY' eq ref($elts[0]) ? [(map { decorate($prefix, $_) } @elts)]
+     : \@elts
+    ];
+}
+
+# --------------------------------------------------------------------
 # FIXME: Use this to replace check_result
 
 # Assert that the given actual value matches the given expected value.
@@ -2539,14 +2555,7 @@ sub test_minilang()
       ],
      ];
 
-    my $f;
-    $f= sub {
-        my ($name, @elts)= (@_);
-        ["minilang::$name",
-         ('' eq ref($elts[0]) ? \@elts : [(map { &{$f}(@$_)} @elts)]),
-         ];
-    };
-    $expected= &$f(@$expected);
+    $expected= decorate("minilang::", $expected);
     $log->debug(varstring('expected', $expected));
     if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
         $log->debug('expected formatted as result: '
@@ -2607,21 +2616,6 @@ sub test_xml()
     }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
 
-    # FIXME: Unify this with the code in test_minilang:
-    # Decorates (qualifies) the names in the given 'expected' spec
-    my $f;
-    $f= sub {
-        my ($name, @elts)= (@_);
-        ["Parse::SiLLy::Test::XML::$name",
-         (
-          'ARRAY' eq ref($elts[0]) ? [(map { &$f(@$_)} @elts)]
-          #: '' eq ref($elts[0]) ? \@elts
-          #: 'STRING' eq ref($elts[0]) ? \@elts
-          #'ERROR'
-          : \@elts
-          )
-         ];
-    };
     no strict 'subs';
     my $expected=
   [MixedContent, [Elem, [SEElem,
@@ -2647,7 +2641,7 @@ sub test_xml()
     use strict 'subs';
 
     #$log->info(varstring('expected before decorating', $expected));
-    $expected= &$f(@$expected);
+    $expected= decorate("Parse::SiLLy::Test::XML::", $expected);
     $log->debug(varstring('expected', $expected));
     #$log->info(varstring('expected', $expected));
 
