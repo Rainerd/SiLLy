@@ -2640,6 +2640,12 @@ sub test_xml()
         $log->debug('expected formatted as result: '.
                     Parse::SiLLy::Result::toString($expected, " "));
     }
+    my $equal=
+        Parse::SiLLy::Result::toString($expected, " ") eq
+        Parse::SiLLy::Result::toString($result, " ");
+    $log->info("equal?: ", $equal ? "yes": "no");
+    # Consider comparing simplified, "undecorated" structures,
+    # where the prefix has been removed and match elements are inlined.
     check_result2($log, $result, $expected);
     }
 }
