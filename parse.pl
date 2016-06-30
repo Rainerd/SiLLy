@@ -2405,21 +2405,17 @@ sub test_minilang()
                     . "'");
     }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
-    #my $expected= ["Tokenlist",
-    #               ["Token", ["Name", "blah"]],
-    #               ["Token", ["String", '"123"']],
-    #               ["Token", ["Number", "456"]],
-    #               ];
-    #my $expected= ["minilang::Tokenlist",
-    #               ["minilang::Token", ["minilang::Name", "blah"]],
-    #               ["minilang::Token", ["minilang::String", '"123"']],
-    #               ["minilang::Token", ["minilang::Number", "456"]],
-    #               ];
-    my $expected= ["minilang::Tokenlist", [
-                   ["minilang::Token", [ ["minilang::Name",   ["blah" ]] ]],
-                   ["minilang::Token", [ ["minilang::String", ['"123"']] ]],
-                   ["minilang::Token", [ ["minilang::Number", ["456"  ]] ]],
-                   ] ];
+    my $expected= ["Tokenlist",
+                   ["Token", ["Name", "blah"]],
+                   ["Token", ["String", '"123"']],
+                   ["Token", ["Number", "456"]],
+                   ];
+    #my $expected= ["minilang::Tokenlist", [
+    #               ["minilang::Token", [ ["minilang::Name",   ["blah" ]] ]],
+    #               ["minilang::Token", [ ["minilang::String", ['"123"']] ]],
+    #               ["minilang::Token", [ ["minilang::Number", ["456"  ]] ]],
+    #               ] ];
+    $expected= decorate("minilang::", $expected);
     #use FreezeThaw;
     #assert(0 == strCmp($result, $expected));
     check_result2($log, $result, $expected);
