@@ -2494,51 +2494,6 @@ sub test_minilang()
     }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
 
-=begin comment
-
-
-    $expected=
-    ['Program',
-     ['Mchain',
-      ['LTerm', ['Name', 'blah']],
-      ['Period',    '.'],
-      ['LTerm', ['Tuple',
-        ['Lparen',    '('],
-        ['Exprlist',
-         ['Mchain',
-          ['LTerm', ['Literal', ['String', '"123"']]],
-          ],
-         ['Comma',     ','],
-         ['Mchain',
-          ['LTerm', ['Name', 'xyz']],
-          ['Period',    '.'],
-          ['LTerm', ['Tuple',
-            ['Lparen',    '('],
-            ['Exprlist',
-             ['Mchain',
-              ['LTerm', ['Literal', ['Number', 456]]],
-              ['Period',    '.'],
-              ['LTerm', ['Name', '*']],
-              ['Period',    '.'],
-              ['LTerm', ['Literal', ['Number', 2]]],
-              ]],
-            ['Rparen', ')'],
-            ]]]],
-        ['Rparen', ')'],
-        ],
-       ], # Term
-      ], # Mchain
-     ['Semicolon', ';'],
-     ['Mchain',
-      ['LTerm', ['Name', 'end']],
-      ],
-     ['Semicolon', ';'],
-     ];
-
-=end comment
-
-=cut
-
     $expected=
     ['Program',
      ['Mchain',
