@@ -110,6 +110,10 @@ The production operators (terminal, construction, alternation etc.)
 both construct the grammar element object and define a variable to
 hold it.
 
+Alternative: In the implementation of a production instance, on the
+"right hand side", production elements can be represented by either
+references to the productions themselves, or by names that refer to
+the productions.
 
 FIXME:
 
@@ -154,6 +158,8 @@ TODO
 * Group commits of parse.pl with the associated grammar commits.
 
 * Rebase "backup-before-rebase" onto the "old" commit where it fits.
+
+* Get rid of prefix "Parse::SiLLy::" in code as far as makes sense.
 
 * Make the test so easy to understand that it is crystal-clear whether
   the tests yielded the expected results. Currently, one of the XML
@@ -1315,7 +1321,9 @@ sub def($$$$$@)
     #my ($caller_package, $file, $line)= caller();
     my $fullname= "${caller_package}::$name";
     $log->debug("Defining '$fullname'...");
+    # FIXME: Consider making it an option to use short, unqualified names.
     $val->[PROD_NAME]= $fullname;
+    #$val->[PROD_NAME]= $name;
 
     # Bind grammar object value to variable
     eval("\$$fullname=\$val;");
