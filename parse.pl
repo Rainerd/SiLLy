@@ -2608,7 +2608,7 @@ sub test_xml()
     Parse::SiLLy::Grammar::input_show_state($log, $state);
 
     no strict 'subs';
-    my $expected=
+    my $expected= [Contentlist,
   [MixedContent, [Elem, [SEElem,
     [STag, [Langle,'<'],            [Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'tr']],[Oattrs,NOMATCH],[Owhite,NOMATCH],[Rangle,'>']],
     [Contentlist,
@@ -2628,7 +2628,7 @@ sub test_xml()
        [ETag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'td']],                 [Owhite,NOMATCH],[Rangle,'>']] ]]]
      ],
     [ETag, [Langle,'<'],[Slash,'/'],[Owhite,NOMATCH],[Tagname,[OPrefix,NOMATCH],[PlainTagName,'tr']],                 [Owhite,NOMATCH],[Rangle,'>']]
-    ]]];
+    ]]]];
     use strict 'subs';
 
     #$log->info(varstring('expected before decorating', $expected));
@@ -2640,7 +2640,7 @@ sub test_xml()
         $log->debug('expected formatted as result: '.
                     Parse::SiLLy::Result::toString($expected, " "));
     }
-    check_result($result, $top_name, $expected);
+    check_result2($log, $result, $expected);
     }
 }
 
