@@ -734,7 +734,13 @@ my $cats= {
 };
 
 # --------------------------------------------------------------------
-# Formats the given result object as a string
+# Formats the given result object as a string.
+
+# Note that while the internal representation of a match result may
+# have a reference to an array of matched elements (for example
+# [Semicolon [";"]]), this function inlines the matched elements into
+# the array that represents the production itself (for example
+# [Semicolon ";"]), for brevity.
 
 sub toString($$);
 sub toString($$)
