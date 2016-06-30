@@ -2496,54 +2496,6 @@ sub test_minilang()
 
 =begin comment
 
-    $expected=
-    ["minilang::Program",
-     ["minilang::Mchain",
-      ["minilang::LTerm", ["minilang::Name", "blah"]],
-      ["minilang::Period",    "."],
-      ["minilang::LTerm",
-       ["minilang::Tuple",
-        ["minilang::Lparen",    "("],
-        ["minilang::Exprlist",
-         ["minilang::Mchain",
-          ["minilang::LTerm",
-           ["minilang::Literal", ["minilang::String", '"123"']]],
-          ],
-         ["minilang::Comma",     ","],
-         ["minilang::Mchain",
-          ["minilang::LTerm", ["minilang::Name", "xyz"]],
-          ["minilang::Period",    "."],
-          ["minilang::LTerm",
-           ["minilang::Tuple",
-            ["minilang::Lparen",    "("],
-            ["minilang::Exprlist",
-             ["minilang::Mchain",
-              ["minilang::LTerm",
-               ["minilang::Literal", ["minilang::Number", 456]]],
-              ["minilang::Period",    "."],
-              ["minilang::LTerm", ["minilang::Name", "*"]],
-              ["minilang::Period",    "."],
-              ["minilang::LTerm",
-               ["minilang::Literal", ["minilang::Number", 2]]],
-              ]],
-            ["minilang::Rparen", ")"],
-            ]]]],
-        ["minilang::Rparen", ")"],
-        ],
-       ], # Term
-      ], # Mchain
-     ["minilang::Semicolon", ";"],
-     ["minilang::Mchain",
-      ["minilang::LTerm", ["minilang::Name", "end"]],
-      ],
-     ["minilang::Semicolon", ";"],
-     ];
-
-=end comment
-
-=cut
-
-=begin comment
 
     $expected=
     ['Program',
