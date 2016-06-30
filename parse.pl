@@ -115,7 +115,7 @@ FIXME:
 
 * tuple rule attribute 'elements' is empty
 
-* Catch EOS in all matching functions
+* Catch EOI in all matching functions
 
 
 Todo: Error Messages
