@@ -2410,11 +2410,6 @@ sub test_minilang()
                    ["Token", ["String", '"123"']],
                    ["Token", ["Number", "456"]],
                    ];
-    #my $expected= ["minilang::Tokenlist", [
-    #               ["minilang::Token", [ ["minilang::Name",   ["blah" ]] ]],
-    #               ["minilang::Token", [ ["minilang::String", ['"123"']] ]],
-    #               ["minilang::Token", [ ["minilang::Number", ["456"  ]] ]],
-    #               ] ];
     $expected= decorate("minilang::", $expected);
     #use FreezeThaw;
     #assert(0 == strCmp($result, $expected));
