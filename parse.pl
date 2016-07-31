@@ -1182,6 +1182,29 @@ sub Parser_reset( $ ) {
 }
 
 # --------------------------------------------------------------------
+# To keep track the current line number, we need to keep track of the
+# number of line endings traversed when we change position. Position
+# can change in several ways:
+
+# First, position can change when we match a terminal. To determine
+# the number of line endings traversed when the parser matches a
+# terminal, we can simply count the number line endings between start
+# and end of the match.
+
+# Second, position can change when we backtrack. For example, when
+# trying to match a construction (a sequence) of two terminals, and
+# the first terminal matches and the second one does not, position
+# will have changed to the end of the match of the first terminal, but
+# we need to move position back to the start of the first match. To
+# achieve this, for every attempted match, we need to remember the
+# position at its start, and also the line number.
+
+# Third, position can change if we reuse the result of a previous
+# match. When we reuse a match, we set the position to the end of the
+# match, and need to set the line number accordingly. To achieve this,
+# for every stashed match, we need to remember the position at its
+# end, and also the corresponding line number.
+
 # FIXME: Packagize, objectify
 sub Parser_new($) {
     my ($input)= @_;
