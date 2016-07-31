@@ -1174,11 +1174,19 @@ sub set_pos($$) {
 }
 
 # --------------------------------------------------------------------
+# Resets the given parser's position to zero.
+
+sub Parser_reset( $ ) {
+    my ($state)= (@_);
+    set_pos($state, 0);
+}
+
+# --------------------------------------------------------------------
 # FIXME: Packagize, objectify
 sub Parser_new($) {
     my ($input)= @_;
     my $state= [$input, 0, {}, undef]; # input, pos, stash, pos_stash
-    set_pos($state, 0);
+    Parser_reset($state);
     $state;
 }
 
@@ -2561,7 +2569,7 @@ sub test_minilang()
     $log->debug("minilang::Program=$minilang::Program.");
     # FIXME: Get this (two-stage parsing) to work:
     #$state= Parse::SiLLy::Grammar::Parser_new($result);
-    Parse::SiLLy::Grammar::set_pos($state, 0);
+    Parse::SiLLy::Grammar::Parser_reset($state);
 
     $result= Parse::SiLLy::Grammar::match($minilang::Program, $state);
     if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
@@ -2727,7 +2735,7 @@ sub do_one_run($$) {
         #delete($state->{stash});
         $state->[Parse::SiLLy::Grammar::STATE_STASH()]= {};
     }
-    Parse::SiLLy::Grammar::set_pos($state, 0);
+    Parse::SiLLy::Grammar::Parser_reset($state);
     no strict 'refs';
     Parse::SiLLy::Grammar::match($ {"$top"}, $state);
 }
