@@ -1495,10 +1495,10 @@ sub terminal_match($$)
         #($match)= substr($state->[STATE_INPUT], $pos) =~ m{^($pattern)}g;
         my $matcher= $t->[PROD_MATCHER];
         #($match)= &{$matcher} (substr($state->[STATE_INPUT], $pos));
-        #set_pos($state)= $pos;
+        #set_pos($state, $pos);
 
         if (DEBUG() && $log->is_debug()) {
-            my $match_pos= pos($state->[STATE_INPUT]);
+            my $match_pos= get_pos($state);
             $log->debug("$ctx: before attempt: pos=".
                         (defined($match_pos)?$match_pos:"undef"));
         }
@@ -1508,14 +1508,14 @@ sub terminal_match($$)
         #$state->[STATE_INPUT]=~ m{^($pattern)}g;
         #$match= $1;
         if (DEBUG() && $log->is_debug()) {
-            my $match_pos= pos($state->[STATE_INPUT]);
+            my $match_pos= get_pos($state);
             $log->debug("$ctx: after attempt: pos=".
                         (defined($match_pos)?$match_pos:"undef"));
         }
 
         if (defined($match)) {
             if (DEBUG() && $log->is_debug()) {
-                $log->debug("$ctx: end pos=".pos($state->[STATE_INPUT]));
+                $log->debug("$ctx: end pos=".get_pos($state));
                 $log->debug("$ctx: matched text: '".quotemeta($match)."'");
             }
             #my $result= {_=>$t, text=>$match};
@@ -1523,7 +1523,7 @@ sub terminal_match($$)
             my $result= [$t->[PROD_NAME], [$match]];
             # FIXME: Let the matcher do this?:
             #$state->[STATE_POS]= $pos += length($match);
-            #assert($state->[STATE_POS] == pos($state->[STATE_INPUT])) if ASSERT();
+            #assert($state->[STATE_POS] == get_pos($state)) if ASSERT();
             # Move this to match_with_memoize?
             if (MEMOIZE()) {
                 $state->[STATE_POS_STASH]=
@@ -1541,7 +1541,7 @@ sub terminal_match($$)
             }
             my $input= $state->[STATE_INPUT];
             #my $pos= pos($input);
-            my $pos= pos($state->[STATE_INPUT]);
+            my $pos= get_pos($state);
             my $prod_len= length($t->[PROD_PATTERN]);
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: pos=", defined($pos) ? $pos : "undef");
