@@ -1185,7 +1185,12 @@ sub Parser_reset( $ ) {
 # FIXME: Packagize, objectify
 sub Parser_new($) {
     my ($input)= @_;
-    my $state= [$input, 0, {}, undef]; # input, pos, stash, pos_stash
+    my $state= [
+        $input,
+        0,      # pos
+        {},     # stash
+        undef,  # pos_stash
+        ];
     Parser_reset($state);
     $state;
 }
