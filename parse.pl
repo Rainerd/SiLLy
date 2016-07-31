@@ -1468,7 +1468,7 @@ sub terminal_match($$)
         }
         #if (length($state->[STATE_INPUT])-1 < $pos) {
         #    if (DEBUG() && $log->is_debug()) {$log->debug("$ctx: End Of Input reached");}
-        #    return [NOMATCH(), "EOI"];
+        #    return [NOMATCH(), $EOI];
         #}
         my $pattern= $t->[PROD_PATTERN];
         if (ASSERT()) {
