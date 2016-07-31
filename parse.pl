@@ -2085,6 +2085,9 @@ sub stash_get_pos_stash_with_assert($$)
 }
 
 # --------------------------------------------------------------------
+# @return the position-specific stash (which maps productions to parse
+# results), for the given master stash and position.
+
 sub stash_get_pos_stash($$)
 {
     my ($stash, $pos)= @_;
