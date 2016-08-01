@@ -1174,6 +1174,31 @@ sub set_pos($$) {
 }
 
 # --------------------------------------------------------------------
+=begin comment
+
+  Q: Where do we have to actually perform backtracking?
+
+  A: Whenever pos has already been moved (something was matched),
+  but the context demands that the match not be used.
+  This happens when:
+
+  * A part of a construction was matched, but the next part could not
+    be matched.  More generally speaking, where a failure may occur
+    after pos has been already moved (but constructions currently are
+    the only productions where this is possible).
+
+  * A positive lookahead ('looking at' alias 'and') was matched.  The
+    match will be returned, but the input position reset.
+
+  * A negative lookahead ('not looking at' alias 'and not') was not
+    matched. In other words, when the match expression of a negative
+    lookahead did match. The match is not be returned, and the input
+    position is reset.
+
+=end comment
+
+=cut
+
 sub backtrack_to_pos($$) {
     my ($state, $pos)= (@_);
     set_pos($state, $pos);
@@ -1654,31 +1679,6 @@ sub construction_match($$)
             if (DEBUG() && $log->is_debug()) {
                 $log->debug($reason,"\]\]");
             }
-
-=begin comment
-
-  Q: Where do we have to actually perform backtracking?
-
-  A: Whenever pos has already been moved (something was matched),
-  but the context demands that the match not be used.
-  This happens when:
-
-  * A part of a construction was matched, but the next part could not
-    be matched.  More generally speaking, where a failure may occur
-    after pos has been already moved (but constructions currently are
-    the only productions where this is possible).
-
-  * A positive lookahead ('looking at' alias 'and') was matched.  The
-    match will be returned, but the input position reset.
-
-  * A negative lookahead ('not looking at' alias 'and not') was not
-    matched. In other words, when the match expression of a negative
-    lookahead did match. The match is not be returned, and the input
-    position is reset.
-
-=end comment
-
-=cut
 
             backtrack_to_pos($state, $saved_pos);
             return [NOMATCH(), $reason];
