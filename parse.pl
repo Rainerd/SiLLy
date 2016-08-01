@@ -1671,6 +1671,11 @@ sub construction_match($$)
   * A positive lookahead ('looking at' alias 'and') was matched.  The
     match will be returned, but the input position reset.
 
+  * A negative lookahead ('not looking at' alias 'and not') was not
+    matched. In other words, when the match expression of a negative
+    lookahead did match. The match is not be returned, and the input
+    position is reset.
+
 =end comment
 
 =cut
