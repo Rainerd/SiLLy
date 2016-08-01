@@ -1226,6 +1226,10 @@ sub Parser_reset( $ ) {
 # terminal, we can simply count the number line endings between start
 # and end of the match.
 
+# With memoization, we can avoid having to repeatedly count by
+# remembering the number of traversed line endings for each
+# combination of position and production.
+
 # Second, position can change when we backtrack. For example, when
 # trying to match a construction (a sequence) of two terminals, and
 # the first terminal matches and the second one does not, position
@@ -1530,7 +1534,7 @@ sub terminal_match($$)
                 ];
         }
     }
-    else
+    else # Input is not an array (but a string).
     {
         if (DEBUG() && $log->is_debug()) {
             $log->debug("$ctx: input at pos $pos ='"
