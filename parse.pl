@@ -1174,6 +1174,16 @@ sub set_pos($$) {
 }
 
 # --------------------------------------------------------------------
+sub backtrack_to_pos($$) {
+    my ($state, $pos)= (@_);
+    set_pos($state, $pos);
+    if (MEMOIZE()) {
+        $state->[STATE_POS_STASH]=
+            stash_get_pos_stash($state->[STATE_STASH], $pos);
+    }
+}
+
+# --------------------------------------------------------------------
 # Resets the given parser's position to zero.
 
 sub Parser_reset( $ ) {
@@ -1665,11 +1675,7 @@ sub construction_match($$)
 
 =cut
 
-            set_pos($state, $saved_pos);
-            if (MEMOIZE()) {
-                $state->[STATE_POS_STASH]=
-                    stash_get_pos_stash($state->[STATE_STASH], $saved_pos);
-            }
+            backtrack_to_pos($state, $saved_pos);
             return [NOMATCH(), $reason];
         }
         if (DEBUG() && $log->is_debug()) {
@@ -1880,11 +1886,7 @@ sub lookingat_match($$)
                         . Parse::SiLLy::Result::toString($match, " "));
         }
 
-        set_pos($state, $saved_pos);
-        if (MEMOIZE()) {
-            $state->[STATE_POS_STASH]=
-                stash_get_pos_stash($state->[STATE_STASH], $saved_pos);
-        }
+        backtrack_to_pos($state, $saved_pos);
         #return (make_result($t, [$match]));
         return [$t->[PROD_NAME], [$match]];
     }
@@ -1940,11 +1942,7 @@ sub notlookingat_match($$)
                         . " (resulting in NOMATCH).");
         }
 
-        set_pos($state, $saved_pos);
-        if (MEMOIZE()) {
-            $state->[STATE_POS_STASH]=
-                stash_get_pos_stash($state->[STATE_STASH], $saved_pos);
-        }
+        backtrack_to_pos($state, $saved_pos);
         return [NOMATCH(),
                 "$ctx: *looking* at $element_name".
                 " >>".$match->[RESULT_MATCH()]."<<"
