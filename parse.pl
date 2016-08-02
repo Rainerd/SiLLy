@@ -615,7 +615,8 @@ package Parse::SiLLy::Grammar;
 
 use constant PROD_CATEGORY  => 0;
 use constant PROD_NAME      => PROD_CATEGORY + 1;
-use constant PROD_METHOD    => PROD_NAME + 1;
+use constant PROD_SHORT_NAME=> PROD_NAME + 1;
+use constant PROD_METHOD    => PROD_SHORT_NAME + 1;
 use constant PROD_ID        => PROD_METHOD + 1;
 
 use constant PROD_PATTERN   => PROD_ID + 1;
@@ -1385,7 +1386,7 @@ sub def($$$$$@)
     # FIXME: Move this before previous comment:
     # In front of the type-specific elements make room for
     # the shared elements:
-    unshift(@$val, (undef, undef, undef, undef));
+    unshift(@$val, (undef, undef, undef, undef, undef));
     $val->[PROD_CATEGORY]= $category;
     # Store result of symbolic lookup
     $val->[PROD_METHOD] = $method;
@@ -1401,9 +1402,8 @@ sub def($$$$$@)
     #my ($caller_package, $file, $line)= caller();
     my $fullname= "${caller_package}::$name";
     $log->debug("Defining '$fullname'...");
-    # FIXME: Consider making it an option to use short, unqualified names.
     $val->[PROD_NAME]= $fullname;
-    #$val->[PROD_NAME]= $name;
+    $val->[PROD_SHORT_NAME]= $name;
 
     # Bind grammar object value to variable
     eval("\$$fullname=\$val;");
@@ -1482,7 +1482,7 @@ sub terminal_match($$)
     my $log= $terminal_match_log;
     my ($t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
-    my $ctx= $t->[PROD_NAME];
+    my $ctx= $t->[PROD_SHORT_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
 
     my $input= $state->[STATE_INPUT];
@@ -1647,7 +1647,7 @@ sub construction_match($$)
     my $log= $construction_match_log;
     my ($t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
-    my $ctx= $t->[PROD_NAME];
+    my $ctx= $t->[PROD_SHORT_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
     if (DEBUG() && $log->is_debug()) {
         $log->debug("$ctx: [ Trying to match...");
@@ -1663,7 +1663,7 @@ sub construction_match($$)
         my $i= $_;
         #if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: i=$i"); }
         my $element= $elements->[$i];
-        my $element_name= $element->[PROD_NAME];
+        my $element_name= $element->[PROD_SHORT_NAME];
         if (DEBUG() && $log->is_debug()) {
             #$log->debug(varstring('element', $element));
             $log->debug("$ctx: [ Trying to match element[$i]: $element_name");
@@ -1730,7 +1730,7 @@ sub alternation_match($$)
     # Q: Move argument logging to 'match'?
     # A: No, then we can not control logging locally.
     match_check_preconditions($log, $t) if ASSERT();
-    my $ctx= $t->[PROD_NAME];
+    my $ctx= $t->[PROD_SHORT_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
 
     # The only matching function that potentially consumes 'input' is
@@ -1751,7 +1751,7 @@ sub alternation_match($$)
         my $i= $_;
         #if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: i=$i"); }
         my $element= $elements->[$i];
-        my $element_name= $element->[PROD_NAME];
+        my $element_name= $element->[PROD_SHORT_NAME];
         if (DEBUG() && $log->is_debug()) {
             #$log->debug(varstring('element', $element));
             $log->debug("$ctx: [ Trying to match element[$i]: $element_name");
@@ -1811,11 +1811,11 @@ sub optional_match($$)
     my $log= $optional_match_log;
     my ($t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
-    my $ctx= $t->[PROD_NAME];
+    my $ctx= $t->[PROD_SHORT_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
 
     my $element= $t->[PROD_ELEMENT];
-    my $element_name= $element->[PROD_NAME];
+    my $element_name= $element->[PROD_SHORT_NAME];
     if (DEBUG() && $log->is_debug()) {
         #$log->debug(varstring('element', $element));
         $log->debug("$ctx: element=$element_name");
@@ -1867,11 +1867,11 @@ sub lookingat_match($$)
     my $log= $lookingat_match_log;
     my ($t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
-    my $ctx= $t->[PROD_NAME];
+    my $ctx= $t->[PROD_SHORT_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
 
     my $element= $t->[PROD_ELEMENT];
-    my $element_name= $element->[PROD_NAME];
+    my $element_name= $element->[PROD_SHORT_NAME];
     if (DEBUG() && $log->is_debug()) {
         #$log->debug(varstring('element', $element));
         $log->debug("$ctx: element=$element_name");
@@ -1924,11 +1924,11 @@ sub notlookingat_match($$)
     my $log= $notlookingat_match_log;
     my ($t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
-    my $ctx= $t->[PROD_NAME];
+    my $ctx= $t->[PROD_SHORT_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
 
     my $element= $t->[PROD_ELEMENT];
-    my $element_name= $element->[PROD_NAME];
+    my $element_name= $element->[PROD_SHORT_NAME];
     if (DEBUG() && $log->is_debug()) {
         #$log->debug(varstring('element', $element));
         $log->debug("$ctx: element=$element_name");
@@ -1976,11 +1976,11 @@ sub list_match($$$$)
 {
     my ($log, $n_min, $t, $state)= @ARG;
     match_check_preconditions($log, $t) if ASSERT();
-    my $ctx= $t->[PROD_NAME];
+    my $ctx= $t->[PROD_SHORT_NAME];
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
     my $element=   $t->[PROD_ELEMENT];
     my $separator= $t->[PROD_SEPARATOR];
-    my $element_name=   $element->[PROD_NAME];
+    my $element_name=   $element->[PROD_SHORT_NAME];
     my $separator_name= $separator->[PROD_NAME];
 
     #my $result= [];
