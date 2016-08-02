@@ -2966,7 +2966,7 @@ sub main
 
     {
     my $state= Parse::SiLLy::Grammar::Parser_new($input_data);
-    my $top= "Parse::SiLLy::Test::XML::Contentlist";
+    my $top= "Parse::SiLLy::Test::XML::Document";
     my $result;
     #$result= Parse::SiLLy::Grammar::match($::Elem, $state);
     no strict 'refs';
