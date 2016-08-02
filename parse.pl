@@ -1163,6 +1163,7 @@ sub get_pos($) { pos($_[0]->[STATE_INPUT]); }
 # value. In other words, sets the value of `pos(input)` (see `perldoc
 # -f pos`), where input is the parser input of the given parser state,
 # to the given value.
+
 sub set_pos($$) {
     pos($_[0]->[STATE_INPUT])= $_[1];
 
@@ -1176,6 +1177,7 @@ sub set_pos($$) {
 }
 
 # --------------------------------------------------------------------
+
 =begin comment
 
   Q: Where do we have to actually perform backtracking?
