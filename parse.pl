@@ -661,7 +661,7 @@ sub given_name($) {
     if ('' ne ref($val)
         #&& "ARRAY" eq ref($val) # Does not work if $val is blessed
         # FIXME: Decouple logging from parsing packages!:
-        && scalar(@$val) >= PROD_NAME() )
+        && scalar(@$val) >= PROD_NAME )
     {
         my $valname= $val->[PROD_NAME];
         if (defined($valname) && '' eq ref($valname)) # name is a string
