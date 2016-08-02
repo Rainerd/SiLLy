@@ -684,7 +684,7 @@ sub vardescr($$)
     defined($valname) ? "\$$name = ''$valname''\n" : varstring($name, $val);
 }
 
-# --------------------------------------------------------------------
+# ====================================================================
 package Parse::SiLLy::Result;
 
 use strict;
