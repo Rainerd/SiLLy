@@ -2978,6 +2978,10 @@ sub main
     #$log->set_debug();
     $log->info("first run result:");
     print(STDOUT " ", Parse::SiLLy::Result::toString($result, " "), "\n");
+    if ( ! Parse::SiLLy::Result::matched($result)) {
+        print(STDERR "Reason:\n",
+              $result->[Parse::SiLLy::Result::RESULT_MATCH()], "\n");
+    }
     #$log->set_nodebug();
     #$result= do_one_run($state, $top);
     #$result= do_runs(100, $state, $top);
