@@ -633,12 +633,7 @@ sub varstring($$) {
 }
 
 # --------------------------------------------------------------------
-use constant PROD_CATEGORY => 0;
 use constant PROD_NAME     => 1;
-use constant PROD_METHOD   => 2;
-use constant PROD_ID       => 3;
-use constant PROD_PATTERN  => 4;
-use constant PROD_MATCHER  => 5;
 
 # --------------------------------------------------------------------
 # If the given reference refers to a named object, returns its name.
@@ -686,8 +681,6 @@ use constant ASSERT => ::ASSERT;
 # FIXME: Define these only once:
 use constant PROD_CATEGORY  => 0;
 use constant PROD_NAME      => 1;
-use constant PROD_METHOD    => 2;
-use constant PROD_ID        => 3;
 use constant PROD_ELEMENTS  => 4;
 
 # --------------------------------------------------------------------
