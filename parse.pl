@@ -1023,6 +1023,7 @@ sub grammar_objects($$)
 use constant STASHED_END   => 0;
 use constant STASHED_MATCH => 1 + STASHED_END;
 use constant STASHED_LINENO => 1 + STASHED_MATCH;
+use constant STASHED_LINE_START => 1 + STASHED_LINENO;
 
 # --------------------------------------------------------------------
 sub format_stashed($)
@@ -1039,6 +1040,7 @@ sub format_stashed($)
         #: Parse::SiLLy::Result::toString(@{@$stashed}[1..$#$stashed], " ")
         ""
             .$stashed->[STASHED_LINENO].":"
+            .($stashed->[STASHED_END]-$stashed->[STASHED_LINE_START]+1).": "
             ."[$$stashed[STASHED_END]]"
             . Parse::SiLLy::Result::toString($$stashed[STASHED_MATCH], " ")
             ;
@@ -1148,6 +1150,7 @@ use constant STATE_STASH => STATE_POS + 1;
 use constant STATE_POS_STASH => STATE_STASH + 1;
 use constant STATE_FILENAME   => STATE_POS_STASH + 1;
 use constant STATE_LINENO     => STATE_FILENAME + 1;
+use constant STATE_LINE_START => STATE_LINENO + 1;
 
 # --------------------------------------------------------------------
 # @return the input character index of the given parser state. In
@@ -1206,9 +1209,11 @@ sub set_pos($$) {
 sub backtrack_to_pos( $$$$ ) {
     my ($state, $pos
         , $lineno
+        , $line_start
         )= (@_);
     set_pos($state, $pos);
     $state->[STATE_LINENO]= $lineno;
+    $state->[STATE_LINE_START]= $line_start;
     if (MEMOIZE()) {
         $state->[STATE_POS_STASH]=
             stash_get_pos_stash($state->[STATE_STASH], $pos);
@@ -1222,6 +1227,7 @@ sub Parser_reset( $ ) {
     my ($state)= (@_);
     set_pos($state, 0);
     $state->[STATE_LINENO]= 1;
+    $state->[STATE_LINE_START]= 0;
 }
 
 # --------------------------------------------------------------------
@@ -1522,6 +1528,7 @@ sub endls_since($$)
                 if (DEBUG() && $log->is_debug()) {
                     $log->debug("$ctx: Found line ending $endls before $new_pos.");
                 }
+                $state->[STATE_LINE_START]= get_pos($state);
             }
             else {
                 if (DEBUG() && $log->is_debug()) {
@@ -1621,9 +1628,11 @@ EOT
 
 sub location( $ ) {
     my ($state)= (@_);
+    my $column = get_pos($state) - $state->[STATE_LINE_START] + 1;
     return
         $state->[STATE_FILENAME].":".
         $state->[STATE_LINENO].":".
+        $column.":".
         " ";
 }
 
@@ -1817,6 +1826,7 @@ sub construction_match($$)
     my $result_elements= [];
     my $saved_pos= get_pos($state);
     my $saved_lineno= $state->[STATE_LINENO];
+    my $saved_line_start= $state->[STATE_LINE_START];
 
     # foreach $element in $t's elements
     my $elements= $t->[PROD_ELEMENTS];
@@ -1844,6 +1854,7 @@ sub construction_match($$)
 
             backtrack_to_pos($state, $saved_pos
                              , $saved_lineno
+                             , $saved_line_start
                 );
             return [NOMATCH(), $reason];
         }
@@ -2053,6 +2064,7 @@ sub lookingat_match($$)
     }
     my $saved_pos= get_pos($state);
     my $saved_lineno= $state->[STATE_LINENO];
+    my $saved_line_start= $state->[STATE_LINE_START];
 
     my ($match)= match($element, $state);
     if (matched($match))
@@ -2066,6 +2078,7 @@ sub lookingat_match($$)
 
         backtrack_to_pos($state, $saved_pos
                          , $saved_lineno
+                         , $saved_line_start
             );
         #return (make_result($t, [$match]));
         return [$t->[PROD_NAME], [$match]];
@@ -2115,6 +2128,7 @@ sub notlookingat_match($$)
     }
     my $saved_pos= get_pos($state);
     my $saved_lineno= $state->[STATE_LINENO];
+    my $saved_line_start= $state->[STATE_LINE_START];
 
     my ($match)= match($element, $state);
     if (matched($match))
@@ -2127,6 +2141,7 @@ sub notlookingat_match($$)
 
         backtrack_to_pos($state, $saved_pos
                          , $saved_lineno
+                         , $saved_line_start
             );
         return [NOMATCH(),
                 (SHOW_LOCATION ? location($state) : "") .
@@ -2372,6 +2387,7 @@ sub match_with_memoize($$)
             assert('ARRAY' eq ref($stashed)) if ASSERT();
             set_pos($state, $$stashed[STASHED_END]);
             $state->[STATE_LINENO]    = $stashed->[STASHED_LINENO];
+            $state->[STATE_LINE_START]= $stashed->[STASHED_LINE_START];
             return ($$stashed[STASHED_MATCH]);
         }
         else {
@@ -2393,6 +2409,7 @@ sub match_with_memoize($$)
             get_pos($state),
             $result,
             $state->[STATE_LINENO],
+            $state->[STATE_LINE_START],
         ]
         : $result;
     if (DEBUG() && $log->is_debug()) {
