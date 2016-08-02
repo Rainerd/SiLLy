@@ -2790,8 +2790,6 @@ sub do_runs($$$) {
 
 # --------------------------------------------------------------------
 
-=begin comment
-
 sub pos_test($)
 {
     my ($log)= @_;
@@ -2890,10 +2888,6 @@ sub pos_test($)
 }
 }
 
-=end comment
-
-=cut
-
 # --------------------------------------------------------------------
 sub init()
 {
@@ -2912,7 +2906,7 @@ sub init()
 
     $main_log= Logger->new('main');
     assert_test($main_log);
-    #pos_test($main_log);
+    pos_test($main_log);
 
     Parse::SiLLy::Grammar::init();
 }
