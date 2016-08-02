@@ -947,6 +947,8 @@ sub import {
 use constant MEMOIZE =>
     (defined($ENV{PARSE_SILLY_MEMOIZE}) ? $ENV{PARSE_SILLY_MEMOIZE} : 0);
 
+use constant SHOW_LOCATION =>
+    defined($ENV{PARSE_SILLY_SHOW_LOCATION}) ? $ENV{PARSE_SILLY_SHOW_LOCATION} : 1;
 
 # --------------------------------------------------------------------
 sub log_args($$$)
@@ -1141,6 +1143,7 @@ use constant STATE_POS => STATE_INPUT + 1;
 use constant STATE_STASH => STATE_POS + 1;
 #use constant STATE_POS_STASH => 3;
 use constant STATE_POS_STASH => STATE_STASH + 1;
+use constant STATE_FILENAME   => STATE_POS_STASH + 1;
 
 # --------------------------------------------------------------------
 # @return the input character index of the given parser state. In
@@ -1239,14 +1242,15 @@ sub Parser_reset( $ ) {
 # end, and also the corresponding line number.
 
 # FIXME: Packagize, objectify
-sub Parser_new($) {
-    my ($input)= @_;
+sub Parser_new($$) {
+    my ($filename, $input)= (@_);
     my $state= [
         $input,
         0,      # pos
         {},     # stash
         undef,  # pos_stash
         ];
+    $state->[STATE_FILENAME]   = $filename,
     Parser_reset($state);
     $state;
 }
@@ -1477,6 +1481,16 @@ sub terminal#($$)
 my $terminal_match_log;
 
 # --------------------------------------------------------------------
+# @return a description of the current input position.
+
+sub location( $ ) {
+    my ($state)= (@_);
+    return
+        $state->[STATE_FILENAME].":".
+        " ";
+}
+
+# --------------------------------------------------------------------
 sub terminal_match($$)
 {
     my $log= $terminal_match_log;
@@ -1617,6 +1631,7 @@ sub terminal_match($$)
                 substr($input, $pos, $remaining).$EOI :
                 substr($input, $pos, $prod_len)."..." ;
             [NOMATCH(),
+             (SHOW_LOCATION ? location($state) : "") .
              $ctx." did not match here: ".$inp_from_pos];
         }
     }
@@ -1675,6 +1690,7 @@ sub construction_match($$)
         {
             my $n= $i+1;
             my $reason=
+                (SHOW_LOCATION ? location($state) : "") .
                 "$ctx did not match"
                 . " because element $n ($element_name) did not match"
                 . " because:\n".$match->[RESULT_MATCH()];
@@ -1777,6 +1793,7 @@ sub alternation_match($$)
         }
         my $n= $i+1;
         my $reason1=
+            (SHOW_LOCATION ? location($state) : "") .
             "$ctx alternative $n ($element_name) did not match because:\n".
             $match->[RESULT_MATCH()];
         if (DEBUG() && $log->is_debug()) {
@@ -1786,7 +1803,9 @@ sub alternation_match($$)
     }
     (0 .. $#$elements);
 
+    my $location= SHOW_LOCATION ? location($state) : "";
     my $reason=
+        $location .
         "$ctx did not match"
         . " because none of the alternatives matched"
         . " because: [\n". join("\n", @reasons)
@@ -1906,6 +1925,7 @@ sub lookingat_match($$)
         $log->debug("$ctx: not matched: $element_name");
     }
     [NOMATCH(),
+     (SHOW_LOCATION ? location($state) : "") .
      "$ctx did not match"
      . " because we are *not* looking at a $element_name because:\n".
      $match->[RESULT_MATCH()] ];
@@ -1957,6 +1977,7 @@ sub notlookingat_match($$)
 
         backtrack_to_pos($state, $saved_pos);
         return [NOMATCH(),
+                (SHOW_LOCATION ? location($state) : "") .
                 "$ctx did not match"
                 . " because we *are* looking at a $element_name: ".
                 " >>".$match->[RESULT_MATCH()]."<<"
@@ -2019,6 +2040,7 @@ sub list_match($$$$)
                 if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: ...not matched.\]");}
                 return [
                     NOMATCH(),
+                    (SHOW_LOCATION ? location($state) : "") .
                     "$ctx did not match"
                     . " because $element_name requires at least $n_min elements,"
                     . " matched only $n_matched, and the next element didn't match"
@@ -2486,7 +2508,9 @@ sub test_minilang()
     require $grammar;
 
     $log->debug("--- Testing terminal_match...");
-    $state= Parse::SiLLy::Grammar::Parser_new('blah 123  456');
+    $state= Parse::SiLLy::Grammar::Parser_new(
+        "inline in function test_minilang (Testing terminal_match)",
+        'blah 123  456');
 
     test1($log, "terminal_match", "minilang::Name",       $state, "blah");
     test1($log, "terminal_match", "minilang::Whitespace", $state, " ");
@@ -2495,7 +2519,9 @@ sub test_minilang()
     test1($log, "terminal_match", "minilang::Number",     $state, "456");
 
     $log->debug("--- Testing alternation_match...");
-    $state= Parse::SiLLy::Grammar::Parser_new('blah 123');
+    $state= Parse::SiLLy::Grammar::Parser_new(
+        "inline in function test_minilang (Testing alternation_match)",
+        'blah 123');
     test1($log, "alternation_match", "minilang::Token",
           $state, ["minilang::Name", ["blah"]]);
     test1($log, "match",             "minilang::Whitespace",
@@ -2504,7 +2530,9 @@ sub test_minilang()
           $state, ["minilang::Number", [123]]);
 
     $log->debug("--- Testing tokenization 1...");
-    $state= Parse::SiLLy::Grammar::Parser_new('blah "123"  456');
+    $state= Parse::SiLLy::Grammar::Parser_new(
+        "inline in function test_minilang (Testing tokenization 1)",
+        'blah "123"  456');
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
     if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
@@ -2535,7 +2563,9 @@ sub test_minilang()
     my $input= 'blah.("123", xyz.(456.*.2)); end;';
     #           0         1         2         3
     #           0....5....0....5..8.0....5....0.2
-    $state= Parse::SiLLy::Grammar::Parser_new($input);
+    $state= Parse::SiLLy::Grammar::Parser_new(
+        "inline in function test_minilang (Testing tokenization 2)",
+        $input);
 
     $result= Parse::SiLLy::Grammar::match($minilang::Tokenlist, $state);
     if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
@@ -2613,7 +2643,7 @@ sub test_minilang()
     $log->debug("--- Testing minilang::Program...");
     $log->debug("minilang::Program=$minilang::Program.");
     # FIXME: Get this (two-stage parsing) to work:
-    #$state= Parse::SiLLy::Grammar::Parser_new($result);
+    #$state= Parse::SiLLy::Grammar::Parser_new("tokenized input", $result);
     Parse::SiLLy::Grammar::Parser_reset($state);
 
     $result= Parse::SiLLy::Grammar::match($minilang::Program, $state);
@@ -2687,7 +2717,8 @@ sub test_xml()
  <td></td>
 </tr>
 
-    $state= Parse::SiLLy::Grammar::Parser_new($xml);
+    $state= Parse::SiLLy::Grammar::Parser_new(
+        "inline in function test_xml", $xml);
 
     #$result= Parse::SiLLy::Grammar::match($Parse::SiLLy::Test::XML::Elem,
     #                                      $state);
@@ -2968,7 +2999,7 @@ sub main
     $log->info("input:\n$input_data");
 
     {
-    my $state= Parse::SiLLy::Grammar::Parser_new($input_data);
+    my $state= Parse::SiLLy::Grammar::Parser_new($input, $input_data);
     my $top= "Parse::SiLLy::Test::XML::Document";
     my $result;
     #$result= Parse::SiLLy::Grammar::match($::Elem, $state);
