@@ -1021,7 +1021,8 @@ sub grammar_objects($$)
 
 # --------------------------------------------------------------------
 use constant STASHED_END   => 0;
-use constant STASHED_MATCH => 1;
+use constant STASHED_MATCH => 1 + STASHED_END;
+use constant STASHED_LINENO => 1 + STASHED_MATCH;
 
 # --------------------------------------------------------------------
 sub format_stashed($)
@@ -1036,7 +1037,9 @@ sub format_stashed($)
         }
         #: Parse::SiLLy::Result::toString(\@$stashed[1..$#$stashed], " ")
         #: Parse::SiLLy::Result::toString(@{@$stashed}[1..$#$stashed], " ")
-        "[$$stashed[STASHED_END]]"
+        ""
+            .$stashed->[STASHED_LINENO].":"
+            ."[$$stashed[STASHED_END]]"
             . Parse::SiLLy::Result::toString($$stashed[STASHED_MATCH], " ")
             ;
     }
@@ -1144,6 +1147,7 @@ use constant STATE_STASH => STATE_POS + 1;
 #use constant STATE_POS_STASH => 3;
 use constant STATE_POS_STASH => STATE_STASH + 1;
 use constant STATE_FILENAME   => STATE_POS_STASH + 1;
+use constant STATE_LINENO     => STATE_FILENAME + 1;
 
 # --------------------------------------------------------------------
 # @return the input character index of the given parser state. In
@@ -1173,6 +1177,9 @@ sub set_pos($$) {
 
 =begin comment
 
+  Resets the given parser's input position to the given position and
+  sets the line number counter to the given number.
+
   Q: Where do we have to actually perform backtracking?
 
   A: Whenever pos has already been moved (something was matched),
@@ -1196,9 +1203,12 @@ sub set_pos($$) {
 
 =cut
 
-sub backtrack_to_pos($$) {
-    my ($state, $pos)= (@_);
+sub backtrack_to_pos( $$$$ ) {
+    my ($state, $pos
+        , $lineno
+        )= (@_);
     set_pos($state, $pos);
+    $state->[STATE_LINENO]= $lineno;
     if (MEMOIZE()) {
         $state->[STATE_POS_STASH]=
             stash_get_pos_stash($state->[STATE_STASH], $pos);
@@ -1211,6 +1221,7 @@ sub backtrack_to_pos($$) {
 sub Parser_reset( $ ) {
     my ($state)= (@_);
     set_pos($state, 0);
+    $state->[STATE_LINENO]= 1;
 }
 
 # --------------------------------------------------------------------
@@ -1220,8 +1231,8 @@ sub Parser_reset( $ ) {
 
 # First, position can change when we match a terminal. To determine
 # the number of line endings traversed when the parser matches a
-# terminal, we can simply count the number line endings between start
-# and end of the match.
+# terminal for the first time, we can count the number line endings
+# between start and end of the match.
 
 # With memoization, we can avoid having to repeatedly count by
 # remembering the number of traversed line endings for each
@@ -1481,12 +1492,138 @@ sub terminal#($$)
 my $terminal_match_log;
 
 # --------------------------------------------------------------------
+# @returns for the given state, the number of line endings between the
+# given input position and the current input position.
+
+sub endls_since($$)
+{
+    my $log= $terminal_match_log;
+    my $debug_was_set= Logger::is_debug($log);
+    #Logger::set_debug($log);
+    my $ctx= "endls_since";
+    my ($state, $start_pos)= (@_);
+    my $new_pos= get_pos($state);
+    if (DEBUG() && $log->is_debug()) {
+        $log->debug("$ctx: Entered, looking from $start_pos to $new_pos.");
+    }
+    set_pos($state, $start_pos);
+
+    my $endl= "\n";
+    my $endls= 0; # Number of line endings found
+    while (get_pos($state) < $new_pos) {
+        my $match= $state->[STATE_INPUT]=~ m/$endl/gso;
+        if (DEBUG() && $log->is_debug()) {
+            $log->debug("$ctx: \$match='$match'");
+        }
+        if ($match)
+        {
+            if (get_pos($state) <= $new_pos) {
+                ++$endls;
+                if (DEBUG() && $log->is_debug()) {
+                    $log->debug("$ctx: Found line ending $endls before $new_pos.");
+                }
+            }
+            else {
+                if (DEBUG() && $log->is_debug()) {
+                    $log->debug("$ctx: Found line ending after $new_pos.");
+                }
+            }
+        }
+        else {
+            if (DEBUG() && $log->is_debug()) {
+                $log->debug("$ctx: No line ending found.");
+            }
+            last;
+        }
+    }
+
+    # Restore exact input position - when matching line endings, we
+    # might have ended up anywhere at or beyond $new_pos.
+    set_pos($state, $new_pos);
+    if (DEBUG() && $log->is_debug()) {
+        $log->debug("$ctx: Returning $endls.");
+    }
+    if ($debug_was_set) { Logger::set_debug($log); }
+    else { Logger::set_nodebug($log); }
+    return $endls;
+}
+
+# --------------------------------------------------------------------
+# Using the given parser state's input and the given end position,
+# @return whether the number returned by endls_since($state, $start)
+# is equal to the given expected number.
+sub endls_since_test_1($$$$)
+{
+    my ($state, $start, $end, $expected)= (@_);
+    set_pos($state, $end);
+    my $actual= endls_since($state, $start);
+    return ($actual == $expected);
+}
+
+# --------------------------------------------------------------------
+sub endls_since_test()
+{
+    #print(STDERR "endls_since_test running\n");
+    my $input= <<'EOT';
+
+ab
+c
+
+EOT
+    my $state= Parse::SiLLy::Grammar::Parser_new(
+        "inline in function endls_since_test", $input);
+
+    assert(endls_since_test_1($state, 0, 0, 0));
+    assert(endls_since_test_1($state, 0, 1, 1));
+    assert(endls_since_test_1($state, 0, 2, 1));
+    assert(endls_since_test_1($state, 0, 3, 1));
+    assert(endls_since_test_1($state, 0, 4, 2));
+    assert(endls_since_test_1($state, 0, 5, 2));
+    assert(endls_since_test_1($state, 0, 6, 3));
+    assert(endls_since_test_1($state, 0, 7, 4));
+    assert(endls_since_test_1($state, 0, 8, 4));
+
+    assert(endls_since_test_1($state, 1, 0, 0));
+    assert(endls_since_test_1($state, 1, 1, 0));
+    assert(endls_since_test_1($state, 1, 2, 0));
+    assert(endls_since_test_1($state, 1, 3, 0));
+    assert(endls_since_test_1($state, 1, 4, 1));
+    assert(endls_since_test_1($state, 1, 5, 1));
+    assert(endls_since_test_1($state, 1, 6, 2));
+    assert(endls_since_test_1($state, 1, 7, 3));
+    assert(endls_since_test_1($state, 1, 8, 3));
+
+    assert(endls_since_test_1($state, 4, 0, 0));
+    assert(endls_since_test_1($state, 4, 1, 0));
+    assert(endls_since_test_1($state, 4, 2, 0));
+    assert(endls_since_test_1($state, 4, 3, 0));
+    assert(endls_since_test_1($state, 4, 4, 0));
+    assert(endls_since_test_1($state, 4, 5, 0));
+    assert(endls_since_test_1($state, 4, 6, 1));
+    assert(endls_since_test_1($state, 4, 7, 2));
+    assert(endls_since_test_1($state, 4, 8, 2));
+
+    assert(endls_since_test_1($state, 6, 0, 0));
+    assert(endls_since_test_1($state, 6, 1, 0));
+    assert(endls_since_test_1($state, 6, 2, 0));
+    assert(endls_since_test_1($state, 6, 3, 0));
+    assert(endls_since_test_1($state, 6, 4, 0));
+    assert(endls_since_test_1($state, 6, 5, 0));
+    assert(endls_since_test_1($state, 6, 6, 0));
+    assert(endls_since_test_1($state, 6, 7, 1));
+    assert(endls_since_test_1($state, 6, 8, 1));
+
+    #print(STDERR "endls_since_test went fine\n");
+}
+
+# --------------------------------------------------------------------
 # @return a description of the current input position.
 
 sub location( $ ) {
     my ($state)= (@_);
     return
         $state->[STATE_FILENAME].":".
+        $state->[STATE_LINENO].":".
         " ";
 }
 
@@ -1588,6 +1725,12 @@ sub terminal_match($$)
                 $log->debug("$ctx: end pos=".get_pos($state));
                 $log->debug("$ctx: matched text: '".quotemeta($match)."'");
             }
+
+            if (SHOW_LOCATION()) {
+                $state->[STATE_LINENO] += endls_since($state, $pos);
+                #print(STDERR "$ctx: Line number now at $state->[STATE_LINENO]\n");
+            }
+
             #my $result= {_=>$t, text=>$match};
             #my $result= make_result($t, [$match]);
             my $result= [$t->[PROD_NAME], [$match]];
@@ -1673,6 +1816,7 @@ sub construction_match($$)
 
     my $result_elements= [];
     my $saved_pos= get_pos($state);
+    my $saved_lineno= $state->[STATE_LINENO];
 
     # foreach $element in $t's elements
     my $elements= $t->[PROD_ELEMENTS];
@@ -1698,7 +1842,9 @@ sub construction_match($$)
                 $log->debug($reason,"\]\]");
             }
 
-            backtrack_to_pos($state, $saved_pos);
+            backtrack_to_pos($state, $saved_pos
+                             , $saved_lineno
+                );
             return [NOMATCH(), $reason];
         }
         if (DEBUG() && $log->is_debug()) {
@@ -1906,6 +2052,7 @@ sub lookingat_match($$)
         $log->debug("$ctx: element=$element_name");
     }
     my $saved_pos= get_pos($state);
+    my $saved_lineno= $state->[STATE_LINENO];
 
     my ($match)= match($element, $state);
     if (matched($match))
@@ -1917,7 +2064,9 @@ sub lookingat_match($$)
                         . Parse::SiLLy::Result::toString($match, " "));
         }
 
-        backtrack_to_pos($state, $saved_pos);
+        backtrack_to_pos($state, $saved_pos
+                         , $saved_lineno
+            );
         #return (make_result($t, [$match]));
         return [$t->[PROD_NAME], [$match]];
     }
@@ -1965,6 +2114,7 @@ sub notlookingat_match($$)
         $log->debug("$ctx: element=$element_name");
     }
     my $saved_pos= get_pos($state);
+    my $saved_lineno= $state->[STATE_LINENO];
 
     my ($match)= match($element, $state);
     if (matched($match))
@@ -1975,7 +2125,9 @@ sub notlookingat_match($$)
                         . " (resulting in NOMATCH).");
         }
 
-        backtrack_to_pos($state, $saved_pos);
+        backtrack_to_pos($state, $saved_pos
+                         , $saved_lineno
+            );
         return [NOMATCH(),
                 (SHOW_LOCATION ? location($state) : "") .
                 "$ctx did not match"
@@ -2219,6 +2371,7 @@ sub match_with_memoize($$)
         {
             assert('ARRAY' eq ref($stashed)) if ASSERT();
             set_pos($state, $$stashed[STASHED_END]);
+            $state->[STATE_LINENO]    = $stashed->[STASHED_LINENO];
             return ($$stashed[STASHED_MATCH]);
         }
         else {
@@ -2236,7 +2389,11 @@ sub match_with_memoize($$)
     #my
     $stashed=
         matched($result)
-        ? [get_pos($state), $result]
+        ? [
+            get_pos($state),
+            $result,
+            $state->[STATE_LINENO],
+        ]
         : $result;
     if (DEBUG() && $log->is_debug()) {
         $log->debug("Storing result in stash for ${pos}->$pos_stash_key"
@@ -2349,6 +2506,7 @@ sub init()
     $production_id= 0;
     $productions_by_id= [];
 
+    endls_since_test();
     Parse::SiLLy::Result::matched_test();
 }
 
