@@ -747,7 +747,9 @@ my $cats= {
 };
 
 # --------------------------------------------------------------------
-# Formats the given result object as a string.
+# Formats the given result object as a string. To make the output
+# easier to read, omits package names in the production names
+# (everything up to the last "::").
 
 # Note that while the internal representation of a match result may
 # have a reference to an array of matched elements (for example
