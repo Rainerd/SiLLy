@@ -1523,7 +1523,8 @@ sub terminal_match($$)
             }
             return [
                 NOMATCH(),
-                "$ctx: Does not match: '".${@$input}[$pos][RESULT_MATCH()]."'"
+                "$ctx did not match"
+                . " because ".${@$input}[$pos][RESULT_MATCH()]
                 ];
         }
     }
@@ -1615,7 +1616,8 @@ sub terminal_match($$)
                 $remaining < $prod_len ?
                 substr($input, $pos, $remaining).$EOI :
                 substr($input, $pos, $prod_len)."..." ;
-            [NOMATCH(), "$ctx: Not matched: $inp_from_pos"];
+            [NOMATCH(),
+             $ctx." did not match here: ".$inp_from_pos];
         }
     }
 }
@@ -1671,8 +1673,11 @@ sub construction_match($$)
         my ($match)= match($element, $state);
         if ( ! matched($match))
         {
-            my $reason= "$ctx: element[$i] not matched: $element_name"
-                . " (giving up on '$ctx')";
+            my $n= $i+1;
+            my $reason=
+                "$ctx did not match"
+                . " because element $n ($element_name) did not match"
+                . " because:\n".$match->[RESULT_MATCH()];
             if (DEBUG() && $log->is_debug()) {
                 $log->debug($reason,"\]\]");
             }
@@ -1770,8 +1775,9 @@ sub alternation_match($$)
             #return (make_result($t, [$match]));
             return [$t->[PROD_NAME], [$match]];
         }
+        my $n= $i+1;
         my $reason1=
-            "$ctx: alternative[$i] not matched: '$element_name' because ".
+            "$ctx alternative $n ($element_name) did not match because:\n".
             $match->[RESULT_MATCH()];
         if (DEBUG() && $log->is_debug()) {
             $log->debug($reason1."]");
@@ -1780,7 +1786,11 @@ sub alternation_match($$)
     }
     (0 .. $#$elements);
 
-    my $reason= "$ctx: none of the alternatives matched: [ @reasons ]";
+    my $reason=
+        "$ctx did not match"
+        . " because none of the alternatives matched"
+        . " because: [\n". join("\n", @reasons)
+        . " ]";
     if (DEBUG() && $log->is_debug()) { $log->debug($reason); }
     [NOMATCH(), $reason];
 }
@@ -1896,7 +1906,8 @@ sub lookingat_match($$)
         $log->debug("$ctx: not matched: $element_name");
     }
     [NOMATCH(),
-     "$ctx: *not* looking at $element_name because: ".
+     "$ctx did not match"
+     . " because we are *not* looking at a $element_name because:\n".
      $match->[RESULT_MATCH()] ];
 }
 
@@ -1946,7 +1957,8 @@ sub notlookingat_match($$)
 
         backtrack_to_pos($state, $saved_pos);
         return [NOMATCH(),
-                "$ctx: *looking* at $element_name".
+                "$ctx did not match"
+                . " because we *are* looking at a $element_name: ".
                 " >>".$match->[RESULT_MATCH()]."<<"
             ];
     }
@@ -2007,9 +2019,11 @@ sub list_match($$$$)
                 if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: ...not matched.\]");}
                 return [
                     NOMATCH(),
-                    "$ctx: $element_name requires at least $n_min elements,".
-                    " matched only $n_matched, next element didn't match because".
-                    " $reason."
+                    "$ctx did not match"
+                    . " because $element_name requires at least $n_min elements,"
+                    . " matched only $n_matched, and the next element didn't match"
+                    . " because:\n".
+                    $reason
                     ];
             }
             if (DEBUG() && $log->is_debug()) {
@@ -2381,7 +2395,7 @@ sub check_result2( $$$ )
     if ( ! compareR($actual, $expected, $reason)) {
         $log->error(
             "Actual value did not match expected value,".
-            " because $reason->[0]:");
+            " because:\n".$reason->[0]);
         $log->info(varstring('actual', $actual));
         $log->info(varstring('expected', $expected));
         confess("Assertion failed");
