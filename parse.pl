@@ -1261,12 +1261,11 @@ sub Parser_reset( $ ) {
 # FIXME: Packagize, objectify
 sub Parser_new($$) {
     my ($filename, $input)= (@_);
-    my $state= [
-        $input,
-        0,      # pos
-        {},     # stash
-        undef,  # pos_stash
-        ];
+    my $state= [];
+    $state->[STATE_INPUT]      = $input;
+    $state->[STATE_POS]        = 0;
+    $state->[STATE_STASH]      = {};
+    $state->[STATE_POS_STASH]  = undef;
     $state->[STATE_FILENAME]   = $filename,
     Parser_reset($state);
     $state;
