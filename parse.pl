@@ -945,16 +945,11 @@ use constant PROD_NAME      => 1;
 use constant PROD_METHOD    => 2;
 use constant PROD_ID        => 3;
 
-#use constant PROD_PATTERN   => 3;
-#use constant PROD_MATCHER   => 4;
 use constant PROD_PATTERN   => PROD_ID + 1;
 use constant PROD_MATCHER   => PROD_PATTERN + 1;
 
-#use constant PROD_ELEMENTS  => 3;
 use constant PROD_ELEMENTS  => PROD_ID + 1;
 
-#use constant PROD_ELEMENT   => 3;
-#use constant PROD_SEPARATOR => 4;
 use constant PROD_ELEMENT   => PROD_ID + 1;
 use constant PROD_SEPARATOR => PROD_ELEMENT + 1;
 
