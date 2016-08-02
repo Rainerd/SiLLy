@@ -2342,6 +2342,7 @@ sub stash_get_pos_stash($$)
 sub match_with_memoize($$)
 {
     my $log= $match_log;
+    #Logger::set_debug($log);
     my ($t, $state)= @ARG;
     if (ASSERT()) {
         assert(defined($t));
@@ -2384,9 +2385,17 @@ sub match_with_memoize($$)
         if (matched($stashed))
         {
             assert('ARRAY' eq ref($stashed)) if ASSERT();
+            if (DEBUG() && $log->is_debug()) {
+                $log->debug("Pos before jump: ".get_pos($state));
+            }
             set_pos($state, $$stashed[STASHED_END]);
             $state->[STATE_LINENO]    = $stashed->[STASHED_LINENO];
             $state->[STATE_LINE_START]= $stashed->[STASHED_LINE_START];
+            # We have already set STATE_POS_STASH above.
+
+            if (DEBUG() && $log->is_debug()) {
+                $log->debug("Pos after jump: ".get_pos($state));
+            }
             return ($$stashed[STASHED_MATCH]);
         }
         else {
