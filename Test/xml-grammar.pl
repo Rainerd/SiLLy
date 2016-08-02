@@ -161,6 +161,8 @@ construction SEElem,       STag, Contentlist, ETag;
 
 alternation  Elem,         EmptyTag, SEElem;
 
+construction Document,     ProcessingInstruction, Owhite, Elem;
+
 # FIXME: Inline this, as it is called only once.
 sub elements( $ ) {
     my ($production)= @_;
