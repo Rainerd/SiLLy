@@ -611,6 +611,22 @@ sub debug {
 }
 
 # ====================================================================
+package Parse::SiLLy::Grammar;
+
+use constant PROD_CATEGORY  => 0;
+use constant PROD_NAME      => PROD_CATEGORY + 1;
+use constant PROD_METHOD    => PROD_NAME + 1;
+use constant PROD_ID        => PROD_METHOD + 1;
+
+use constant PROD_PATTERN   => PROD_ID + 1;
+use constant PROD_MATCHER   => PROD_PATTERN + 1;
+
+use constant PROD_ELEMENTS  => PROD_ID + 1;
+
+use constant PROD_ELEMENT   => PROD_ID + 1;
+use constant PROD_SEPARATOR => PROD_ELEMENT + 1;
+
+# ====================================================================
 package main;
 
 use strict;
@@ -633,7 +649,7 @@ sub varstring($$) {
 }
 
 # --------------------------------------------------------------------
-use constant PROD_NAME     => 1;
+use constant PROD_NAME      => Parse::SiLLy::Grammar::PROD_NAME;
 
 # --------------------------------------------------------------------
 # If the given reference refers to a named object, returns its name.
@@ -677,11 +693,9 @@ use strict;
 ::import_from('main', 'assert');
 use constant ASSERT => ::ASSERT;
 
-# --------------------------------------------------------------------
-# FIXME: Define these only once:
-use constant PROD_CATEGORY  => 0;
-use constant PROD_NAME      => 1;
-use constant PROD_ELEMENTS  => 4;
+use constant PROD_CATEGORY  => Parse::SiLLy::Grammar::PROD_CATEGORY;
+use constant PROD_NAME      => Parse::SiLLy::Grammar::PROD_NAME;
+use constant PROD_ELEMENTS  => Parse::SiLLy::Grammar::PROD_ELEMENTS;
 
 # --------------------------------------------------------------------
 use constant RESULT_PROD => 0;
@@ -932,19 +946,6 @@ sub import {
 use constant MEMOIZE =>
     (defined($ENV{PARSE_SILLY_MEMOIZE}) ? $ENV{PARSE_SILLY_MEMOIZE} : 0);
 
-# --------------------------------------------------------------------
-use constant PROD_CATEGORY  => 0;
-use constant PROD_NAME      => 1;
-use constant PROD_METHOD    => 2;
-use constant PROD_ID        => 3;
-
-use constant PROD_PATTERN   => PROD_ID + 1;
-use constant PROD_MATCHER   => PROD_PATTERN + 1;
-
-use constant PROD_ELEMENTS  => PROD_ID + 1;
-
-use constant PROD_ELEMENT   => PROD_ID + 1;
-use constant PROD_SEPARATOR => PROD_ELEMENT + 1;
 
 # --------------------------------------------------------------------
 sub log_args($$$)
