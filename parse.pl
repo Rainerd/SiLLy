@@ -1689,14 +1689,15 @@ sub terminal_match($$)
             }
             return ($result);
         } else {
+            my $reason=
+                #(SHOW_LOCATION ? location($state) : "") .
+                $ctx." did not match token"
+                . " because ".${@$input}[$pos][RESULT_MATCH()];
+
             if (DEBUG() && $log->is_debug()) {
-                $log->debug("$ctx: token not matched: '$ctx'");
+                $log->debug($reason);
             }
-            return [
-                NOMATCH(),
-                "$ctx did not match"
-                . " because ".${@$input}[$pos][RESULT_MATCH()]
-                ];
+            return [NOMATCH(), $reason];
         }
     }
     else # Input is not an array (but a string).
@@ -1782,20 +1783,24 @@ sub terminal_match($$)
                 $log->debug("$ctx: prod_len: '", $prod_len, "'");
             }
             if ( ! defined($pos)) {
-                return [NOMATCH(),
-                        "$ctx: pos not defined, input was: ".
-                        substr($input, 0,
-                               max($prod_len, length($input)) ).
-                        "..."];
+                my $reason=
+                    (SHOW_LOCATION ? location($state) : "") .
+                    $ctx." did not match"
+                    . " because pos was not defined, input was: ".
+                    substr($input, 0,
+                           max($prod_len, length($input)) )
+                    . "...";
+                return [NOMATCH(), $reason];
             }
             my $remaining= length($input)-$pos;
             my $inp_from_pos=
                 $remaining < $prod_len ?
                 substr($input, $pos, $remaining).$EOI :
                 substr($input, $pos, $prod_len)."..." ;
-            [NOMATCH(),
-             (SHOW_LOCATION ? location($state) : "") .
-             $ctx." did not match here: ".$inp_from_pos];
+            my $reason=
+                (SHOW_LOCATION ? location($state) : "") .
+                $ctx." did not match at: ".$inp_from_pos;
+            [NOMATCH(), $reason];
         }
     }
 }
@@ -2094,14 +2099,15 @@ sub lookingat_match($$)
         #return (make_result($t, [$match]));
         return [$t->[PROD_NAME], [$match]];
     }
+    my $reason=
+        (SHOW_LOCATION ? location($state) : "") .
+        $ctx." did not match"
+        . " because we are *not* looking at a $element_name because:\n".
+        $match->[RESULT_MATCH()];
     if (DEBUG() && $log->is_debug()) {
-        $log->debug("$ctx: not matched: $element_name");
+        $log->debug($reason);
     }
-    [NOMATCH(),
-     (SHOW_LOCATION ? location($state) : "") .
-     "$ctx did not match"
-     . " because we are *not* looking at a $element_name because:\n".
-     $match->[RESULT_MATCH()] ];
+    [NOMATCH(), $reason];
 }
 
 # --------------------------------------------------------------------
@@ -2144,22 +2150,20 @@ sub notlookingat_match($$)
     my ($match)= match($element, $state);
     if (matched($match))
     {
+        my $reason=
+            (SHOW_LOCATION ? location($state) : "") .
+            $ctx." did not match"
+            . " because we *are* looking at a $element_name"
+            . ": >>".Parse::SiLLy::Result::toString($match, " ")."<<";
         if (DEBUG() && $log->is_debug()) {
-            $log->debug("$ctx: matched "
-                        . Parse::SiLLy::Result::toString($match, " ")
-                        . " (resulting in NOMATCH).");
+            $log->debug($reason);
         }
 
         backtrack_to_pos($state, $saved_pos
                          , $saved_lineno
                          , $saved_line_start
             );
-        return [NOMATCH(),
-                (SHOW_LOCATION ? location($state) : "") .
-                "$ctx did not match"
-                . " because we *are* looking at a $element_name: ".
-                " >>".$match->[RESULT_MATCH()]."<<"
-            ];
+        return [NOMATCH(), $reason];
     }
     if (DEBUG() && $log->is_debug()) {
         $log->debug("$ctx: not matched: $element_name (resulting in a match)");
@@ -2214,17 +2218,16 @@ sub list_match($$$$)
             }
             my $n_matched= scalar(@$result_elements);
             if ($n_min > $n_matched) {
-                my $reason= $match->[RESULT_MATCH()];
-                if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: ...not matched.\]");}
-                return [
-                    NOMATCH(),
+                my $reason=
                     (SHOW_LOCATION ? location($state) : "") .
-                    "$ctx did not match"
-                    . " because $element_name requires at least $n_min elements,"
-                    . " matched only $n_matched, and the next element didn't match"
-                    . " because:\n".
-                    $reason
-                    ];
+                    $ctx." did not match"
+                    . " because it requires at least $n_min $element_name elements,"
+                    . " matched only $n_matched $element_name elements,"
+                    . " and the next $element_name didn't match"
+                    . " because:\n"
+                    . $match->[RESULT_MATCH()];
+                if (DEBUG() && $log->is_debug()) { $log->debug($reason, "\]"); }
+                return [NOMATCH(), $reason];
             }
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: ...matched ".scalar(@$result_elements)
