@@ -145,6 +145,10 @@ Features Done
 
   - MEMOIZE (default is off).
 
+* If input could not be matched, generates error messages with
+  detailed, recursive explanations of which rules did not match and
+  why.
+
 
 Internal Features Done
 
@@ -172,6 +176,9 @@ Internal Features Done
 
 * Automated regression tests for the assert function.
 
+* For purposes of generating explanations, for non-matches,
+  stores the reason why a rule did not match.
+
 
 FIXME:
 
@@ -182,10 +189,6 @@ FIXME:
 
 Todo: Error Messages
 
-* Generate parsing error messages with explanations.
-
-* For purposes of generating explanations, for non-matches,
-  store the reason why a rule did not match.
 
 * Search term: parser error recovery
 
