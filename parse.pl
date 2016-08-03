@@ -2912,16 +2912,8 @@ sub test_xml()
     #check_result($result, "Elem", $state->[STATE_INPUT]);
 
     {
-    #my $top= "Parse::SiLLy::Test::XML::Elem";
-    #my $top= "Parse::SiLLy::Test::XML::Contentlist";
-    my $top_name= "Parse::SiLLy::Test::XML::Contentlist";
-    # FIXME: Why does this not work?:
-    #no strict 'refs';
-    #my $top= ${$top_name}; assert(defined($top));
-    #$result= Parse::SiLLy::Grammar::match($top, $state);
-    # Avoid warning 'Used only once':
-    my $top= $Parse::SiLLy::Test::XML::Contentlist
-           = $Parse::SiLLy::Test::XML::Contentlist;
+    my $top= eval("\$Parse::SiLLy::Test::XML::Contentlist");
+    assert(defined($top));
     $result= Parse::SiLLy::Grammar::match($top, $state);
     if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
         #$log->debug(varstring('match $top result', $result));
