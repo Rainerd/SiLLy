@@ -95,6 +95,9 @@ PARSE_SILLY_MEMOIZE=1 -- Turns on memoization.  This makes this a
 PARSE_SILLY_DEBUG=1 -- Enable debug messages.  This will slow the
   parser down by a factor of at least ten.
 
+PARSE_SILLY_SHOW_LOCATION=0 -- Disables showing the parse location in
+  error messages.
+
 
 Design
 
@@ -148,6 +151,11 @@ Features Done
 * If input could not be matched, generates error messages with
   detailed, recursive explanations of which rules did not match and
   why.
+
+* Error messages and explanations show file name, line number and
+  column number, in such a way that common development environments
+  understand them and can jump to the exact file location (message
+  format is "FILE:LINE:COLUMN: TEXT").
 
 
 Internal Features Done
