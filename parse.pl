@@ -115,6 +115,64 @@ Alternative: In the implementation of a production instance, on the
 references to the productions themselves, or by names that refer to
 the productions.
 
+Features Done
+
+* Automated minilang regression tests
+
+* Separate 'minilang' test from XML test.
+
+* Result print function with compact output format
+
+* Memoize parse results and make use of them (Packrat parsing)
+
+* Actually parse the XML input file's content
+
+* Make it possible to switch off memoization
+
+* Avoid calling debugging code (logging functions, data formatting) when debugging is off.
+
+* Avoid checking contracts (assertions etc.) when ASSERT is off.
+
+* Automated XML parsing regression test.
+
+* Compile-time omission of debugging code (default is true).
+
+* Command-line controls for Compile-time options:
+
+  - ASSERT (default is on),
+
+  - DEBUG (default is off),
+
+  - MEMOIZE (default is off).
+
+
+Internal Features Done
+
+* Parse the hard-coded example string.
+
+* Replace undef by 'not matched' constant
+
+* Avoid array interpolation during result construction.
+
+* Loggers are implemented as arrays.
+
+* Inline result construction
+
+* Compile-time option for MEMOIZATION.
+
+* Uppercase NOMATCH (formerly nomatch) to get rid of inappropriate warnings.
+
+* Unified implementation of nelist_match and pelist_match.
+
+* Shared implementation of nelist_match and pelist_match.
+
+* Productions are implemented as arrays.
+
+* Parsers (state) are implemented as arrays.
+
+* Automated regression tests for the assert function.
+
+
 FIXME:
 
 * tuple rule attribute 'elements' is empty
@@ -258,63 +316,6 @@ TODO
 
   - array interpolation versus array reference
 
-
-Features Done
-
-* Automated minilang regression tests
-
-* Separate 'minilang' test from XML test.
-
-* Result print function with compact output format
-
-* Memoize parse results and make use of them (Packrat parsing)
-
-* Actually parse the XML input file's content
-
-* Make it possible to switch off memoization
-
-* Avoid calling debugging code (logging functions, data formatting) when debugging is off.
-
-* Avoid checking contracts (assertions etc.) when ASSERT is off.
-
-* Automated XML parsing regression test.
-
-* Compile-time omission of debugging code (default is true).
-
-* Command-line controls for Compile-time options:
-
-  - ASSERT (default is on),
-
-  - DEBUG (default is off),
-
-  - MEMOIZE (default is off).
-
-
-Internal Features Done
-
-* Parse the hard-coded example string.
-
-* Replace undef by 'not matched' constant
-
-* Avoid array interpolation during result construction.
-
-* Loggers are implemented as arrays.
-
-* Inline result construction
-
-* Compile-time option for MEMOIZATION.
-
-* Uppercase NOMATCH (formerly nomatch) to get rid of inappropriate warnings.
-
-* Unified implementation of nelist_match and pelist_match.
-
-* Shared implementation of nelist_match and pelist_match.
-
-* Productions are implemented as arrays.
-
-* Parsers (state) are implemented as arrays.
-
-* Automated regression tests for the assert function.
 
 =cut
 
