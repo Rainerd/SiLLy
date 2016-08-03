@@ -157,6 +157,8 @@ Features Done
   understand them and can jump to the exact file location (message
   format is "FILE:LINE:COLUMN: TEXT").
 
+* Remembers the furthest mismatch, and shows why it did not match.
+
 
 Internal Features Done
 
@@ -196,7 +198,6 @@ FIXME:
 
 
 Todo: Error Messages
-
 
 * Search term: parser error recovery
 
@@ -1163,6 +1164,8 @@ use constant STATE_POS_STASH => STATE_STASH + 1;
 use constant STATE_FILENAME   => STATE_POS_STASH + 1;
 use constant STATE_LINENO     => STATE_FILENAME + 1;
 use constant STATE_LINE_START => STATE_LINENO + 1;
+use constant STATE_FURTHEST   => STATE_LINE_START + 1;
+use constant STATE_FURTHEST_REASON => STATE_FURTHEST + 1;
 
 # --------------------------------------------------------------------
 # @return the input character index of the given parser state. In
@@ -1240,6 +1243,8 @@ sub Parser_reset( $ ) {
     set_pos($state, 0);
     $state->[STATE_LINENO]= 1;
     $state->[STATE_LINE_START]= 0;
+    $state->[STATE_FURTHEST]= 0;
+    $state->[STATE_FURTHEST_REASON]= "None";
 }
 
 # --------------------------------------------------------------------
@@ -1281,6 +1286,21 @@ sub Parser_new($$) {
     $state->[STATE_FILENAME]   = $filename,
     Parser_reset($state);
     $state;
+}
+
+# --------------------------------------------------------------------
+# Using the given parser state, if the current mismatch (input
+# position) is further than the previously remembered furthest
+# position, stores the current position and the given reason as the
+# new furthest position and reason.
+
+sub consider_furthest($$) {
+    my ($state, $reason)= (@_);
+    my $pos= get_pos($state);
+    if ($state->[STATE_FURTHEST] <= $pos) {
+        $state->[STATE_FURTHEST]= $pos;
+        $state->[STATE_FURTHEST_REASON]= $reason;
+    }
 }
 
 # --------------------------------------------------------------------
@@ -1667,6 +1687,7 @@ sub terminal_match($$)
             $ctx." did not match"
             . " because End Of Input was reached.";
         if (DEBUG() && $log->is_debug()) { $log->debug($reason); }
+        consider_furthest($state, $reason);
         return [NOMATCH(), $reason];
     }
     if ('ARRAY' eq ref($state->[STATE_INPUT])) {
@@ -1680,6 +1701,7 @@ sub terminal_match($$)
         #        $ctx." did not match"
         #        . " because End Of Input was reached.";
         #    if (DEBUG() && $log->is_debug()) { $log->debug($reason); }
+        #    consider_furthest($state, $reason);
         #    return [NOMATCH(), $reason];
         #}
         $match= $ {@$input}[$pos];
@@ -1705,6 +1727,7 @@ sub terminal_match($$)
             if (DEBUG() && $log->is_debug()) {
                 $log->debug($reason);
             }
+            consider_furthest($state, $reason);
             return [NOMATCH(), $reason];
         }
     }
@@ -1721,6 +1744,7 @@ sub terminal_match($$)
         #        $ctx." did not match"
         #        . " because End Of Input was reached.";
         #    if (DEBUG() && $log->is_debug()) { $log->debug($reason); }
+        #    consider_furthest($state, $reason);
         #    return [NOMATCH(), $reason];
         #}
         my $pattern= $t->[PROD_PATTERN];
@@ -1802,6 +1826,7 @@ sub terminal_match($$)
                     substr($input, 0,
                            max($prod_len, length($input)) )
                     . "...";
+                consider_furthest($state, $reason);
                 return [NOMATCH(), $reason];
             }
             my $remaining= length($input)-$pos;
@@ -1812,6 +1837,7 @@ sub terminal_match($$)
             my $reason=
                 (SHOW_LOCATION ? location($state) : "") .
                 $ctx." did not match at: ".$inp_from_pos;
+            consider_furthest($state, $reason);
             [NOMATCH(), $reason];
         }
     }
@@ -1879,6 +1905,7 @@ sub construction_match($$)
             if (DEBUG() && $log->is_debug()) {
                 $log->debug($reason,"\]\]");
             }
+            consider_furthest($state, $reason);
 
             backtrack_to_pos($state, $saved_pos
                              , $saved_lineno
@@ -1996,6 +2023,7 @@ sub alternation_match($$)
         . " because: [\n". join("\n", @reasons)
         . " ]";
     if (DEBUG() && $log->is_debug()) { $log->debug($reason); }
+    consider_furthest($state, $reason);
     [NOMATCH(), $reason];
 }
 
@@ -2119,6 +2147,7 @@ sub lookingat_match($$)
     if (DEBUG() && $log->is_debug()) {
         $log->debug($reason);
     }
+    consider_furthest($state, $reason);
     [NOMATCH(), $reason];
 }
 
@@ -2170,6 +2199,7 @@ sub notlookingat_match($$)
         if (DEBUG() && $log->is_debug()) {
             $log->debug($reason);
         }
+        consider_furthest($state, $reason);
 
         backtrack_to_pos($state, $saved_pos
                          , $saved_lineno
@@ -2239,6 +2269,7 @@ sub list_match($$$$)
                     . " because:\n"
                     . $match->[RESULT_MATCH()];
                 if (DEBUG() && $log->is_debug()) { $log->debug($reason, "\]"); }
+                consider_furthest($state, $reason);
                 return [NOMATCH(), $reason];
             }
             if (DEBUG() && $log->is_debug()) {
@@ -3217,6 +3248,8 @@ sub main
     if ( ! Parse::SiLLy::Result::matched($result)) {
         print(STDERR "Reason:\n",
               $result->[Parse::SiLLy::Result::RESULT_MATCH()], "\n");
+        print(STDERR "Furthest reason:\n",
+              $state->[Parse::SiLLy::Grammar::STATE_FURTHEST_REASON()], "\n");
     }
     #$log->set_nodebug();
     #$result= do_one_run($state, $top);
