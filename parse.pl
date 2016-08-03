@@ -1662,8 +1662,12 @@ sub terminal_match($$)
     my $match;
     #$log->debug("$ctx: ref(input)=" . ref($state->[STATE_INPUT]) . ".");
     if (eoi($state->[STATE_INPUT], $pos)) {
-        if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: End Of Input reached"); }
-        return [NOMATCH(), $EOI];
+        my $reason=
+            (SHOW_LOCATION ? location($state) : "") .
+            $ctx." did not match"
+            . " because End Of Input was reached.";
+        if (DEBUG() && $log->is_debug()) { $log->debug($reason); }
+        return [NOMATCH(), $reason];
     }
     if ('ARRAY' eq ref($state->[STATE_INPUT])) {
         if (DEBUG() && $log->is_debug()) {
@@ -1671,8 +1675,12 @@ sub terminal_match($$)
                         . " input[0]->name=", $ {@$input}[0]->[PROD_NAME]);
         }
         #if ($#{@$input} < $pos) {
-        #    if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: End of input reached");}
-        #    return [NOMATCH(), $EOI];
+        #    my $reason=
+        #        #(SHOW_LOCATION ? location($state) : "") .
+        #        $ctx." did not match"
+        #        . " because End Of Input was reached.";
+        #    if (DEBUG() && $log->is_debug()) { $log->debug($reason); }
+        #    return [NOMATCH(), $reason];
         #}
         $match= $ {@$input}[$pos];
         if ($t == $match->[PROD_CATEGORY]) {
@@ -1708,8 +1716,12 @@ sub terminal_match($$)
                         . "'");
         }
         #if (length($state->[STATE_INPUT])-1 < $pos) {
-        #    if (DEBUG() && $log->is_debug()) {$log->debug("$ctx: End Of Input reached");}
-        #    return [NOMATCH(), $EOI];
+        #    my $reason=
+        #        (SHOW_LOCATION ? location($state) : "") .
+        #        $ctx." did not match"
+        #        . " because End Of Input was reached.";
+        #    if (DEBUG() && $log->is_debug()) { $log->debug($reason); }
+        #    return [NOMATCH(), $reason];
         #}
         my $pattern= $t->[PROD_PATTERN];
         if (ASSERT()) {
