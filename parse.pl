@@ -1290,6 +1290,19 @@ sub consider_furthest($$) {
 }
 
 # --------------------------------------------------------------------
+# @return a description of the current input position.
+
+sub location( $ ) {
+    my ($state)= (@_);
+    my $column = get_pos($state) - $state->[STATE_LINE_START] + 1;
+    return
+        $state->[STATE_FILENAME].":".
+        $state->[STATE_LINENO].":".
+        $column.":".
+        " ";
+}
+
+# --------------------------------------------------------------------
 sub input_show_state($$) {
     my ($log, $state)= (@_);
     if ( ! $log->is_debug()) { return; }
@@ -1650,19 +1663,6 @@ EOT
     assert(endls_since_test_1($state, 6, 8, 1));
 
     #print(STDERR "endls_since_test went fine\n");
-}
-
-# --------------------------------------------------------------------
-# @return a description of the current input position.
-
-sub location( $ ) {
-    my ($state)= (@_);
-    my $column = get_pos($state) - $state->[STATE_LINE_START] + 1;
-    return
-        $state->[STATE_FILENAME].":".
-        $state->[STATE_LINENO].":".
-        $column.":".
-        " ";
 }
 
 # --------------------------------------------------------------------
