@@ -903,20 +903,6 @@ sub scan($$) {
 }
 
 # ====================================================================
-package Parse::SiLLy::Terminal;
-use strict;
-#use diagnostics;
-
-sub new($) {
-    my $proto= shift;
-    my $class= ref($proto) || $proto;
-    #my $self= {};
-    my $self= [];
-    bless($self, $class);
-    $self;
-}
-
-# ====================================================================
 package Parse::SiLLy::Grammar;
 
 use strict;
