@@ -2265,7 +2265,7 @@ sub list_match($$$$)
                     $ctx." did not match"
                     . " because it requires at least $n_min $element_name elements,"
                     . " matched only $n_matched $element_name elements,"
-                    . " and the next $element_name didn't match"
+                    . " and the next $element_name did not match"
                     . " because:\n"
                     . $match->[RESULT_MATCH()];
                 if (DEBUG() && $log->is_debug()) { $log->debug($reason, "\]"); }
