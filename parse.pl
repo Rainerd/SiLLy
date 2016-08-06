@@ -879,12 +879,12 @@ sub scan($$) {
     }
     elsif ($category= $Parse::SiLLy::Grammar::construction) {
         $handler->construction_begin($self, $typename, $type, $category);
-        map { scan($_, $handler); } @$self[1..$#$self];
+        for (@$self[1..$#$self]) { scan($_, $handler); }
         $handler->construction_end  ($self, $typename, $type, $category);
     }
     elsif ($category= $Parse::SiLLy::Grammar::alternation) {
         $handler->alternation_begin($self, $typename, $type, $category);
-        map { scan($_, $handler); } @$self[1..$#$self];
+        for (@$self[1..$#$self]) { scan($_, $handler); }
         $handler->alternation_end  ($self, $typename, $type, $category);
     }
     elsif ($category= $Parse::SiLLy::Grammar::optional) {
@@ -1057,7 +1057,9 @@ sub show_pos_stash_hash($$$)
     assert(defined($pos_stash));
     assert('HASH' eq ref($pos_stash));
     if ( ! $log->is_debug()) { return; }
-    map {
+    for
+        (sort( {$a cmp $b} keys(%$pos_stash)))
+    {
         my $spec= $_;
         #$log->debug("Showing pos_stash for $pos.$spec...");
         #my $elt= $spec;
@@ -1077,8 +1079,6 @@ sub show_pos_stash_hash($$$)
         #$log->debug(varstring('stashed', $stashed));
         $log->debug("stash{$pos, $elt_name}=" . format_stashed($stashed));
     }
-    #sort( {$a <=> $b} keys(%$pos_stash));
-    sort( {$a cmp $b} keys(%$pos_stash));
 }
 
 # --------------------------------------------------------------------
@@ -1093,7 +1093,11 @@ sub show_pos_stash($$$)
     assert(defined($pos_stash));
     assert('ARRAY' eq ref($pos_stash));
     if ( ! $log->is_debug()) { return; }
-    map {
+    for
+        #(sort( {$a <=> $b} keys(%$pos_stash)))
+        #(sort( {$a cmp $b} keys(%$pos_stash)))
+        (1..$#$pos_stash)
+    {
         my $spec= $_;
         my $stashed= $pos_stash->[$spec];
         if ( ! defined($stashed)) { goto SHOW_POS_STASH_MAP_END; }
@@ -1117,9 +1121,6 @@ sub show_pos_stash($$$)
         $log->debug("stash{$pos, $elt_name}=" . format_stashed($stashed));
       SHOW_POS_STASH_MAP_END:
     }
-    #sort( {$a <=> $b} keys(%$pos_stash));
-    #sort( {$a cmp $b} keys(%$pos_stash));
-    (1..$#$pos_stash);
 }
 
 # --------------------------------------------------------------------
@@ -1131,11 +1132,12 @@ sub show_stash($$)
     if ( ! $log->is_debug()) { return; }
     #$log->debug(vardescr("stash", $stash));
     #$log->debug("Stash:");
-    map {
+    for (sort({$a <=> $b} keys(%$stash)))
+    {
         my $pos= $_;
         #$log->debug("Showing stash for pos $pos...");
         show_pos_stash($log, $stash->{$pos}, $pos);
-    } sort({$a <=> $b} keys(%$stash));
+    }
 }
 
 # --------------------------------------------------------------------
@@ -1842,17 +1844,16 @@ sub construction_match($$)
     match_watch_args($ctx, $log, $state) if (DEBUG() && $log->is_debug());
     if (DEBUG() && $log->is_debug()) {
         $log->debug("$ctx: [ Trying to match...");
-        #$log->debug(varstring('result_elements', $result_elements));
     }
 
-    my $result_elements= [];
     my $saved_pos= get_pos($state);
     my $saved_lineno= $state->[STATE_LINENO];
     my $saved_line_start= $state->[STATE_LINE_START];
 
     # foreach $element in $t's elements
     my $elements= $t->[PROD_ELEMENTS];
-    map {
+    my @result_elements= map
+    {
         my $i= $_;
         #if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: i=$i"); }
         my $element= $elements->[$i];
@@ -1880,18 +1881,18 @@ sub construction_match($$)
             $log->debug("$ctx: Matched element[$i]: $element_name ]");
             #$log->debug("$ctx: element value: " . varstring('match', $match));
         }
-        push(@$result_elements, $match);
+        $match;
     }
     (0 .. $#$elements);
 
     if (DEBUG() && $log->is_debug()) {
         $log->debug("$ctx: matched: '$ctx']");
-        #$log->debug(varstring('result_elements', $result_elements));
+        #$log->debug(varstring('result_elements', @result_elements));
     }
-    #$result_elements;
-    #{_=>$ctx, elements=>$result_elements};
-    #make_result($t, $result_elements);
-    [$t->[PROD_NAME], $result_elements];
+    #\@result_elements;
+    #{_=>$ctx, elements=>\@result_elements};
+    #make_result($t, \@result_elements);
+    [$t->[PROD_NAME], \@result_elements];
 }
 
 # --------------------------------------------------------------------
@@ -1942,7 +1943,7 @@ sub alternation_match($$)
 
     # foreach $element in $elements
     my @reasons= (); # List of reasons, why alternatives did not match
-    map {
+    for (0 .. $#$elements) {
         my $i= $_;
         #if (DEBUG() && $log->is_debug()) { $log->debug("$ctx: i=$i"); }
         my $element= $elements->[$i];
@@ -1975,7 +1976,6 @@ sub alternation_match($$)
         }
         push(@reasons, $reason1);
     }
-    (0 .. $#$elements);
 
     nomatch($ctx, $log, $state,
             "none of the alternatives matched"
@@ -2434,13 +2434,13 @@ sub match_with_memoize($$)
     # Used this to find out that the $t used above as a hash key
     # was internally (in the hash table) converted to a string.
     #if (DEBUG() && $log->is_debug()) {
-    #    map { $log->debug("key $_ has ref ".ref($_)); } keys(%$pos_stash);
+    #    for (keys(%$pos_stash)) { $log->debug("key $_ has ref ".ref($_)); }
     #}
     # Used Tie::RefHash to get around that.  Another way might be
     # to use $t's name as the key.
-    #map { assert('HASH' eq ref($_)); } keys(%$pos_stash);
+    #for (keys(%$pos_stash)) { assert('HASH' eq ref($_)); }
     # FIXME: is this slow?:
-    #map { ::should('HASH', ref($_)); } keys(%$pos_stash);
+    #for (keys(%$pos_stash)) { ::should('HASH', ref($_)); }
 
     $result;
 }
@@ -2803,7 +2803,8 @@ sub test_minilang()
                     );
         $log->debug(varstring('expected_tokens', $expected_tokens));
     }
-    map {
+    for (@$expected_tokens)
+    {
         my ($expected_result)= $_;
         if (Parse::SiLLy::Grammar::DEBUG() && $log->is_debug()) {
             #$log->debug(varstring('expected_result', $expected_result));
@@ -2816,8 +2817,6 @@ sub test_minilang()
                      $$expected_elements[0]);
         ++$i;
     }
-    #@$expected;
-    @$expected_tokens;
     check_result2($log, $result, $expected);
 
     $log->debug("--- Testing minilang::Program...");
