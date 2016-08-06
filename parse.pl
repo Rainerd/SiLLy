@@ -1718,7 +1718,7 @@ sub terminal_match($$)
     {
         if (DEBUG() && $log->is_debug()) {
             $log->debug("$ctx: input at pos $pos ='"
-                        . quotemeta(substr($state->[STATE_INPUT], $pos, 80))
+                        . substr($state->[STATE_INPUT], $pos, 80)
                         . "'");
         }
         #if (length($state->[STATE_INPUT])-1 < $pos) {
@@ -1757,7 +1757,7 @@ sub terminal_match($$)
         if (defined($match)) {
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: end pos=".get_pos($state));
-                $log->debug("$ctx: matched text: '".quotemeta($match)."'");
+                $log->debug("$ctx: matched text: '".$match."'");
             }
 
             if (SHOW_LOCATION()) {
@@ -1784,7 +1784,7 @@ sub terminal_match($$)
         } else {
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("$ctx: pattern not matched: '"
-                            . quotemeta($t->[PROD_PATTERN])."'");
+                            . $t->[PROD_PATTERN]."'");
             }
             my $input= $state->[STATE_INPUT];
             #my $pos= pos($input);
