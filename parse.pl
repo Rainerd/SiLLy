@@ -1807,8 +1807,9 @@ sub terminal_match($$)
                 $remaining < $prod_len ?
                 substr($input, $pos, $remaining).$EOI :
                 substr($input, $pos, $prod_len)."..." ;
-            nomatch($ctx, $log, $state,
-                    " at: ".$inp_from_pos);
+            nomatch(
+                $ctx ." (pattern '".$t->[PROD_PATTERN]."')", $log, $state,
+                " at: ".$inp_from_pos);
         }
     }
 }
