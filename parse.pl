@@ -596,7 +596,6 @@ sub get_logger($) {
 sub info {
     my $self= shift(@_);
     my $ctx= $self->name();
-    #print(STDERR "$ctx: @_\n");
     #$self->{logger}->info("$ctx: @_");
     #($$self[LOGGER_LOGGER])->info("$ctx: @_");
     #get_logger($self)->info("$ctx: @_");
@@ -800,7 +799,6 @@ sub toString($$)
     assert('' eq ref($typename));
 
     my $type= do { no strict 'refs'; $ {$typename}; };
-    #print(STDERR "tn=$typename\n");
     # FIXME: Introduce predicate 'is_production'
     assert(defined($type));
     assert('' ne ref($type));
@@ -974,7 +972,6 @@ sub log_args($$$)
     my $i= 0;
     my @description= map {
         ++$i;
-        #print(STDERR "item: $ARG\n");
         vardescr("ARG[$i]", $ARG);
     } @$argl;
     $log->debug("$context: @description");
@@ -1048,7 +1045,6 @@ sub format_stashed($)
             ;
     }
     else {
-        #print(STDERR "not matched\n");
         'nomatch';
     }
 }
@@ -1619,7 +1615,6 @@ sub endls_since_test_1($$$$)
 # --------------------------------------------------------------------
 sub endls_since_test()
 {
-    #print(STDERR "endls_since_test running\n");
     my $input= <<'EOT';
 
 ab
@@ -1668,8 +1663,6 @@ EOT
     assert(endls_since_test_1($state, 6, 6, 0));
     assert(endls_since_test_1($state, 6, 7, 1));
     assert(endls_since_test_1($state, 6, 8, 1));
-
-    #print(STDERR "endls_since_test went fine\n");
 }
 
 # --------------------------------------------------------------------
@@ -2617,8 +2610,6 @@ sub check_result($$$) {
     assert(defined($result));
     assert(Parse::SiLLy::Grammar::matched($result));
     assert('ARRAY' eq ref($result));
-    #print(varstring('result', $result)."\n");
-    #print('$result='.Parse::SiLLy::Result::toString($result)."\n");
     assert(2 <= scalar(@$result));
     assert(defined($expected_typename));
     assert(defined($expected_text));
