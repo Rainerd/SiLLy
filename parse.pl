@@ -79,6 +79,9 @@ c: 4
 
 Environment Variables
 
+Below, for each variable, the example shows how to change the setting
+from the default.
+
 PARSE_SILLY_ASSERT=0 -- Do not check assertions, do not even compute
   the result.  This can significantly speed up the parser (by a factor
   of about two).  However, any remaining bugs may manifest themselves
