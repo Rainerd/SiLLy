@@ -1701,7 +1701,7 @@ sub terminal_match($$)
             if (DEBUG() && $log->is_debug()) {
                 #$log->debug("$ctx: matched token: " . varstring('match', $match));
                 $log->debug("$ctx: matched token: $ctx, text:".
-                            " '$match->[RESULT_MATCH()]'");
+                            " '".$match->[RESULT_MATCH()]."'");
             }
             my $result= $match;
             $state->[STATE_POS]= $pos + 1;
