@@ -1997,9 +1997,8 @@ sub alternation_match($$)
     }
 
     ! $state->[STATE_EXPLAIN] ? NOMATCH() :
-    nomatch($ctx, $log, $state,
-            "none of the alternatives matched"
-            . ": [\n". join("\n", @reasons) ." ]");
+    nomatch($ctx." alternatives", $log, $state,
+            ": [\n". join("\n", @reasons) ." ]");
 }
 
 # --------------------------------------------------------------------
