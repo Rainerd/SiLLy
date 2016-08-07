@@ -722,7 +722,6 @@ sub make_result($$) {
     #return [$_[0] - > {name}, $_[1]];
     my ($t, $match)= (@_);
     assert('ARRAY' eq ref($match)) if ASSERT();
-    #[$t->[PROD_NAME], @$match];
     [$t->[PROD_NAME], $match];
 }
 
@@ -1771,7 +1770,6 @@ sub terminal_match($$)
                 #print(STDERR "$ctx: Line number now at $state->[STATE_LINENO]\n");
             }
 
-            #my $result= {_=>$t, text=>$match};
             #my $result= make_result($t, [$match]);
             my $result= [$t->[PROD_NAME], [$match]];
             # FIXME: Let the matcher do this?:
@@ -1902,8 +1900,6 @@ sub construction_match($$)
         $log->debug("$ctx: matched: '$ctx']");
         #$log->debug(varstring('result_elements', @result_elements));
     }
-    #\@result_elements;
-    #{_=>$ctx, elements=>\@result_elements};
     #make_result($t, \@result_elements);
     [$t->[PROD_NAME], \@result_elements];
 }
@@ -1975,7 +1971,6 @@ sub alternation_match($$)
                 $log->debug("$ctx: match result: "
                             . Parse::SiLLy::Result::toString($match, " "));
             }
-            #return ($match);
             #return (make_result($t, [$match]));
             return [$t->[PROD_NAME], [$match]];
         }
@@ -2051,7 +2046,6 @@ sub optional_match($$)
     if (DEBUG() && $log->is_debug()) {
         $log->debug("$ctx: not matched: $element_name");
     }
-    #'';
     [$t->[PROD_NAME], [$match]];
 }
 
@@ -2203,8 +2197,6 @@ sub list_match($$$$)
     my $element_name=   $element->[PROD_SHORT_NAME];
     my $separator_name= $separator->[PROD_NAME];
 
-    #my $result= [];
-    #my $result= {_=>$ctx, elements=>[]};
     #my $result= make_result($t, []);
     #my $result= [$t->[PROD_NAME], []];
     my $result_elements= [];
@@ -2236,7 +2228,6 @@ sub list_match($$$$)
                 $log->debug("$ctx: ...matched ".scalar(@$result_elements)
                             . " elements.\]");
             }
-            #return ($result);
             #return (make_result($t, $result_elements));
             return [$t->[PROD_NAME], $result_elements];
         }
@@ -2261,7 +2252,6 @@ sub list_match($$$$)
                 $log->debug("$ctx: ...matched ".scalar(@$result_elements)
                             . " elements.\]");
             }
-            #return ($result);
             #return (make_result($t, $result_elements));
             return [$t->[PROD_NAME], $result_elements];
         }
@@ -2570,19 +2560,6 @@ sub elements($) {
     my $result= $_[0];
     my $elements= $$result[1];
 
-    # Various other attempts:
-    #my $elements= $ {@$result}[1];
-    #my $elements= \@{@$result}[1..$#$result];
-    # FIXME: Implicit scalar context for array in block:
-    #my $elements= \@$result[1..$#{@$result}];
-
-    #my @elements= @$result[1, -1];
-    #my @elements= @{@$result}[1..$#$result];
-    #if (DEBUG() && $log->is_debug()) {
-    #    $log->debug(varstring('@elements', \@elements));
-    #}
-    #my $elements= \@elements;
-
     #if (DEBUG() && $log->is_debug()) {
     #    $log->debug(varstring('elements', $elements));
     #}
@@ -2638,7 +2615,6 @@ sub check_result($$$) {
     assert(defined($expected_text));
     #$main_log->debug(varstring('result', $result));
 
-    #my $actual_type= ::hash_get($result, '_');
     #my $actual_type= $$result[0];
     #my $actual_typename= ::hash_get($actual_type, 'name');
     my $actual_typename= $$result[0];
@@ -2648,9 +2624,6 @@ sub check_result($$$) {
     assert(defined($result_elements));
     assert('ARRAY' eq ref($result_elements));
 
-    #my $actual_text= ::hash_get($result, "text");
-    #my $actual_text= $$result[1];
-    #my $actual_text= @{ $$result[1]}[0];
     my $actual_text= $$result_elements[0];
     #should($actual_text,     $expected_text);
 
@@ -2689,9 +2662,6 @@ sub test1($$$$$)
                     . Parse::SiLLy::Result::toString($result, " "));
     }
     Parse::SiLLy::Grammar::input_show_state($log, $state);
-    #should($result->{_}->{_}, $matcher);
-    #should($result->{_}->{name}, $element);
-    #should($result->{text}, $expected);
     check_result($result, $element, $expected);
 }
 
