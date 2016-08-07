@@ -189,6 +189,8 @@ Internal Features Done
 * For purposes of generating explanations, for non-matches,
   stores the reason why a rule did not match.
 
+* Avoids error handling as long as no errors were encountered.
+
 
 FIXME:
 
@@ -201,7 +203,6 @@ Todo: Error Messages
 
 * Search term: parser error recovery
 
-* Avoid error handling as long as no errors are encountered.
 
 * Detect near matches ("almost matched")
 
@@ -1149,7 +1150,8 @@ use constant STATE_POS => STATE_INPUT + 1;
 use constant STATE_STASH => STATE_POS + 1;
 #use constant STATE_POS_STASH => 3;
 use constant STATE_POS_STASH => STATE_STASH + 1;
-use constant STATE_FILENAME   => STATE_POS_STASH + 1;
+use constant STATE_EXPLAIN    => STATE_POS_STASH + 1;
+use constant STATE_FILENAME   => 1 + STATE_EXPLAIN;
 use constant STATE_LINENO     => STATE_FILENAME + 1;
 use constant STATE_LINE_START => STATE_LINENO + 1;
 use constant STATE_FURTHEST   => STATE_LINE_START + 1;
@@ -1271,6 +1273,7 @@ sub Parser_new($$) {
     $state->[STATE_POS]        = 0;
     $state->[STATE_STASH]      = {};
     $state->[STATE_POS_STASH]  = undef;
+    $state->[STATE_EXPLAIN]    = 0,
     $state->[STATE_FILENAME]   = $filename,
     Parser_reset($state);
     $state;
@@ -1682,7 +1685,8 @@ sub terminal_match($$)
     my $match;
     #$log->debug("$ctx: ref(input)=" . ref($state->[STATE_INPUT]) . ".");
     if (eoi($state->[STATE_INPUT], $pos)) {
-        return nomatch($ctx, $log, $state, "End Of Input was reached.");
+        return ! $state->[STATE_EXPLAIN] ? NOMATCH() :
+            nomatch($ctx, $log, $state, "End Of Input was reached.");
     }
     if ('ARRAY' eq ref($state->[STATE_INPUT])) {
         if (DEBUG() && $log->is_debug()) {
@@ -1690,7 +1694,8 @@ sub terminal_match($$)
                         . " input[0]->name=", $ {@$input}[0]->[PROD_NAME]);
         }
         #if ($#{@$input} < $pos) {
-        #    return nomatch($ctx, $log, $state, "End Of Input was reached.");
+        #    return ! $state->[STATE_EXPLAIN] ? NOMATCH() :
+        #        nomatch($ctx, $log, $state, "End Of Input was reached.");
         #}
         $match= $ {@$input}[$pos];
         if ($t == $match->[PROD_CATEGORY]) {
@@ -1707,7 +1712,7 @@ sub terminal_match($$)
             }
             return ($result);
         } else {
-            return nomatch(
+            return ! $state->[STATE_EXPLAIN] ? NOMATCH() : nomatch(
                 $ctx, $log, $state,
                 "as a token it did not match"
                 . " because ".$match->[RESULT_MATCH()]
@@ -1722,7 +1727,8 @@ sub terminal_match($$)
                         . "'");
         }
         #if (length($state->[STATE_INPUT])-1 < $pos) {
-        #    return nomatch($ctx, $log, $state, "End Of Input was reached.");
+        #    return ! $state->[STATE_EXPLAIN] ? NOMATCH() :
+        #        nomatch($ctx, $log, $state, "End Of Input was reached.");
         #}
         my $pattern= $t->[PROD_PATTERN];
         if (ASSERT()) {
@@ -1760,7 +1766,7 @@ sub terminal_match($$)
                 $log->debug("$ctx: matched text: '".$match."'");
             }
 
-            if (SHOW_LOCATION()) {
+            if ($state->[STATE_EXPLAIN] && SHOW_LOCATION()) {
                 $state->[STATE_LINENO] += endls_since($state, $pos);
                 #print(STDERR "$ctx: Line number now at $state->[STATE_LINENO]\n");
             }
@@ -1796,18 +1802,19 @@ sub terminal_match($$)
                 $log->debug("$ctx: prod_len: '", $prod_len, "'");
             }
             if ( ! defined($pos)) {
-                return nomatch($ctx, $log, $state,
-                               "pos was not defined, input was: ".
-                               substr($input, 0,
-                                      max($prod_len, length($input)) )
-                               . "...");
+                return ! $state->[STATE_EXPLAIN] ? NOMATCH() : nomatch(
+                    $ctx, $log, $state,
+                    "pos was not defined, input was: ".
+                    substr($input, 0,
+                           max($prod_len, length($input)) )
+                    . "...");
             }
             my $remaining= length($input)-$pos;
             my $inp_from_pos=
                 $remaining < $prod_len ?
                 substr($input, $pos, $remaining).$EOI :
                 substr($input, $pos, $prod_len)."..." ;
-            nomatch(
+            ( ! $state->[STATE_EXPLAIN]) ? NOMATCH() : nomatch(
                 $ctx ." (pattern '".$t->[PROD_PATTERN]."')", $log, $state,
                 " at: ".$inp_from_pos);
         }
@@ -1866,6 +1873,11 @@ sub construction_match($$)
         my ($match)= match($element, $state);
         if ( ! matched($match))
         {
+            if ( ! $state->[STATE_EXPLAIN]) {
+                backtrack_to_pos(
+                    $state, $saved_pos, $saved_lineno, $saved_line_start);
+                return NOMATCH();
+            }
             my $n= $i+1;
             my $result= nomatch($ctx, $log, $state,
                                 "element $n ($element_name) did not match"
@@ -1967,6 +1979,7 @@ sub alternation_match($$)
             #return (make_result($t, [$match]));
             return [$t->[PROD_NAME], [$match]];
         }
+        if ( ! $state->[STATE_EXPLAIN]) { next; }
         my $n= $i+1;
         my $reason1=
             (SHOW_LOCATION ? location($state) : "") .
@@ -1978,6 +1991,7 @@ sub alternation_match($$)
         push(@reasons, $reason1);
     }
 
+    ! $state->[STATE_EXPLAIN] ? NOMATCH() :
     nomatch($ctx, $log, $state,
             "none of the alternatives matched"
             . " because: [\n". join("\n", @reasons) ." ]");
@@ -2095,6 +2109,7 @@ sub lookingat_match($$)
         #return (make_result($t, [$match]));
         return [$t->[PROD_NAME], [$match]];
     }
+    ! $state->[STATE_EXPLAIN] ? NOMATCH() :
     nomatch($ctx, $log, $state,
             "we are *not* looking at a $element_name because:\n".
             $match->[RESULT_MATCH()] );
@@ -2140,6 +2155,11 @@ sub notlookingat_match($$)
     my ($match)= match($element, $state);
     if (matched($match))
     {
+        if ( ! $state->[STATE_EXPLAIN]) {
+            backtrack_to_pos(
+                $state, $saved_pos, $saved_lineno, $saved_line_start);
+            return NOMATCH();
+        }
         my $result= nomatch(
             $ctx, $log, $state,
             "we *are* looking at a $element_name"
@@ -2204,7 +2224,7 @@ sub list_match($$$$)
             my $n_matched= scalar(@$result_elements);
             if ($n_min > $n_matched) {
                 if (DEBUG() && $log->is_debug()) { $log->debug("\]"); }
-                return nomatch(
+                return ! $state->[STATE_EXPLAIN] ? NOMATCH() : nomatch(
                     $ctx, $log, $state,
                     "it requires at least $n_min $element_name elements,"
                     . " matched only $n_matched $element_name elements,"
@@ -3185,6 +3205,9 @@ sub main
     $log->info("first run result:");
     print(STDOUT " ", Parse::SiLLy::Result::toString($result, " "), "\n");
     if ( ! Parse::SiLLy::Result::matched($result)) {
+        Parse::SiLLy::Grammar::Parser_reset($state);
+        $state->[Parse::SiLLy::Grammar::STATE_EXPLAIN]= 1;
+        $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state);
         print(STDERR "Reason:\n",
               $result->[Parse::SiLLy::Result::RESULT_MATCH()], "\n");
         print(STDERR "Furthest reason:\n",
