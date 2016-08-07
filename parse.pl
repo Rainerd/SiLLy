@@ -1879,15 +1879,22 @@ sub construction_match($$)
                     $state, $saved_pos, $saved_lineno, $saved_line_start);
                 return NOMATCH();
             }
+            # Beacuse the attempted entire construction, and the
+            # attempted element may be at different locations, we log
+            # two lines of explanation.
             my $n= $i+1;
-            my $result= nomatch($ctx, $log, $state,
-                                "element $n ($element_name) did not match"
-                                . " because:\n".$match->[RESULT_MATCH()] );
-            if (DEBUG() && $log->is_debug()) { $log->debug("\]\]"); }
+            # Log the attempted element match:
+            my $reason=
+                (SHOW_LOCATION ? location($state) : "") .
+                "element $n ($element_name) did not match because:\n".
+                $match->[RESULT_MATCH()];
             backtrack_to_pos($state, $saved_pos
                              , $saved_lineno
                              , $saved_line_start
                 );
+            # After backtracking, log the construction start point:
+            my $result= nomatch($ctx, $log, $state, "\n".$reason);
+            if (DEBUG() && $log->is_debug()) { $log->debug("\]\]"); }
             return $result;
         }
         if (DEBUG() && $log->is_debug()) {
