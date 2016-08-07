@@ -1381,7 +1381,7 @@ sub nomatch( $$$$ ) {
     $reason=
         (SHOW_LOCATION ? location($state) : "") .
         $ctx." did not match"
-        . " because ".$reason;
+        . ": ".$reason;
     if (DEBUG() && $log->is_debug()) { $log->debug($reason); }
     consider_furthest($state, $reason);
     [NOMATCH(), $reason];
@@ -1717,7 +1717,7 @@ sub terminal_match($$)
             return ! $state->[STATE_EXPLAIN] ? NOMATCH() : nomatch(
                 $ctx, $log, $state,
                 "as a token it did not match"
-                . " because ".$match->[RESULT_MATCH()]
+                . ": ".$match->[RESULT_MATCH()]
                 );
         }
     }
@@ -1886,7 +1886,7 @@ sub construction_match($$)
             # Log the attempted element match:
             my $reason=
                 (SHOW_LOCATION ? location($state) : "") .
-                "element $n ($element_name) did not match because:\n".
+                "element $n ($element_name) did not match:\n".
                 $match->[RESULT_MATCH()];
             backtrack_to_pos($state, $saved_pos
                              , $saved_lineno
@@ -1988,7 +1988,7 @@ sub alternation_match($$)
         my $n= $i+1;
         my $reason1=
             (SHOW_LOCATION ? location($state) : "") .
-            "$ctx alternative $n ($element_name) did not match because:\n".
+            "$ctx alternative $n ($element_name) did not match:\n".
             $match->[RESULT_MATCH()];
         if (DEBUG() && $log->is_debug()) {
             $log->debug($reason1."]");
@@ -1999,7 +1999,7 @@ sub alternation_match($$)
     ! $state->[STATE_EXPLAIN] ? NOMATCH() :
     nomatch($ctx, $log, $state,
             "none of the alternatives matched"
-            . " because: [\n". join("\n", @reasons) ." ]");
+            . ": [\n". join("\n", @reasons) ." ]");
 }
 
 # --------------------------------------------------------------------
@@ -2115,7 +2115,7 @@ sub lookingat_match($$)
     }
     ! $state->[STATE_EXPLAIN] ? NOMATCH() :
     nomatch($ctx, $log, $state,
-            "we are *not* looking at a $element_name because:\n".
+            "we are *not* looking at a $element_name:\n".
             $match->[RESULT_MATCH()] );
 }
 
@@ -2231,7 +2231,7 @@ sub list_match($$$$)
                     "it requires at least $n_min $element_name elements,"
                     . " matched only $n_matched $element_name elements,"
                     . " and the next $element_name did not match"
-                    . " because:\n"
+                    . ":\n"
                     . $match->[RESULT_MATCH()] );
             }
             if (DEBUG() && $log->is_debug()) {
