@@ -1067,7 +1067,6 @@ sub show_pos_stash_hash($$$)
         # (get assert to add the stack trace to $@ in this case):
         #$elt= "foo";
         # FIXME: Introduce ->name() accessor
-        #my $elt_name= ::hash_get($elt, 'name');
         #my $elt_name= $elt->[PROD_NAME];
         my $elt_name= $spec;
         assert(defined($elt_name));
@@ -1108,7 +1107,6 @@ sub show_pos_stash($$$)
         # (get assert to add the stack trace to $@ in this case):
         #$elt= "foo";
         # FIXME: Introduce ->name() accessor
-        #my $elt_name= ::hash_get($elt, 'name');
         my $elt_name= $elt->[PROD_NAME];
         #my $elt_name= $spec;
         assert(defined($elt_name));
@@ -1321,8 +1319,6 @@ sub match_check_preconditions($$) {
         $log->error("t is not a hash: ".$t);
     }
     assert('' ne ref($t)) if ASSERT();
-    #assert("HASH" eq ref($t)) if ASSERT();
-    #assert(exists($t->{name})) if ASSERT();
     if (ASSERT()) {
         assert(scalar(@$t) >= PROD_MATCHER());
     }
@@ -2616,7 +2612,6 @@ sub check_result($$$) {
     #$main_log->debug(varstring('result', $result));
 
     #my $actual_type= $$result[0];
-    #my $actual_typename= ::hash_get($actual_type, 'name');
     my $actual_typename= $$result[0];
     should($actual_typename, $expected_typename);
 
