@@ -4,17 +4,28 @@
 
 Usage: perl PROGRAM GRAMMAR INPUT > OUTPUT
 
-Example: perl -w parse.pl Test/xml-grammar.pl Test/XML/example.xml
+Example:
+    perl -w parse.pl Test/xml-grammar.pl Test/XML/example.xml
 
-Debug:   PARSE_SILLY_DEBUG=1 perl -w parse.pl Test/xml-grammar.pl Test/XML/example.xml
+Debug:
+    PARSE_SILLY_DEBUG=1 perl -w parse.pl Test/xml-grammar.pl Test/XML/example.xml
 
-Profile: PARSE_SILLY_ASSERT=0 perl -w -d:DProf parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
+Profile:
+    PARSE_SILLY_ASSERT=0; export PARSE_SILLY_ASSERT
+    perl -w -d:DProf parse.pl Test/xml-grammar.pl Test/XML/example.xml;
+    dprofpp
 
-Profile: PARSE_SILLY_ASSERT=0 perl -w -I../.. -MDevel::Profiler parse.pl Test/xml-grammar.pl Test/XML/example.xml; dprofpp
+Profile:
+    PARSE_SILLY_ASSERT=0; export PARSE_SILLY_ASSERT
+    perl -w -I../.. -MDevel::Profiler parse.pl Test/xml-grammar.pl \
+        Test/XML/example.xml;
+    dprofpp
 
-Lint:    perl -w -MO=Lint parse.pl Test/xml-grammar.pl Test/XML/example.xml
+Lint:
+    perl -w -MO=Lint parse.pl Test/xml-grammar.pl Test/XML/example.xml
 
-Fastest so far: PARSE_SILLY_ASSERT=0 perl parse.pl Test/xml-grammar.pl Test/XML/example.xml
+Fastest so far:
+    PARSE_SILLY_ASSERT=0 perl parse.pl Test/xml-grammar.pl Test/XML/example.xml
 
 Note that the -w option may cost a percent or two of performance.
 
@@ -135,7 +146,8 @@ Features Done
 
 * Make it possible to switch off memoization
 
-* Avoid calling debugging code (logging functions, data formatting) when debugging is off.
+* Avoid calling debugging code (logging functions, data formatting)
+  when debugging is off.
 
 * Avoid checking contracts (assertions etc.) when ASSERT is off.
 
@@ -314,7 +326,8 @@ TODO
 
 * Add more regression tests
 
-* Packagize (Parse::, Parse::LL:: or Parse::SiLLy?, Grammar, Utils, Test, Result, Stash)
+* Packagize (Parse::, Parse::LL:: or Parse::SiLLy?, Grammar, Utils,
+  Test, Result, Stash)
 
 * Packagize (Parse::SiLLy::Test::Minilang)
 
@@ -435,13 +448,17 @@ sub assert_test($)
 
 # --------------------------------------------------------------------
 sub should($$) {
-    if ($_[0] ne $_[1]) { &$assert_action("'$_[0]' should be '$_[1]' but is not.\n"); }
+    if ($_[0] ne $_[1]) {
+        &$assert_action("'$_[0]' should be '$_[1]' but is not.\n");
+    }
 }
 
 # --------------------------------------------------------------------
 #sub shouldn't($$)
 sub shouldnt($$) { # Fix editor's parenthesis matching: }' sub {
-    if ($_[0] eq $_[1]) { &$assert_action("'$_[0]' should not be '$_[1]' but is.\n"); }
+    if ($_[0] eq $_[1]) {
+        &$assert_action("'$_[0]' should not be '$_[1]' but is.\n");
+    }
 }
 
 # --------------------------------------------------------------------
@@ -485,9 +502,12 @@ sub new
     #$self->{logger}= Log::Log4perl::get_logger($name)
     #$$self[LOGGER_LOGGER]= Log::Log4perl::get_logger($name)
     #    || die("$name: Could not get logger.\n");
-    #print(STDERR "$name: Got logger: " . join(', ', keys(%{$self->{logger}})) . "\n");
-    #print(STDERR "$name: Got logger: " . join(', ', keys(%{$self->[2]})) . "\n");
-    #print(STDERR "$name: Got logger: " . $self->get_logger()->{category} . "\n");
+    #print(STDERR
+    #      "$name: Got logger: " . join(', ', keys(%{$self->{logger}})) . "\n");
+    #print(STDERR
+    #      "$name: Got logger: " . join(', ', keys(%{$self->[2]})) . "\n");
+    #print(STDERR
+    #      "$name: Got logger: " . $self->get_logger()->{category} . "\n");
 
     #$self->{debugging}= $self->{logger}->is_debug();
     #$$self[LOGGER_DEBUG]= $ {@$self}[LOGGER_LOGGER]->is_debug();
@@ -497,7 +517,8 @@ sub new
     #print(STDERR "is_debug()=".$self->is_debug()."\n");
     $self->debug("is_debug()=".$self->is_debug()."\n");
 
-    #print(STDERR "get_logger()->is_debug()=".$self->get_logger()->is_debug()."\n");
+    #print(STDERR
+    #      "get_logger()->is_debug()=".$self->get_logger()->is_debug()."\n");
     #print(STDERR "get_logger()->level()=".$self->get_logger()->level()."\n");
 
     #$self->{logger}->debug("Logger constructed: $name.");
@@ -798,7 +819,8 @@ sub toString($$)
 
     $typename=~ s/.*:://o;
     if ($log->is_debug()) {
-        $log->debug("toString: Type '",$typename,"' has category '",$category,"'.");
+        $log->debug(
+            "toString: Type '",$typename,"' has category '",$category,"'.");
     }
 
     my $cat= $cats->{$category};
@@ -813,7 +835,8 @@ sub toString($$)
     # after it matched there is only one concrete result.
     elsif (grep(/$category/, qw(alternation optional lookingat notlookingat))) {
         if ($log->is_debug()) {
-            $log->debug("toString: Category '", $category, "' has only one element.");
+            $log->debug(
+                "toString: Category '", $category, "' has only one element.");
         }
         "[".$typename.$cat.
             " ".toString($$match[0], "$indent ")."]";
@@ -821,11 +844,11 @@ sub toString($$)
     else {
         # $category is construction, pelist or nelist.
         if ($log->is_debug()) {
-            $log->debug("toString: Category '", $category, "' has multiple elements.");
+            $log->debug(
+                "toString: Category '", $category, "' has multiple elements.");
         }
         "[".$typename.$cat."\n".
             $indent." "
-            #. join(",\n$indent ", map { toString($_, "$indent "); } @$self[1..$#$self])
             . join(",\n$indent ", map { toString($_, "$indent "); } @$match)
             #. "$indent]";
             . " ]";
@@ -912,7 +935,9 @@ use constant DEBUG =>
 require Exporter;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 @ISA= qw(Exporter); # Package's ISA
-%EXPORT_TAGS= ('all' => [qw(def terminal construction alternation optional lookingat notlookingat nelist pelist)]);
+%EXPORT_TAGS= ('all' => [ qw(
+    def terminal construction alternation optional lookingat notlookingat nelist pelist
+    )]);
 @EXPORT_OK= ( @{ $EXPORT_TAGS{'all'} } );
 @EXPORT= qw();
 
@@ -1483,12 +1508,15 @@ sub terminal#($$)
     #my $matcher= eval("sub { \$ \$_[0] =~ m{^($pattern)}og; }");
     # FIXME: When pos instead of substrings is used, the ^ here will
     # not work as needed, use \G instead:
-    #my $matcher= eval("sub { \$_[0]->[STATE_INPUT()]=~ m{^($pattern)}og; \$1; }");
+    #my $matcher= eval(
+    #    "sub { \$_[0]->[STATE_INPUT()]=~ m{^($pattern)}og; \$1; }" );
     # FIXME: perldoc perlre says that using parentheses slows down ALL matchers,
     #  So try to get by without them.
     #  Maybe use substr($input, $before, $pos-$before) instead.
-    #my $matcher= eval("sub { (\$_[0]->[STATE_INPUT()]=~ m{\\G($pattern)}og) && \$1; }");
-    #my $matcher= eval('sub { ($_[0]->['.STATE_INPUT().']=~ m{\G('.$pattern.')}og) && $1; }');
+    #my $matcher= eval(
+    #    "sub { (\$_[0]->[STATE_INPUT()]=~ m{\\G($pattern)}og) && \$1; }");
+    #my $matcher= eval(
+    #    'sub { ($_[0]->['.STATE_INPUT().']=~ m{\G('.$pattern.')}og) && $1; }');
     #my $matcher= eval('sub { ($_[0]->['.STATE_INPUT().']=~ m{\G('.$pattern.')}og) && $1; }');
     my $matcher=
 #         eval('sub { my $bef= pos($_[0]->['.STATE_INPUT().']);'
@@ -1498,7 +1526,8 @@ sub terminal#($$)
 #              .' { pos($_[0]->['.STATE_INPUT().'])= $bef; undef; }'
 #     #         .' else { $1; }'
 #              .' else'
-#              .' { substr($_[0]->['.STATE_INPUT().'], $bef, pos($_[0]->['.STATE_INPUT().']) - $bef); }'
+#              .' { substr($_[0]->['.STATE_INPUT().'],
+#                          $bef, pos($_[0]->['.STATE_INPUT().']) - $bef); }'
 #              .'}');
         eval('sub { my $p= \$_[0]->['.STATE_INPUT().'];my $bef= pos($$p);'
              .(ASSERT()?' assert(defined($bef));':'')
