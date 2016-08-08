@@ -452,24 +452,6 @@ sub eval_or_die($) {
     $evalue;
 }
 
-# --------------------------------------------------------------------
-sub hash_get($$) {
-    my ($hash, $key)= (@_);
-    #local $Carp::CarpLevel; ++$Carp::CarpLevel;
-    assert(defined($hash)) if ASSERT();
-    assert('' ne ref($hash)) if ASSERT();
-    #assert("HASH" eq ref($hash)) if ASSERT(); # false if $hash refers to a blessed object
-    #assert(defined($key)) if ASSERT();
-    #assert(exists($hash->{$key})) if ASSERT();
-    if (ASSERT()) {
-        # This silences the Lint-warning 'Implicit scalar context for hash',
-        # but is not acceptable:
-        #my %lhash= %$hash; assert(exists($lhash{$key}));
-        assert(exists($hash->{$key}));
-    }
-    $hash->{$key};
-}
-
 # ====================================================================
 package Logger;
 
