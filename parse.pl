@@ -2426,8 +2426,7 @@ sub match_with_memoize($$)
         assert(matched($result) || get_pos($state) == $pos);
     }
 
-    #my
-    $stashed=
+    my $location=
         matched($result)
         ? [
             get_pos($state),
@@ -2445,10 +2444,10 @@ sub match_with_memoize($$)
                     . "\$result ="
                     . Parse::SiLLy::Result::toString($result, " ")
                     );
-        #$log->debug(varstring("stashed", $stashed));
+        #$log->debug(varstring("stashed", $location));
     }
-    #$pos_stash->{$pos_stash_key}= $stashed;
-    $pos_stash->[$pos_stash_key]= $stashed;
+    #$pos_stash->{$pos_stash_key}= $location;
+    $pos_stash->[$pos_stash_key]= $location;
 
     # Used this to find out that the $t used above as a hash key
     # was internally (in the hash table) converted to a string.
