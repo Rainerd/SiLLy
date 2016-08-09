@@ -490,26 +490,18 @@ sub new
 {
     my $proto= shift;
     my $class= ref($proto) || $proto;
-    #my $self= {};
     my $self= [];
     bless($self, $class);
 
     my $name= shift;
 
-    #$self->{name}= $name;
     $$self[LOGGER_NAME]= $name;
 
-    #$self->{logger}= Log::Log4perl::get_logger($name)
     #$$self[LOGGER_LOGGER]= Log::Log4perl::get_logger($name)
     #    || die("$name: Could not get logger.\n");
     #print(STDERR
-    #      "$name: Got logger: " . join(', ', keys(%{$self->{logger}})) . "\n");
-    #print(STDERR
     #      "$name: Got logger: " . join(', ', keys(%{$self->[2]})) . "\n");
-    #print(STDERR
-    #      "$name: Got logger: " . $self->get_logger()->{category} . "\n");
 
-    #$self->{debugging}= $self->{logger}->is_debug();
     #$$self[LOGGER_DEBUG]= $ {@$self}[LOGGER_LOGGER]->is_debug();
     #$$self[LOGGER_DEBUG]=   ($$self[LOGGER_LOGGER])->is_debug();
     #$$self[LOGGER_DEBUG]= $self->get_logger()->is_debug();
@@ -521,7 +513,6 @@ sub new
     #      "get_logger()->is_debug()=".$self->get_logger()->is_debug()."\n");
     #print(STDERR "get_logger()->level()=".$self->get_logger()->level()."\n");
 
-    #$self->{logger}->debug("Logger constructed: $name.");
     #($$self[LOGGER_LOGGER])->debug("Logger constructed: $name.");
     $self->debug("Logger constructed: $name.");
 
@@ -547,9 +538,7 @@ sub name_explicit($) {
 # --------------------------------------------------------------------
 # FIXME: What is the performance impact of returning the current value?
 
-#sub is_debug($) { $_[0]->{logger}->is_debug(); }
 #sub is_debug($) { $_[0]->get_logger()->is_debug(); }
-#sub is_debug($) { $_[0]->{debugging}; }
 #sub is_debug($) { ${@{$_[0]}}[LOGGER_DEBUG]; }
 #sub is_debug($) {
 #    my $self= $_[0];
@@ -585,9 +574,7 @@ sub get_logger($) {
     #return $_[0][LOGGER_LOGGER];
 
     my ($self)= (@_);
-    #::assert(exists($self->{logger})) if ASSERT();
     ::assert(2 <= $#$self) if ASSERT();
-    #my $log= $self->{logger};
     my $log= $$self[LOGGER_LOGGER];
     ::assert(defined($log)) if ASSERT();
     #print(STDERR "ref(log)=".ref($log)."\n");
@@ -599,7 +586,6 @@ sub get_logger($) {
 sub info {
     my $self= shift(@_);
     my $ctx= $self->name();
-    #$self->{logger}->info("$ctx: @_");
     #($$self[LOGGER_LOGGER])->info("$ctx: @_");
     #get_logger($self)->info("$ctx: @_");
     print(STDERR $ctx,": ",@_,"\n");
@@ -613,7 +599,6 @@ sub error {
 
 # --------------------------------------------------------------------
 sub debug {
-    # If ! $self->{debugging} return:
     if ( ! $_[0][LOGGER_DEBUG]) { return; }
 
     my $self= shift;
@@ -622,7 +607,6 @@ sub debug {
     #my $ctx= $$self[LOGGER_NAME];
     my $ctx= $self->name();
     # FIXME: Why don't I use this line?:
-    #$self->{logger}->debug("$ctx: @_");
     #($$self[LOGGER_LOGGER])->debug("$ctx: @_");
     #get_logger($self)->debug("$ctx: @_");
     #$self->get_logger()->debug("$ctx: @_");
