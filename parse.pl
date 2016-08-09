@@ -3187,7 +3187,7 @@ sub main
         Parse::SiLLy::Grammar::Parser_reset($state);
         $state->[Parse::SiLLy::Grammar::STATE_EXPLAIN]= 1;
         $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state);
-        print(STDERR "Reason:\n",
+        print(STDERR "Ultimate reason:\n",
               $result->[Parse::SiLLy::Result::RESULT_MATCH()], "\n");
         print(STDERR "Furthest reason:\n",
               $state->[Parse::SiLLy::Grammar::STATE_FURTHEST_REASON()], "\n");
