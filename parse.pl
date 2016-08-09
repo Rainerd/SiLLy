@@ -483,7 +483,6 @@ use constant ASSERT => ::ASSERT;
 # indices to access their fields (array elements):
 use constant LOGGER_NAME   => 0;
 use constant LOGGER_DEBUG  => 1;
-use constant LOGGER_LOGGER => 2;
 
 # --------------------------------------------------------------------
 sub new
@@ -497,23 +496,10 @@ sub new
 
     $$self[LOGGER_NAME]= $name;
 
-    #$$self[LOGGER_LOGGER]= Log::Log4perl::get_logger($name)
-    #    || die("$name: Could not get logger.\n");
-    #print(STDERR
-    #      "$name: Got logger: " . join(', ', keys(%{$self->[2]})) . "\n");
-
-    #$$self[LOGGER_DEBUG]= $ {@$self}[LOGGER_LOGGER]->is_debug();
-    #$$self[LOGGER_DEBUG]=   ($$self[LOGGER_LOGGER])->is_debug();
-    #$$self[LOGGER_DEBUG]= $self->get_logger()->is_debug();
     $$self[LOGGER_DEBUG]= Parse::SiLLy::Grammar::DEBUG();
     #print(STDERR "is_debug()=".$self->is_debug()."\n");
     $self->debug("is_debug()=".$self->is_debug()."\n");
 
-    #print(STDERR
-    #      "get_logger()->is_debug()=".$self->get_logger()->is_debug()."\n");
-    #print(STDERR "get_logger()->level()=".$self->get_logger()->level()."\n");
-
-    #($$self[LOGGER_LOGGER])->debug("Logger constructed: $name.");
     $self->debug("Logger constructed: $name.");
 
     $self;
@@ -538,7 +524,6 @@ sub name_explicit($) {
 # --------------------------------------------------------------------
 # FIXME: What is the performance impact of returning the current value?
 
-#sub is_debug($) { $_[0]->get_logger()->is_debug(); }
 #sub is_debug($) { ${@{$_[0]}}[LOGGER_DEBUG]; }
 #sub is_debug($) {
 #    my $self= $_[0];
@@ -554,7 +539,6 @@ sub set_debug($) {
     assert(defined($self)) if ASSERT();
     assert('' ne ref($self)) if ASSERT();
     $self->[LOGGER_DEBUG]= 1;
-    #$self->get_logger()->level($Log::Log4perl::DEBUG);
 }
 
 # --------------------------------------------------------------------
@@ -563,31 +547,15 @@ sub set_nodebug($) {
     assert(defined($self)) if ASSERT();
     assert('' ne ref($self)) if ASSERT();
     $self->[LOGGER_DEBUG]= 0;
-    #$self->get_logger()->level($Log::Log4perl::INFO);
 }
 
 # --------------------------------------------------------------------
-# FIXME: What is the performance impact of the assertions?
 # FIXME: What is the performance impact of the binding to $self?
-
-sub get_logger($) {
-    #return $_[0][LOGGER_LOGGER];
-
-    my ($self)= (@_);
-    ::assert(2 <= $#$self) if ASSERT();
-    my $log= $$self[LOGGER_LOGGER];
-    ::assert(defined($log)) if ASSERT();
-    #print(STDERR "ref(log)=".ref($log)."\n");
-    #::assert("Log::Log4perl::Logger" eq ref($log)) if ASSERT();
-    $log;
-}
 
 # --------------------------------------------------------------------
 sub info {
     my $self= shift(@_);
     my $ctx= $self->name();
-    #($$self[LOGGER_LOGGER])->info("$ctx: @_");
-    #get_logger($self)->info("$ctx: @_");
     print(STDERR $ctx,": ",@_,"\n");
 }
 
@@ -603,13 +571,7 @@ sub debug {
 
     my $self= shift;
     #if ( ! $self->is_debug()) { return; }
-    #if ( ! $self->get_logger()->is_debug()) { return; }
-    #my $ctx= $$self[LOGGER_NAME];
     my $ctx= $self->name();
-    # FIXME: Why don't I use this line?:
-    #($$self[LOGGER_LOGGER])->debug("$ctx: @_");
-    #get_logger($self)->debug("$ctx: @_");
-    #$self->get_logger()->debug("$ctx: @_");
     print(STDERR $ctx,": ",@_,"\n");
 }
 
@@ -3081,7 +3043,6 @@ sub init()
     #Log::Log4perl->easy_init($INFO);
     #Log::Log4perl->easy_init($DEBUG);
     #Log::Log4perl->easy_init(Parse::SiLLy::Grammar::DEBUG() ? $DEBUG : $INFO);
-    #$logger= get_logger();
     #$logger->info("Running...");
     #if (scalar(@_) > 0) { info(vdump('Args', \@_)); }
     $Data::Dumper::Indent= 1;
