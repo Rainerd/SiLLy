@@ -1045,8 +1045,10 @@ sub format_stashed($)
         #: Parse::SiLLy::Result::toString(\@$stashed[1..$#$stashed], " ")
         #: Parse::SiLLy::Result::toString(@{@$stashed}[1..$#$stashed], " ")
         ""
-            .$stashed->[STASHED_LINENO].":"
-            .($stashed->[STASHED_END]-$stashed->[STASHED_LINE_START]+1).": "
+            .(SHOW_LOCATION() ?
+              $stashed->[STASHED_LINENO].":"
+              .($stashed->[STASHED_END]-$stashed->[STASHED_LINE_START]+1).": "
+              : "")
             ."[$$stashed[STASHED_END]]"
             . Parse::SiLLy::Result::toString($$stashed[STASHED_MATCH], " ")
             ;
