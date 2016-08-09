@@ -1094,7 +1094,6 @@ my $production_id;
 my $productions_by_id;
 
 # --------------------------------------------------------------------
-#sub show_pos_stash_array($$$)
 sub show_pos_stash($$$)
 {
     my ($log, $pos_stash, $pos)= (@_);
@@ -1355,11 +1354,9 @@ sub log_val($$) {
     assert(defined($log)) if ASSERT();
     assert('' ne ref($log)) if ASSERT();
     if ( ! $log->is_debug()) { return; }
-    #assert("HASH" eq ref($log));
     if ($log_val) {
         #assert(defined($val));
         #assert('' ne ref($val));
-        #$log->debug("Type='$val->{_}':");
         $log->debug(varstring('val',$val));
     }
 }
@@ -1520,7 +1517,6 @@ sub terminal#($$)
     #    "sub { (\$_[0]->[STATE_INPUT()]=~ m{\\G($pattern)}og) && \$1; }");
     #my $matcher= eval(
     #    'sub { ($_[0]->['.STATE_INPUT().']=~ m{\G('.$pattern.')}og) && $1; }');
-    #my $matcher= eval('sub { ($_[0]->['.STATE_INPUT().']=~ m{\G('.$pattern.')}og) && $1; }');
     my $matcher=
 #         eval('sub { my $bef= pos($_[0]->['.STATE_INPUT().']);'
 #              .(ASSERT()?' assert(defined($bef));':'')
@@ -3198,8 +3194,6 @@ sub main
 
     use Benchmark;
     # FIXME: Make timethis print to STDERR instead of to STDOUT.
-    #timethis(1, sub { $result= Parse::SiLLy::Grammar::match($ {"$top"}, $state); } );
-    #timethis(1, sub { $result= do_one_run($state, $top); } );
     timethis(1, sub { $result= do_one_run($state, $top); } );
     # First arg -N means repeat for at least N seconds.
     timethis(-2, sub { $result= do_one_run($state, $top); } );
