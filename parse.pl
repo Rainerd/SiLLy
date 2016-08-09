@@ -1028,9 +1028,9 @@ sub grammar_objects($$)
 # --------------------------------------------------------------------
 # Position of end of match, or of start of attempt
 use constant LOCATION_POS   => 0;
-use constant LOCATION_MATCH => 1 + LOCATION_POS;
-use constant LOCATION_LINENO => 1 + LOCATION_MATCH;
+use constant LOCATION_LINENO => 1 + LOCATION_POS;
 use constant LOCATION_LINE_START => 1 + LOCATION_LINENO;
+use constant LOCATION_MATCH => 1 + LOCATION_LINE_START;
 
 # --------------------------------------------------------------------
 sub format_stashed($)
@@ -2435,9 +2435,9 @@ sub match_with_memoize($$)
         matched($result)
         ? [
             get_pos($state),
-            $result,
             $state->[STATE_LINENO],
             $state->[STATE_LINE_START],
+            $result,
         ]
         : $result;
     if (DEBUG() && $log->is_debug()) {
