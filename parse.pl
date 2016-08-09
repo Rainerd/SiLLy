@@ -454,8 +454,7 @@ sub should($$) {
 }
 
 # --------------------------------------------------------------------
-#sub shouldn't($$)
-sub shouldnt($$) { # Fix editor's parenthesis matching: }' sub {
+sub shouldnt($$) {
     if ($_[0] eq $_[1]) {
         &$assert_action("'$_[0]' should not be '$_[1]' but is.\n");
     }
