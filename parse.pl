@@ -1026,8 +1026,9 @@ sub grammar_objects($$)
 }
 
 # --------------------------------------------------------------------
-use constant LOCATION_END   => 0;
-use constant LOCATION_MATCH => 1 + LOCATION_END;
+# Position of end of match, or of start of attempt
+use constant LOCATION_POS   => 0;
+use constant LOCATION_MATCH => 1 + LOCATION_POS;
 use constant LOCATION_LINENO => 1 + LOCATION_MATCH;
 use constant LOCATION_LINE_START => 1 + LOCATION_LINENO;
 
@@ -1047,9 +1048,9 @@ sub format_stashed($)
         ""
             .(SHOW_LOCATION() ?
               $stashed->[LOCATION_LINENO].":"
-              .($stashed->[LOCATION_END]-$stashed->[LOCATION_LINE_START]+1).": "
+              .($stashed->[LOCATION_POS]-$stashed->[LOCATION_LINE_START]+1).": "
               : "")
-            ."[$$stashed[LOCATION_END]]"
+            ."[$$stashed[LOCATION_POS]]"
             . Parse::SiLLy::Result::toString($$stashed[LOCATION_MATCH], " ")
             ;
     }
@@ -2407,7 +2408,7 @@ sub match_with_memoize($$)
             if (DEBUG() && $log->is_debug()) {
                 $log->debug("Pos before jump: ".get_pos($state));
             }
-            set_pos($state, $$stashed[LOCATION_END]);
+            set_pos($state,             $stashed->[LOCATION_POS]);
             $state->[STATE_LINENO]    = $stashed->[LOCATION_LINENO];
             $state->[STATE_LINE_START]= $stashed->[LOCATION_LINE_START];
             # We have already set STATE_POS_STASH above.
