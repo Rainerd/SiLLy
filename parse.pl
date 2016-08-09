@@ -172,7 +172,9 @@ Features Done
   understand them and can jump to the exact file location (message
   format is "FILE:LINE:COLUMN: TEXT").
 
-* Remembers the furthest mismatch, and shows why it did not match.
+* Remembers the furthest mismatch, shows why it did not match, and
+  explain how it got there, what the parser was trying to match when
+  encountering that mismatch.
 
 
 Internal Features Done
@@ -1101,7 +1103,9 @@ use constant STATE_STASH => STATE_POS + 1;
 #use constant STATE_POS_STASH => 3;
 use constant STATE_POS_STASH => STATE_STASH + 1;
 use constant STATE_EXPLAIN    => STATE_POS_STASH + 1;
-use constant STATE_FILENAME   => 1 + STATE_EXPLAIN;
+# Stack of what parser is trying to match.
+use constant STATE_TRYING     => 1 + STATE_EXPLAIN;
+use constant STATE_FILENAME   => 1 + STATE_TRYING;
 use constant STATE_LINENO     => STATE_FILENAME + 1;
 use constant STATE_LINE_START => STATE_LINENO + 1;
 use constant STATE_FURTHEST   => STATE_LINE_START + 1;
@@ -1129,6 +1133,23 @@ sub set_pos($$) {
     #} else {
     #    $_[0]->[STATE_POS]= $_[1];
     #}
+}
+
+# --------------------------------------------------------------------
+sub state_to_location($$) {
+    my ($state, $reason) =(@_);
+    return [
+        get_pos($state),
+        $state->[STATE_LINENO],
+        $state->[STATE_LINE_START],
+        $reason,
+        ];
+    my $result= [];
+    $result->[LOCATION_POS]        = get_pos($state),
+    $result->[LOCATION_LINENO]     = $state->[STATE_LINENO];
+    $result->[LOCATION_LINE_START] = $state->[STATE_LINE_START];
+    $result->[LOCATION_REASON]     = $reason;
+    return $result;
 }
 
 # --------------------------------------------------------------------
@@ -1183,6 +1204,7 @@ sub Parser_reset( $ ) {
     set_pos($state, 0);
     $state->[STATE_LINENO]= 1;
     $state->[STATE_LINE_START]= 0;
+    $state->[STATE_TRYING]= [],
     $state->[STATE_FURTHEST]= 0;
     $state->[STATE_FURTHEST_REASON]= "None";
 }
@@ -1230,6 +1252,21 @@ sub Parser_new($$) {
 }
 
 # --------------------------------------------------------------------
+sub location_format( $$ )
+{
+    my ($state, $location)= (@_);
+    return
+        (SHOW_LOCATION() ?
+         $state->[STATE_FILENAME].":".
+         $location->[LOCATION_LINENO].":"
+         .($location->[LOCATION_POS]-$location->[LOCATION_LINE_START]+1).": "
+         : "")
+        #."[".$location->[LOCATION_POS]."]"
+        . $location->[LOCATION_REASON]
+        ;
+}
+
+# --------------------------------------------------------------------
 # Using the given parser state, if the current mismatch (input
 # position) is further than the previously remembered furthest
 # position, stores the current position and the given reason as the
@@ -1238,9 +1275,16 @@ sub Parser_new($$) {
 sub consider_furthest($$) {
     my ($state, $reason)= (@_);
     my $pos= get_pos($state);
-    if ($state->[STATE_FURTHEST] <= $pos) {
+    if ($state->[STATE_FURTHEST] <= $pos
+        #&& ! eoi($state->[STATE_INPUT], $pos)
+        )
+    {
         $state->[STATE_FURTHEST]= $pos;
-        $state->[STATE_FURTHEST_REASON]= $reason;
+        $state->[STATE_FURTHEST_REASON]=
+            join("\n",
+                 map { location_format($state, $_); }
+                     @{$state->[STATE_TRYING]}) ."\n".
+            $reason;
     }
 }
 
@@ -2427,9 +2471,21 @@ sub match_with_assert($$)
 sub match($$)
 {
     my ($t, $state)= @ARG;
+
+    if ($state->[STATE_EXPLAIN]) {
+        my $location= state_to_location(
+            $state, "Trying to match $t->[PROD_SHORT_NAME]");
+        push(@{$state->[STATE_TRYING]}, $location);
+    }
+
     if (MEMOIZE()) { return match_with_memoize($t, $state); }
     my $method= $t->[PROD_METHOD];
-    &$method($t, $state);
+    my $result= &$method($t, $state);
+
+    if ($state->[STATE_EXPLAIN]) {
+        pop(@{$state->[STATE_TRYING]});
+    }
+    return $result;
 }
 
 # --------------------------------------------------------------------
