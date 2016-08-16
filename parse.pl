@@ -486,6 +486,11 @@ use constant LOGGER_NAME   => 0;
 use constant LOGGER_DEBUG  => 1;
 
 # --------------------------------------------------------------------
+# Using the given reference to a prototype or class, and the given
+# name, constructs a new Logger object (a blessed array).  Sets the
+# debug flag (the field at index LOGGER_DEBUG) to the value of
+# `Parse::SiLLy::Grammar::DEBUG()`.
+
 sub new
 {
     my $proto= shift;
