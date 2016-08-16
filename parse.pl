@@ -525,6 +525,9 @@ sub name_explicit($) {
 # --------------------------------------------------------------------
 # FIXME: What is the performance impact of returning the current value?
 
+# @return the value of the debug flag (the field at index
+# LOGGER_DEBUG).
+
 #sub is_debug($) { ${@{$_[0]}}[LOGGER_DEBUG]; }
 #sub is_debug($) {
 #    my $self= $_[0];
@@ -535,6 +538,9 @@ sub name_explicit($) {
 sub is_debug($) { $_[0][LOGGER_DEBUG]; }
 
 # --------------------------------------------------------------------
+# Sets the value of the debug flag (the field at index LOGGER_DEBUG)
+# to 1.
+
 sub set_debug($) {
     my $self= $_[0];
     assert(defined($self)) if ASSERT();
@@ -543,6 +549,9 @@ sub set_debug($) {
 }
 
 # --------------------------------------------------------------------
+# Sets the value of the debug flag (the field at index LOGGER_DEBUG)
+# to 0.
+
 sub set_nodebug($) {
     my $self= $_[0];
     assert(defined($self)) if ASSERT();
