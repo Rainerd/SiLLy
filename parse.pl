@@ -516,17 +516,6 @@ sub name($) {
     $_[0][LOGGER_NAME];
 }
 
-sub name_explicit($) {
-    my ($self)= @_;
-    assert(defined($self)) if ASSERT();
-    assert('' ne ref($self)) if ASSERT();
-    #assert('Logger' eq ref($self)) if ASSERT();
-    assert(0 < scalar(@$self)) if ASSERT();
-    my $name= $$self[LOGGER_NAME];
-    assert(defined($name)) if ASSERT();
-    assert('' eq ref($name)) if ASSERT();
-}
-
 # --------------------------------------------------------------------
 # FIXME: What is the performance impact of returning the current value?
 
