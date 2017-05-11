@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <table>
+<!--
+<trailing><node/></trailing>
+Trailing Garbage...
+-->
  <tr>
   <td>Inhalt</td>
   <td>Mehr Inhalt</td>
@@ -10,8 +14,6 @@
   <td attribute2="value2" attribute3="value3"><!-- Diesmal ist hier nichts --></td>
   <td>Noch Mehr Inhalt</td>
   <td></td>
-  <td>'</td>
+  <td>'</td>>
  </tr>
 </table>
-<trailing><node/></trailing>
-Trailing Garbage...

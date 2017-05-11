@@ -213,15 +213,35 @@ FIXME:
 
 * tuple rule attribute 'elements' is empty
 
-* Catch EOI in all matching functions
+* Catch EOI in all matching functions, see if that speeds up parsing.
 
 
 Todo: Error Messages
 
+* Currently, location descriptions for the purpose of backtracking are
+  stored in Perl variables with function scope ("on the Perl stack").
+
+* Consider storing locations in dedicated objects (arrays). A location
+  description consists of character (or octet?) position, input (file)
+  name, line number and line start position.
+
+* Consider passing location objects to the "jump to" function
+  ("backtack_to_pos").
+
+* Consider caching location desciption objects, per position.
+
+* Consider storing reasons as objects instead of as strings,
+  referencing a standard message (possibly using an ID, possibly using
+  a reference to a description object), a location, a context
+  (production, possibly element number) and further information.
+
+* Improve explanations during list matching.
+
 * Search term: parser error recovery
 
-
-* Detect near matches ("almost matched")
+* Detect near matches ("almost matched"). For example, if at least one
+  element of a list matches, and there is an error while trying to
+  match further elements, the user *might* be interested in that.
 
 * Annotate grammar with hints
 
@@ -232,7 +252,12 @@ Todo: Error Messages
 * Specially handle errors on the first and last elements of composites.
   For example, if only the last element of a composite did not match,
   see if it is easy to see what might be missing, of if there is an
-  annotation or hint that suggests a reaction.
+  annotation or hint that suggests a reaction.+
+
+  Not sure if any special treatment would help though. If the last
+  element is missing, the error message is usually clear enough to
+  understand anyway. If the first element already does not match,
+  how should the parser know that further elements would match?
 
 * Stop trying if it takes too long.
 
@@ -484,6 +509,7 @@ use constant ASSERT => ::ASSERT;
 # indices to access their fields (array elements):
 use constant LOGGER_NAME   => 0;
 use constant LOGGER_DEBUG  => 1;
+use constant LOGGER_SHOW_LOCATION => 2; #1 + LOGGER_DEBUG;
 
 # --------------------------------------------------------------------
 # Using the given reference to a prototype or class, and the given
@@ -502,7 +528,10 @@ sub new
 
     $$self[LOGGER_NAME]= $name;
 
-    $$self[LOGGER_DEBUG]= Parse::SiLLy::Grammar::DEBUG();
+    $self->[LOGGER_SHOW_LOCATION]= 0;
+
+    #$$self[LOGGER_DEBUG]= Parse::SiLLy::Grammar::DEBUG();
+    $$self[LOGGER_DEBUG]= 0;
     #print(STDERR "is_debug()=".$self->is_debug()."\n");
     $self->debug("is_debug()=".$self->is_debug()."\n");
 
@@ -576,7 +605,13 @@ sub debug {
     my $self= shift;
     #if ( ! $self->is_debug()) { return; }
     my $ctx= $self->name();
-    print(STDERR $ctx,": ",@_,"\n");
+    if ($_[0]->[LOGGER_SHOW_LOCATION]) {
+        my ($caller_package, $file, $line)= caller();
+        print(STDERR $file,":",$line,": ",$ctx,": ",@_,"\n");
+    }
+    else {
+        print(STDERR $ctx,": ",@_,"\n");
+    }
 }
 
 # ====================================================================
@@ -652,6 +687,33 @@ sub vardescr($$)
     my $valname= given_name($val);
     defined($valname) ? "\$$name = ''$valname''\n" : varstring($name, $val);
 }
+
+# ====================================================================
+
+=begin comment
+
+package Parse::SiLLy::Location;
+use strict;
+use warnings;
+#use diagnostics;
+
+# --------------------------------------------------------------------
+use constant POS        => 0;
+use constant LINENO     => 1 + POS;
+use constant LINE_START => 1 + LINENO;
+
+# --------------------------------------------------------------------
+
+sub new($) {
+    my $proto= shift;
+    my $class= ref($proto) || $proto;
+    #my $self= {};
+    my $self= [];
+    bless($self, $class);
+    $self;
+}
+
+=cut
 
 # ====================================================================
 package Parse::SiLLy::Result;
@@ -1113,6 +1175,7 @@ use constant STATE_LINENO     => STATE_FILENAME + 1;
 use constant STATE_LINE_START => STATE_LINENO + 1;
 use constant STATE_FURTHEST   => STATE_LINE_START + 1;
 use constant STATE_FURTHEST_REASON => STATE_FURTHEST + 1;
+#use constant STATE_POS2LOCATION => STATE_FURTHEST_REASON + 1;
 
 # --------------------------------------------------------------------
 # @return the input character index of the given parser state. In
@@ -1193,6 +1256,7 @@ sub backtrack_to_pos( $$$$ ) {
     set_pos($state, $pos);
     $state->[STATE_LINENO]= $lineno;
     $state->[STATE_LINE_START]= $line_start;
+    #if () {}
     if (MEMOIZE()) {
         $state->[STATE_POS_STASH]=
             stash_get_pos_stash($state->[STATE_STASH], $pos);
@@ -1210,6 +1274,7 @@ sub Parser_reset( $ ) {
     $state->[STATE_TRYING]= [],
     $state->[STATE_FURTHEST]= 0;
     $state->[STATE_FURTHEST_REASON]= "None";
+    # FIXME: Should this reset the stash? The STATE_POS_STASH?
 }
 
 # --------------------------------------------------------------------
@@ -1250,6 +1315,9 @@ sub Parser_new($$) {
     $state->[STATE_POS_STASH]  = undef;
     $state->[STATE_EXPLAIN]    = 0,
     $state->[STATE_FILENAME]   = $filename,
+    # Make it work, make it right, make it fast.
+    #$state->[STATE_POS2LOCATION] = {}, # maps pos to location descriptions
+
     Parser_reset($state);
     $state;
 }
@@ -1275,12 +1343,13 @@ sub location_format( $$ )
 # position, stores the current position and the given reason as the
 # new furthest position and reason.
 
+# FIXME: This shows only the last such reason, and it does not show
+# how the parser got there.
+
 sub consider_furthest($$) {
     my ($state, $reason)= (@_);
     my $pos= get_pos($state);
-    if ($state->[STATE_FURTHEST] <= $pos
-        #&& ! eoi($state->[STATE_INPUT], $pos)
-        )
+    if ($state->[STATE_FURTHEST] <= $pos)
     {
         $state->[STATE_FURTHEST]= $pos;
         $state->[STATE_FURTHEST_REASON]=
@@ -1355,7 +1424,7 @@ sub log_val($$) {
 
 # --------------------------------------------------------------------
 # Text representation of End Of File.
-my $EOI= "<EOI>";
+my $EOI= "<End Of Input>";
 
 # --------------------------------------------------------------------
 sub eoi($$) {
@@ -1375,6 +1444,8 @@ sub nomatch( $$$$ ) {
         . ": ".$reason;
     if (DEBUG() && $log->is_debug()) { $log->debug($reason); }
     consider_furthest($state, $reason);
+    #pop(@{$state->[STATE_TRYING]});
+
     [NOMATCH(), $reason];
 }
 
@@ -1692,9 +1763,9 @@ sub terminal_match($$)
         #}
         $match= $ {@$input}[$pos];
         if ($t == $match->[PROD_CATEGORY]) {
-            if (DEBUG() && $log->is_debug()) {
+            if (1 || DEBUG() && $log->is_debug()) {
                 #$log->debug("$ctx: matched token: " . varstring('match', $match));
-                $log->debug("$ctx: matched token: $ctx, text:".
+                $log->info("$ctx: matched token: $ctx, text:".
                             " '".$match->[RESULT_MATCH()]."'");
             }
             my $result= $match;
@@ -1976,6 +2047,14 @@ sub alternation_match($$)
             return [$t->[PROD_NAME], [$match]];
         }
         if ( ! $state->[STATE_EXPLAIN]) { next; }
+        #my $pos2location= $state->[STATE_POS2LOCATION];
+        #my $line;
+        #if (exists($pos2location->{$pos})) {
+        #    $pos2location->{$pos};
+        #}
+        #else {
+        #    $pos2location->{$pos}= $line_FIXME;
+        #}
         my $n= $i+1;
         my $reason1=
             (SHOW_LOCATION ? location($state) : "") .
@@ -2259,7 +2338,7 @@ sub list_match($$$$)
             $log->debug("$ctx: Matched separator '$separator_name']");
         }
     }
-    die("Must not reach this\n");
+    confess("Must not reach this\n");
 }
 
 # --------------------------------------------------------------------
@@ -2420,12 +2499,13 @@ sub match_with_memoize($$)
 
     my $location=
         matched($result)
-        ? [
-            get_pos($state),
-            $state->[STATE_LINENO],
-            $state->[STATE_LINE_START],
-            $result,
-        ]
+        ? state_to_location($state, $result)
+        #? [
+        #    get_pos($state),
+        #    $state->[STATE_LINENO],
+        #    $state->[STATE_LINE_START],
+        #    $result,
+        #]
         : $result;
     if (DEBUG() && $log->is_debug()) {
         $log->debug("Storing result in stash for ${pos}->$pos_stash_key"
@@ -2660,7 +2740,7 @@ sub test1($$$$$)
     # FIXME: Treat all evals like this?:
     #my $errors= $@;
     #if (defined($@)) { die("eval('$call') failed: '$@'\n"); }
-    if ('' ne $@) { die("eval('$call') failed: '$@'\n"); }
+    if ('' ne $@) { confess("eval('$call') failed: '$@'\n"); }
 
     assert(defined($result));
     # FIXME: Check DEBUG calls
